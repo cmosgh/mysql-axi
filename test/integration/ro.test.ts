@@ -207,6 +207,8 @@ describe("rows and values", () => {
     const piped = spawnCli("ro", ["query", "-"], "SELECT COUNT(*) AS n FROM orders");
     expect(piped.exitCode).toBe(0);
     expect(piped.stdout).toContain("result[1]{n}:\n  3");
+    const heredoc = spawnCli("ro", ["query", "--file", "-"], "SELECT name FROM customers WHERE name = 'Ada'");
+    expect(heredoc.stdout).toContain("result[1]{name}:\n  Ada");
   });
 
   it("runs bare SQL from the real command line as query", () => {

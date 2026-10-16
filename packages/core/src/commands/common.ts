@@ -38,15 +38,15 @@ export function sqlInput(parsed: ParsedArgs, usage: string): string {
     throw usageError(`unexpected argument '${parsed.positionals[1]}' - quote the whole statement as one argument`, [`usage: ${usage}`]);
   }
   let sql: string;
-  if (file !== undefined) {
+  if (file === "-" || (file === undefined && parsed.positionals[0] === "-")) {
+    if (process.stdin.isTTY) throw usageError("no SQL on stdin", [`usage: ${usage}`]);
+    sql = readFileSync(0, "utf-8");
+  } else if (file !== undefined) {
     try {
       sql = readFileSync(file, "utf-8");
     } catch {
       throw usageError(`cannot read --file '${file}'`);
     }
-  } else if (parsed.positionals[0] === "-") {
-    if (process.stdin.isTTY) throw usageError("no SQL on stdin", [`usage: ${usage}`]);
-    sql = readFileSync(0, "utf-8");
   } else if (parsed.positionals[0] !== undefined) {
     sql = parsed.positionals[0];
   } else {

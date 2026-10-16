@@ -295,7 +295,7 @@ export const queryHelp = (): string => `usage: ${tool().name} query "<sql>" [fla
 Runs ONE read statement: SELECT, WITH ... SELECT, SHOW, DESC, EXPLAIN or TABLE. \`${tool().name} "<sql>"\` is short for this.
 It runs in a read-only session and transaction; INTO, FOR UPDATE/SHARE, LOCK, SLEEP, GET_LOCK, LOAD_FILE, executable comments and optimizer hints are refused.
 flags:
-  ${CONNECTION_FLAGS_HELP}, --limit <n> (rows; default 50; max ${MAX_ROWS}), --full (no 200-char cell truncation), --file <path> (SQL from a file; or pass - for stdin), --timeout <seconds> (default 30)
+  ${CONNECTION_FLAGS_HELP}, --limit <n> (rows; default 50; max ${MAX_ROWS}), --full (no 200-char cell truncation), --file <path> (SQL from a file; - reads stdin), --timeout <seconds> (default 30)
 examples:
   ${tool().name} query "SELECT id, status FROM orders WHERE created_at > NOW() - INTERVAL 1 DAY"
   ${tool().name} query "SELECT r.id, r.order_id FROM reviews r LEFT JOIN orders o ON o.id = r.order_id WHERE o.id IS NULL"
