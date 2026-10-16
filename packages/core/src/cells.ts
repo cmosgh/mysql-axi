@@ -1,5 +1,8 @@
 import type { Column, RowsOutcome } from "./connection.js";
 import { block, type Obj } from "./render.js";
+import { isSecretColumn, REDACTED } from "./secrets.js";
+
+const MYSQL_TYPE_BIT = 16;
 
 export const CELL_CHARS = 200;
 const HEX_BYTES = 32;
@@ -11,6 +14,7 @@ const NUMERIC_STRING_TYPES = new Set([0, 246, 8]);
 export function cell(value: unknown, column: Column, full: boolean): unknown {
   if (value === null || value === undefined) return null;
   if (Buffer.isBuffer(value)) {
+    if (column.type === MYSQL_TYPE_BIT && value.length <= 6) return value.length === 0 ? 0 : value.readUIntBE(0, value.length);
     return value.length <= HEX_BYTES ? `0x${value.toString("hex")}` : `<blob ${value.length} bytes>`;
   }
   if (typeof value === "bigint") return Number.isSafeInteger(Number(value)) ? Number(value) : value.toString();
@@ -44,16 +48,20 @@ export function uniqueNames(columns: readonly Column[]): string[] {
 
 export function records(outcome: RowsOutcome, full: boolean): Obj[] {
   const names = uniqueNames(outcome.columns);
-  return outcome.rows.map((row) => Object.fromEntries(names.map((name, i) => [name, cell(row[i], outcome.columns[i]!, full)])));
+  const secret = outcome.columns.map((c) => isSecretColumn(c.name));
+  return outcome.rows.map((row) =>
+    Object.fromEntries(names.map((name, i) => [name, secret[i] && row[i] !== null && row[i] !== "" ? REDACTED : cell(row[i], outcome.columns[i]!, full)])),
+  );
 }
 
-/** `rows[N]{...}:` table plus an honest count line. */
+const SLOW_MS = 1000;
+
+/** `result[N]{...}:` table; a summary line only when rows were cut, none came back or it was slow. */
 export function rowsBlock(outcome: RowsOutcome, full: boolean, limit: number): string {
   const rows = records(outcome, full);
-  const summary: Obj = {
-    rows: outcome.truncated ? `${rows.length} shown - more rows exist (limit ${limit})` : rows.length,
-    elapsed_ms: outcome.elapsedMs,
-  };
-  if (rows.length === 0) summary["columns"] = uniqueNames(outcome.columns).join("; ");
-  return [block(summary), rows.length > 0 ? block({ result: rows }) : ""].filter(Boolean).join("\n");
+  const summary: Obj = {};
+  if (outcome.truncated) summary["rows"] = `${rows.length} shown - more rows exist (limit ${limit})`;
+  if (rows.length === 0) Object.assign(summary, { rows: 0, columns: uniqueNames(outcome.columns).join("; ") });
+  if (outcome.elapsedMs >= SLOW_MS) summary["elapsed_ms"] = outcome.elapsedMs;
+  return [Object.keys(summary).length > 0 ? block(summary) : "", rows.length > 0 ? block({ result: rows }) : ""].filter(Boolean).join("\n");
 }

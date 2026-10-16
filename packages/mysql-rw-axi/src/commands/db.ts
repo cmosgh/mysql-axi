@@ -17,7 +17,7 @@ examples:
   mysql-rw-axi db drop shop_test --confirm
 `;
 
-const SYSTEM_SCHEMAS = new Set(["mysql", "sys", "information_schema", "performance_schema"]);
+export const SYSTEM_SCHEMAS = new Set(["mysql", "sys", "information_schema", "performance_schema"]);
 
 function databaseName(raw: string | undefined): string {
   if (!raw || !/^[A-Za-z0-9_$-]{1,64}$/.test(raw)) throw usageError(`invalid database name '${raw ?? ""}' - use letters, digits, '_', '$' and '-'`);

@@ -9,7 +9,9 @@
     "build:skill": "tsx scripts/build-skill.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:integration": "MYSQL_AXI_IT_URL=${MYSQL_AXI_IT_URL:-mysql://root@127.0.0.1:3306} vitest run test/integration.test.ts",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:tokens": "pnpm run build && vitest run --config vitest.tokens.config.ts",
+    "tokens:readme": "tsx scripts/tokens-readme.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "check": "pnpm run typecheck && pnpm run test && pnpm run build && pnpm run build:skill -- --check",
     "version": "tsx scripts/sync-version.ts && git add packages/mysql-axi/package.json packages/mysql-rw-axi/package.json"

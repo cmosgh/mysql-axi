@@ -1,4 +1,4 @@
-import { axiError, usageError } from "./errors.js";
+import { AxiError, axiError, usageError } from "./errors.js";
 
 export type TokenKind = "word" | "ident" | "string" | "number" | "var" | "punct";
 
@@ -12,8 +12,8 @@ export interface Tokens {
   tokens: Token[];
   /** `/*! ... *\/` executable comment seen; its body is tokenized as code. */
   executableComment: boolean;
-  /** `/*+ ... *\/` optimizer hint seen; hints can SET_VAR system variables. */
-  optimizerHint: boolean;
+  /** Bodies of `/*+ ... *\/` optimizer hints; SET_VAR in one sets a system variable. */
+  hints: string[];
 }
 
 export interface TokenizeOptions {
@@ -32,7 +32,7 @@ export function tokenize(sql: string, options: TokenizeOptions = { backslashEsca
   if (sql.includes("\0")) throw usageError("SQL contains a NUL byte");
   const tokens: Token[] = [];
   let executableComment = false;
-  let optimizerHint = false;
+  const hints: string[] = [];
   let inExecutable = false;
   const n = sql.length;
   let i = 0;
@@ -84,9 +84,9 @@ export function tokenize(sql: string, options: TokenizeOptions = { backslashEsca
         while (i < n && /[0-9]/.test(sql[i]!)) i++;
         continue;
       }
-      if (marker === "+") optimizerHint = true;
       const end = sql.indexOf("*/", i + 2);
       if (end === -1) throw usageError("unterminated comment in SQL");
+      if (marker === "+") hints.push(sql.slice(i + 3, end));
       i = end + 2;
       continue;
     }
@@ -135,7 +135,7 @@ export function tokenize(sql: string, options: TokenizeOptions = { backslashEsca
     i++;
   }
   if (inExecutable) throw usageError("unterminated executable comment in SQL");
-  return { tokens, executableComment, optimizerHint };
+  return { tokens, executableComment, hints };
 }
 
 /** Split on `;` into non-empty statements (token lists). */
@@ -198,7 +198,7 @@ export function topLevelWords(statement: readonly Token[]): string[] {
   return words;
 }
 
-export const READ_VERBS = ["select", "with", "show", "desc", "describe", "explain", "table"] as const;
+export const READ_VERBS = ["select", "with", "show", "desc", "describe", "explain", "table", "checksum"] as const;
 const READ_MAIN_VERBS = new Set(["select", "table", "values"]);
 
 /** Words refused anywhere in a read-only statement, with the reason shown to the agent. */
@@ -209,6 +209,10 @@ const DENIED_WORDS: Record<string, string> = {
   lock: "LOCK IN SHARE MODE takes row locks",
   analyze: "ANALYZE executes the statement or rewrites statistics",
   analyse: "ANALYSE executes the statement",
+};
+
+/** Built-in functions refused when called; as plain names (a column called sleep) they are fine. */
+const DENIED_CALLS: Record<string, string> = {
   load_file: "LOAD_FILE reads files from the server host",
   sleep: "SLEEP holds a connection",
   benchmark: "BENCHMARK burns server CPU",
@@ -220,6 +224,49 @@ const DENIED_WORDS: Record<string, string> = {
   wait_for_executed_gtid_set: "it blocks waiting on replication",
   wait_until_sql_thread_after_gtids: "it blocks waiting on replication",
 };
+
+/** Hints that change state; the rest (INDEX, JOIN_ORDER, MAX_EXECUTION_TIME, ...) only steer the plan. */
+const DENIED_HINTS = /\b(set_var|resource_group)\b/i;
+
+/** Statements MySQL refuses to EXPLAIN inside a read-only transaction. */
+const WRITE_VERBS = new Set(["insert", "update", "delete", "replace"]);
+
+// Loadable functions (UDFs) that change server state; several ship enabled in MySQL 8.0
+// and run inside a read-only transaction.
+const DENIED_FUNCTION_PREFIXES = [
+  "asynchronous_connection_failover_",
+  "innodb_",
+  "group_replication_",
+  "version_tokens_",
+  "keyring_",
+  "audit_log_",
+  "mysql_firewall_",
+  "set_firewall_",
+  "service_get_",
+  "service_release_",
+  "gen_dictionary_",
+  "masking_dictionary_",
+];
+const DENIED_FUNCTIONS = new Set(["load_rewrite_rules", "sys_exec", "sys_eval"]);
+
+/** Why calling `name(...)` is refused. Quoted names count: `` `sleep`(1) `` still calls SLEEP. */
+function deniedCall(name: string): string | undefined {
+  const fn = name.toLowerCase();
+  if (DENIED_CALLS[fn]) return DENIED_CALLS[fn];
+  if (DENIED_FUNCTIONS.has(fn) || DENIED_FUNCTION_PREFIXES.some((prefix) => fn.startsWith(prefix))) {
+    return `${fn}() is a loadable function that can change server state`;
+  }
+  return undefined;
+}
+
+/** The bare name of a word, `ident` or (ANSI_QUOTES) "ident" token. */
+function callName(t: Token): string | undefined {
+  if (t.kind === "word") return t.text;
+  if (t.kind !== "ident" && t.kind !== "string") return undefined;
+  const quote = t.text[0]!;
+  if (t.text.length < 2 || t.text[t.text.length - 1] !== quote) return undefined;
+  return t.text.slice(1, -1).replaceAll(quote + quote, quote);
+}
 
 export interface ReadOnlyOptions {
   /** Extra suggestion appended to refusals (e.g. where writes can go instead). */
@@ -234,9 +281,10 @@ function refuse(reason: string, options: ReadOnlyOptions): never {
 }
 
 function checkReadOnly(sql: string, lex: TokenizeOptions, options: ReadOnlyOptions): void {
-  const { tokens, executableComment, optimizerHint } = tokenize(sql, lex);
+  const { tokens, executableComment, hints } = tokenize(sql, lex);
   if (executableComment) refuse("executable comments (/*! ... */) are not allowed", options);
-  if (optimizerHint) refuse("optimizer hints (/*+ ... */) are not allowed", options);
+  const stateHint = hints.map((h) => DENIED_HINTS.exec(h)?.[1]).find(Boolean);
+  if (stateHint) refuse(`the ${stateHint.toUpperCase()} optimizer hint changes session state`, options);
   const list = statements(tokens);
   if (list.length === 0) throw usageError("the SQL is empty");
   if (list.length > 1) refuse(`one statement per call (got ${list.length})`, options);
@@ -248,12 +296,27 @@ function checkReadOnly(sql: string, lex: TokenizeOptions, options: ReadOnlyOptio
   if (first?.kind !== "word" || !(READ_VERBS as readonly string[]).includes(first.text)) {
     refuse(`${first ? `'${first.text.toUpperCase()}'` : "this"} statements are not allowed`, options);
   }
+  if (first.text === "checksum" && !isWord(statement[i + 1], "table")) refuse("only CHECKSUM TABLE is a read", options);
+  if (first.text === "explain" || first.text === "desc" || first.text === "describe") {
+    // EXPLAIN [FORMAT = x] <statement>; DESC <table> has an identifier here instead.
+    let k = i + 1;
+    if (isWord(statement[k], "format")) k += isPunct(statement[k + 1], "=") ? 3 : 2;
+    const target = statement[k];
+    if (target?.kind === "word" && WRITE_VERBS.has(target.text)) {
+      refuse(`EXPLAIN ${target.text.toUpperCase()} needs a write session - explain the matching SELECT instead`, options);
+    }
+  }
   if (first.text === "with") {
     const verb = mainVerb(statement);
     if (!verb || !READ_MAIN_VERBS.has(verb)) refuse(`WITH ... ${verb ? verb.toUpperCase() : "?"} is not a read`, options);
   }
   for (let j = 0; j < statement.length; j++) {
     const t = statement[j]!;
+    if (isPunct(statement[j + 1], "(")) {
+      const name = callName(t);
+      const denied = name === undefined ? undefined : deniedCall(name);
+      if (denied) refuse(denied, options);
+    }
     if (t.kind !== "word") continue;
     const denied = DENIED_WORDS[t.text];
     if (denied) refuse(denied, options);
@@ -270,7 +333,15 @@ function checkReadOnly(sql: string, lex: TokenizeOptions, options: ReadOnlyOptio
  */
 export function assertReadOnly(sql: string, options: ReadOnlyOptions = {}): void {
   checkReadOnly(sql, { backslashEscapes: true }, options);
-  checkReadOnly(sql, { backslashEscapes: false }, options);
+  try {
+    checkReadOnly(sql, { backslashEscapes: false }, options);
+  } catch (error) {
+    // Lexes with backslash escapes but not without: a \' or \" inside a string.
+    if (error instanceof AxiError && error.code === "VALIDATION_ERROR" && /unterminated/.test(error.message)) {
+      throw usageError("a backslash-escaped quote (\\' or \\\") reads differently under NO_BACKSLASH_ESCAPES - double the quote instead ('O''Brien')");
+    }
+    throw error;
+  }
 }
 
 /** Quote an identifier with backticks. */

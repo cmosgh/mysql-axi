@@ -1,5 +1,8 @@
-/** Privileges that cannot change data, schema or server state. */
-const READ_PRIVILEGES = new Set(["USAGE", "SELECT", "SHOW VIEW", "SHOW DATABASES", "PROCESS", "REPLICATION CLIENT", "EXECUTE"]);
+/**
+ * Privileges that cannot change data, schema or server state. EXECUTE is not one:
+ * a definer-rights routine runs with its creator's privileges (e.g. SET GLOBAL).
+ */
+const READ_PRIVILEGES = new Set(["USAGE", "SELECT", "SHOW VIEW", "SHOW DATABASES", "PROCESS", "REPLICATION CLIENT"]);
 
 export interface GrantSummary {
   /** Privileges outside the read set, de-duplicated, in first-seen order. */

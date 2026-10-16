@@ -6,7 +6,7 @@ user-invocable: false
 
 # mysql-axi
 
-READ-ONLY MySQL CLI for agents - databases, tables, describe, sample rows and capped read queries in TOON. Writes are refused by a client-side guard plus a read-only session (not a grant check). It cannot change data; use it for any database that is not a local dev copy.
+READ-ONLY MySQL CLI for agents - explore schemas and run capped read queries, with TOON output. Writes are refused by a client-side guard plus a read-only session (not a grant check).
 
 ## Current guidance lives in the CLI
 

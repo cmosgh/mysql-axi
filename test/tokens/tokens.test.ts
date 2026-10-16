@@ -1,0 +1,296 @@
+// Local-only token benchmark: the same model, tasks and database, once with the plain
+// `mysql` client and with mysql-axi. TOKENS_MODEL picks the model (default sonnet); each run gets its own
+// container and writes test/tokens/results/<model>.json. `pnpm run tokens:readme` publishes them.
+// Needs Docker, a logged-in `claude` CLI and a `mysql` client on PATH. Never runs in CI.
+import { spawn, spawnSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { scalar, serverPort, sql } from "../integration/db.js";
+import { SHOP_FIXTURE } from "../integration/fixtures.js";
+import { renderTable, type Arm, type Call, type Results, type Run } from "./report.js";
+
+const RUNS = Number(process.env["TOKENS_RUNS"] ?? 3);
+const MODEL = process.env["TOKENS_MODEL"] ?? "sonnet";
+const CONCURRENCY = Number(process.env["TOKENS_CONCURRENCY"] ?? 4);
+const MAX_TURNS = 25;
+
+const root = fileURLToPath(new URL("../..", import.meta.url));
+const slug = MODEL.replace(/[^\w.-]+/g, "-");
+const runsDir = join(root, "test/tokens/.runs", slug);
+const DB = "shop";
+const USER = "bench";
+const PASSWORD = randomBytes(9).toString("hex");
+
+
+interface Task {
+  id: string;
+  prompt: string;
+  /** Checks the `ANSWER:` line. */
+  check: (answer: string) => boolean;
+}
+
+const expected: Record<string, string> = {};
+
+const ALL_TASKS: Task[] = [
+  {
+    id: "orders per status",
+    prompt: "How many orders are there per status?",
+    check: (a) => a.includes("3334") && a.includes("3333"),
+  },
+  {
+    id: "FK delete rule",
+    prompt: "Which foreign keys does the orders table have, and what happens to a customer's orders when that customer is deleted?",
+    check: (a) => /cascade/i.test(a),
+  },
+  {
+    id: "index use",
+    prompt: "Does this query use an index? SELECT id, total FROM orders WHERE status = 'paid' AND created_at >= '2026-10-01'. Answer yes or no first.",
+    check: (a) => /^\W*no\b/i.test(a),
+  },
+  {
+    id: "orphan rows",
+    prompt: "Which reviews point at an order that does not exist? Give the review ids.",
+    check: (a) => /\b7\b/.test(a) && /\b13\b/.test(a),
+  },
+  {
+    id: "largest table",
+    prompt: "Which table uses the most disk space?",
+    check: (a) => /\borders\b/i.test(a),
+  },
+  {
+    id: "duplicate emails",
+    prompt: "Which subscriber emails appear more than once, ignoring letter case?",
+    check: (a) => /a@x\.test/i.test(a) && /b@x\.test/i.test(a) && !/c@x\.test/i.test(a),
+  },
+  {
+    id: "top country revenue",
+    prompt: "Which shipping country (orders.meta, key ship.country) has the highest total revenue from paid orders?",
+    check: (a) => a.toUpperCase().includes(expected["country"]!),
+  },
+  {
+    id: "long text article",
+    prompt: "What is article 2 in the articles table about? A few words are enough.",
+    check: (a) => /rotat|credential|password/i.test(a),
+  },
+  {
+    id: "schema overview",
+    prompt: "Give an overview of every table in the database: its approximate row count and which tables it references. The ANSWER line lists the table names, comma-separated.",
+    check: (a) => ["articles", "customers", "orders", "reviews", "subscribers"].every((t) => a.toLowerCase().includes(t)),
+  },
+  {
+    id: "customers without orders",
+    prompt: "How many customers have never placed an order?",
+    check: (a) => /^\W*0\b/.test(a),
+  },
+];
+
+// TOKENS_ONLY="orders per status" runs a subset as a smoke test; it never touches the README.
+const ONLY = process.env["TOKENS_ONLY"]?.split(",").map((t) => t.trim());
+const TASKS = ONLY ? ALL_TASKS.filter((t) => ONLY.includes(t.id)) : ALL_TASKS;
+const ARMS: Arm[] = ["plain", "axi", "axi_home"];
+/** The home view, as `mysql-axi setup hooks` injects it at session start (axi_home arm). */
+let homeView = "";
+let setup: Record<string, unknown> = {};
+let binPath = "";
+
+function prompt(arm: Arm, task: Task): string {
+  const how =
+    arm === "plain"
+      ? `Use the \`mysql\` command-line client through Bash: \`mysql -h 127.0.0.1 -P ${serverPort()} -u ${USER} ${DB}\` (the password is already in MYSQL_PWD).`
+      : "Use the `mysql-axi` CLI through Bash; the connection is already configured.";
+  return `You have a local MySQL 8 database named ${DB}. ${how}\nTask: ${task.prompt}\nEnd your reply with one line: ANSWER: <short answer>`;
+}
+
+function envFor(arm: Arm, bin: string): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = {};
+  for (const [key, value] of Object.entries(process.env)) {
+    // Nothing from this test run or an outer Claude Code session leaks into the agent.
+    if (!/^(CLAUDECODE|CLAUDE_CODE_|MYSQL_|VITEST|NODE_ENV)/.test(key)) env[key] = value;
+  }
+  if (arm === "plain") return { ...env, MYSQL_PWD: PASSWORD };
+  return {
+    ...env,
+    PATH: `${bin}:${env["PATH"]}`,
+    MYSQL_AXI_URL: `mysql://${USER}:${PASSWORD}@127.0.0.1:${serverPort()}/${DB}`,
+    MYSQL_AXI_NO_KEYCHAIN: "1",
+    MYSQL_AXI_CONFIG_DIR: mkdtempSync(join(tmpdir(), "mysql-axi-tokens-")),
+  };
+}
+
+function runAgent(arm: Arm, task: Task, bin: string, index: number): Promise<Run> {
+  const args = [
+    "-p", prompt(arm, task),
+    "--model", MODEL,
+    "--output-format", "stream-json", "--verbose",
+    "--tools", "Bash",
+    "--allowedTools", arm === "plain" ? "Bash(mysql:*)" : `Bash(mysql-axi:*) Bash(${binPath}:*)`,
+    ...(arm === "axi_home" ? ["--append-system-prompt", homeView] : []),
+    "--strict-mcp-config",
+    "--setting-sources", "local",
+    "--no-session-persistence",
+    "--max-turns", String(MAX_TURNS),
+  ];
+  const cwd = mkdtempSync(join(tmpdir(), "mysql-axi-tokens-cwd-"));
+  return new Promise((resolve, reject) => {
+    const child = spawn("claude", args, { cwd, env: envFor(arm, bin), stdio: ["ignore", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (chunk: Buffer) => (stdout += chunk.toString()));
+    child.stderr.on("data", (chunk: Buffer) => (stderr += chunk.toString()));
+    child.on("error", reject);
+    child.on("close", () => {
+      writeFileSync(join(runsDir, `${task.id.replace(/\W+/g, "-")}.${arm}.${index}.jsonl`), stdout);
+      const events = stdout.split("\n").filter(Boolean).map((line) => JSON.parse(line) as Record<string, any>);
+      const result = events.find((e) => e["type"] === "result");
+      if (!result) return reject(new Error(`no result from claude (${arm}, ${task.id}): ${stderr.slice(0, 500)}`));
+      const calls: Call[] = [];
+      const byId = new Map<string, Call>();
+      for (const event of events) {
+        const content = event["message"]?.["content"];
+        if (!Array.isArray(content)) continue;
+        for (const part of content) {
+          if (part?.type === "tool_use") {
+            const call: Call = { command: scrub(String(part.input?.command ?? "")).slice(0, 400), outputChars: 0, isError: false, preview: "" };
+            calls.push(call);
+            byId.set(String(part.id), call);
+          }
+          if (part?.type !== "tool_result") continue;
+          const output = typeof part.content === "string" ? part.content : (part.content ?? []).map((c: any) => String(c?.text ?? "")).join("");
+          const call = byId.get(String(part.tool_use_id));
+          if (call) Object.assign(call, { outputChars: output.length, isError: Boolean(part.is_error), preview: scrub(output.slice(0, 200)) });
+        }
+      }
+      const toolOutputChars = calls.reduce((n, c) => n + c.outputChars, 0);
+      const toolCalls = calls.length;
+      const text = String(result["result"] ?? "");
+      // "3,334" and "3334" are the same answer.
+      const answer = ([...text.matchAll(/ANSWER:\s*(.*)/g)].pop()?.[1]?.trim() ?? "").replace(/(\d),(?=\d{3}\b)/g, "$1");
+      const usage = result["usage"] ?? {};
+      resolve({
+        arm,
+        task: task.id,
+        correct: answer !== "" && task.check(answer),
+        answer,
+        turns: Number(result["num_turns"] ?? 0),
+        toolCalls,
+        toolOutputChars,
+        inputTokens: Number(usage["input_tokens"] ?? 0),
+        cacheCreationTokens: Number(usage["cache_creation_input_tokens"] ?? 0),
+        cacheReadTokens: Number(usage["cache_read_input_tokens"] ?? 0),
+        outputTokens: Number(usage["output_tokens"] ?? 0),
+        costUsd: Number(result["total_cost_usd"] ?? 0),
+        durationMs: Number(result["duration_ms"] ?? 0),
+        model: Object.keys(result["modelUsage"] ?? {}).join("; ") || MODEL,
+        calls,
+      });
+    });
+  });
+}
+
+/** Machine-specific paths stay out of the committed results. */
+function scrub(text: string): string {
+  let out = binPath ? text.replaceAll(dirname(binPath), "<bin>") : text;
+  for (const dir of new Set([tmpdir(), realpathSync(tmpdir())])) out = out.replaceAll(dir, "$TMPDIR");
+  return out;
+}
+
+/** Runs jobs with at most `limit` in flight. */
+async function pool<T>(jobs: Array<() => Promise<T>>, limit: number): Promise<T[]> {
+  const results: T[] = new Array(jobs.length);
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(limit, jobs.length) }, async () => {
+      while (next < jobs.length) {
+        const index = next++;
+        results[index] = await jobs[index]!();
+      }
+    }),
+  );
+  return results;
+}
+
+
+const runs: Run[] = [];
+
+beforeAll(async () => {
+  for (const tool of ["claude", "mysql"]) {
+    if (spawnSync(tool, ["--version"]).status !== 0) throw new Error(`the token suite needs \`${tool}\` on PATH`);
+  }
+  await sql(`DROP DATABASE IF EXISTS ${DB}`);
+  await sql(`CREATE DATABASE ${DB}`);
+  for (const statement of [
+    ...SHOP_FIXTURE,
+    "CREATE TABLE reviews (id INT PRIMARY KEY, order_id BIGINT UNSIGNED NOT NULL, stars TINYINT)",
+    "INSERT INTO reviews SELECT d + 1, IF(d + 1 IN (7, 13), 990000 + d, (d + 1) * 10), 1 + d % 5 FROM (SELECT a.d * 10 + b.d AS d FROM digits a, digits b) s WHERE d < 20",
+    "CREATE TABLE subscribers (id INT AUTO_INCREMENT PRIMARY KEY, email VARCHAR(100), created_at DATETIME)",
+    "INSERT INTO subscribers (email, created_at) VALUES ('a@x.test', '2026-01-01'), ('A@x.test', '2026-01-02'), ('b@x.test', '2026-01-03'), ('b@x.test', '2026-01-04'), ('c@x.test', '2026-01-05')",
+    "CREATE TABLE articles (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, published_at DATE)",
+    `INSERT INTO articles VALUES
+       (1, 'Release notes 4.2', CONCAT('Version 4.2 adds dark mode and faster search. ', REPEAT('More release details follow here. ', 180)), '2026-03-01'),
+       (2, 'Operations handbook', CONCAT('This guide explains how to rotate database credentials without downtime. ', REPEAT('Background details and examples follow. ', 160)), '2026-04-01'),
+       (3, 'Hiring update', CONCAT('We are hiring two backend engineers in Berlin. ', REPEAT('Role details and benefits are listed. ', 170)), '2026-05-01'),
+       (4, 'Incident review', CONCAT('A cache stampede caused the outage on May 3rd. ', REPEAT('Timeline entries and follow-ups. ', 190)), '2026-06-01')`,
+  ]) {
+    await sql(statement, DB);
+  }
+  // The 5.7 clients still common on dev machines cannot speak caching_sha2_password.
+  await sql(`CREATE USER ${USER} IDENTIFIED WITH mysql_native_password BY '${PASSWORD}'`);
+  await sql(`GRANT ALL ON ${DB}.* TO ${USER}`);
+  expected["country"] = String(
+    await scalar("SELECT meta->>'$.ship.country' FROM orders WHERE status = 'paid' GROUP BY 1 ORDER BY SUM(total) DESC LIMIT 1", DB),
+  );
+
+  const bin = mkdtempSync(join(tmpdir(), "mysql-axi-tokens-bin-"));
+  // A symlink, like an npm global install, so the home view's `bin:` names this path.
+  const entry = join(root, "packages/mysql-axi/dist/mysql-axi.js");
+  chmodSync(entry, 0o755);
+  symlinkSync(entry, join(bin, "mysql-axi"));
+  binPath = join(bin, "mysql-axi");
+  mkdirSync(runsDir, { recursive: true });
+
+  // Both connections must work before any tokens are spent.
+  const plain = spawnSync("mysql", ["-h", "127.0.0.1", "-P", String(serverPort()), "-u", USER, DB, "-e", "SELECT COUNT(*) FROM orders"], { env: envFor("plain", bin), encoding: "utf-8" });
+  if (plain.status !== 0) throw new Error(`plain mysql client cannot connect: ${plain.stderr}`);
+  const axi = spawnSync("mysql-axi", ["query", "SELECT COUNT(*) AS n FROM orders"], { env: envFor("axi", bin), encoding: "utf-8" });
+  if (axi.status !== 0) throw new Error(`mysql-axi cannot connect (run pnpm run build first): ${axi.stdout}${axi.stderr}`);
+  homeView = spawnSync("mysql-axi", [], { env: envFor("axi", bin), encoding: "utf-8" }).stdout;
+  const git = (...args: string[]) => spawnSync("git", args, { cwd: root, encoding: "utf-8" }).stdout.trim();
+  setup = {
+    claude: spawnSync("claude", ["--version"], { encoding: "utf-8" }).stdout.trim(),
+    mysqlServer: String(await scalar("SELECT VERSION()")),
+    mysqlClient: spawnSync("mysql", ["--version"], { encoding: "utf-8" }).stdout.trim(),
+    mysqlAxi: `${JSON.parse(readFileSync(join(root, "packages/mysql-axi/package.json"), "utf-8")).version} (${git("rev-parse", "--short", "HEAD")}${git("status", "--porcelain") ? " + local changes" : ""})`,
+    maxTurns: MAX_TURNS,
+    concurrency: CONCURRENCY,
+    prompts: Object.fromEntries(ARMS.map((arm) => [arm, prompt(arm, { id: "<task>", prompt: "<task prompt>", check: () => true })])),
+    homeView: scrub(homeView),
+    tasks: Object.fromEntries(TASKS.map((t) => [t.id, t.prompt])),
+  };
+
+  const jobs = TASKS.flatMap((task) => Array.from({ length: RUNS }, (_, i) => ARMS.map((arm) => () => runAgent(arm, task, bin, i))).flat());
+  runs.push(...(await pool(jobs, CONCURRENCY)));
+});
+
+// The README is only rewritten on request: `pnpm run tokens:readme` reads results.json.
+afterAll(() => {
+  if (runs.length === 0) return;
+  if (ONLY) {
+    writeFileSync(join(runsDir, "smoke.json"), `${JSON.stringify(runs, null, 2)}\n`);
+    return;
+  }
+  const results: Results = { model: MODEL, runs: RUNS, date: new Date().toISOString(), setup, results: runs };
+  mkdirSync(join(root, "test/tokens/results"), { recursive: true });
+  writeFileSync(join(root, `test/tokens/results/${slug}.json`), `${JSON.stringify(results, null, 2)}\n`);
+  writeFileSync(join(runsDir, "table.md"), `${renderTable(results)}\n`);
+});
+
+describe("token usage: plain mysql client vs mysql-axi", () => {
+  it.each(TASKS.flatMap((t) => (["axi", "axi_home"] as const).map((arm) => [t.id, arm] as const)))("%s: the %s arm answers correctly in most runs", (id, arm) => {
+    const rs = runs.filter((r) => r.task === id && r.arm === arm);
+    expect(rs.filter((r) => r.correct).length, JSON.stringify(rs.map((r) => r.answer))).toBeGreaterThan(RUNS / 2);
+  });
+});

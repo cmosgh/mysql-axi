@@ -5,7 +5,7 @@ import { parseUrl } from "../packages/core/src/target.js";
 import { setTool } from "../packages/core/src/tool.js";
 import { classify, singleStatement } from "../packages/mysql-rw-axi/src/classify.js";
 import { isLoopback, loopbackOnly } from "../packages/mysql-rw-axi/src/loopback.js";
-import { splitScript } from "../packages/mysql-rw-axi/src/script.js";
+import { ScriptSplitter, splitScript } from "../packages/mysql-rw-axi/src/script.js";
 import { TOOL } from "../packages/mysql-rw-axi/src/cli.js";
 
 beforeAll(() => setTool(TOOL));
@@ -52,6 +52,10 @@ describe("grants", () => {
   it("treats a SELECT-only account as read-only", () => {
     expect(summarizeGrants(["GRANT SELECT ON `shop`.* TO `ro`@`%`"]).write).toEqual([]);
   });
+
+  it("counts EXECUTE as write-capable (definer-rights routines)", () => {
+    expect(summarizeGrants(["GRANT SELECT, EXECUTE ON `shop`.* TO `ro`@`%`"]).write).toEqual(["EXECUTE"]);
+  });
 });
 
 describe("write classification", () => {
@@ -67,6 +71,10 @@ describe("write classification", () => {
     "UPDATE orders SET total = (SELECT 1 FROM t WHERE id = 1)",
     "ALTER TABLE orders DROP COLUMN note",
     "WITH old AS (SELECT id FROM orders) DELETE FROM orders",
+    "REPLACE INTO customers (id, name) VALUES (1, 'x')",
+    "LOAD DATA INFILE '/tmp/x.csv' REPLACE INTO TABLE t",
+    "DELETE s1 FROM subscribers s1 JOIN subscribers s2 ON s1.email = s2.email AND s1.id > s2.id",
+    "ALTER TABLE t ALTER COLUMN c DROP DEFAULT, DROP COLUMN d",
   ])("needs --confirm: %s", (sql) => {
     expect(reason(sql)).toBeTruthy();
   });
@@ -75,6 +83,9 @@ describe("write classification", () => {
     "DELETE FROM orders WHERE id = 1",
     "UPDATE orders SET status = 'x' WHERE id = 1",
     "INSERT INTO orders (id) VALUES (1)",
+    "INSERT INTO customers (id, name) VALUES (1, 'x') ON DUPLICATE KEY UPDATE name = VALUES(name)",
+    "LOAD DATA INFILE '/tmp/x.csv' INTO TABLE t",
+    "ALTER TABLE t ALTER COLUMN c DROP DEFAULT",
     "ALTER TABLE orders ADD COLUMN note TEXT",
     "CREATE TABLE t (a INT)",
     "SELECT * FROM orders",
@@ -113,6 +124,34 @@ describe("script splitting", () => {
 
   it("fails on an unterminated string instead of guessing", () => {
     expect(() => splitScript("INSERT INTO t VALUES ('x);")).toThrow(/unterminated string/);
+  });
+});
+
+describe("streaming splitter", () => {
+  const script = [
+    "/*!40101 SET NAMES utf8mb4 */;",
+    "-- comment ; with delimiter",
+    "INSERT INTO t VALUES ('a;b', 'it''s', 'back\\\\slash\\';', \"dq;\"), (`x``y`, 2);",
+    "# hash comment",
+    "DELIMITER ;;",
+    "CREATE PROCEDURE p() BEGIN SELECT 1; SELECT '2;'; END;;",
+    "DELIMITER ;",
+    "SELECT 1--1;",
+    "SELECT /* c ; */ 2; SELECT 3",
+  ].join("\n");
+
+  it.each(Array.from({ length: 40 }, (_, i) => i + 1))("gives the same statements in chunks of %i chars", (size) => {
+    const splitter = new ScriptSplitter();
+    const got: string[] = [];
+    for (let i = 0; i < script.length; i += size) got.push(...splitter.push(script.slice(i, i + size)));
+    got.push(...splitter.end());
+    expect(got).toEqual(splitScript(script));
+  });
+
+  it("splits the reference script as the mysql client would", () => {
+    const statements = splitScript(script);
+    expect(statements).toHaveLength(7);
+    expect(statements[3]).toBe("CREATE PROCEDURE p() BEGIN SELECT 1; SELECT '2;'; END");
   });
 });
 

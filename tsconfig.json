@@ -10,6 +10,6 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["packages/*/src/**/*.ts", "packages/*/bin/**/*.ts", "test/**/*.ts", "scripts/**/*.ts"],
+  "include": ["vitest*.config.ts", "packages/*/src/**/*.ts", "packages/*/bin/**/*.ts", "test/**/*.ts", "scripts/**/*.ts"],
   "exclude": ["node_modules", "**/dist"]
 }

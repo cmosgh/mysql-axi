@@ -1,0 +1,3076 @@
+{
+  "model": "haiku",
+  "runs": 3,
+  "date": "2026-10-16T06:14:31.082Z",
+  "setup": {
+    "claude": "2.1.301 (Claude Code)",
+    "mysqlServer": "8.0.46",
+    "mysqlClient": "mysql  Ver 14.14 Distrib 5.7.42, for osx10.19 (x86_64) using  EditLine wrapper",
+    "mysqlAxi": "0.1.0 (b6251ba + local changes)",
+    "maxTurns": 25,
+    "concurrency": 4,
+    "prompts": {
+      "plain": "You have a local MySQL 8 database named shop. Use the `mysql` command-line client through Bash: `mysql -h 127.0.0.1 -P 53401 -u bench shop` (the password is already in MYSQL_PWD).\nTask: <task prompt>\nEnd your reply with one line: ANSWER: <short answer>",
+      "axi": "You have a local MySQL 8 database named shop. Use the `mysql-axi` CLI through Bash; the connection is already configured.\nTask: <task prompt>\nEnd your reply with one line: ANSWER: <short answer>",
+      "axi_home": "You have a local MySQL 8 database named shop. Use the `mysql-axi` CLI through Bash; the connection is already configured.\nTask: <task prompt>\nEnd your reply with one line: ANSWER: <short answer>"
+    },
+    "homeView": "bin: <bin>/mysql-axi\ndescription: \"READ-ONLY MySQL CLI for agents - explore schemas and run capped read queries, with TOON output. Writes are refused by a client-side guard plus a read-only session (not a grant check).\"\nmode: READ-ONLY - one SELECT/WITH/SHOW/DESC/EXPLAIN/TABLE statement per call; results capped at 50 rows\nconnection: \"bench@127.0.0.1:53401/shop (MYSQL_AXI_URL)\"\nhelp[2]:\n  Run `mysql-axi tables`, `mysql-axi describe <table>` or `mysql-axi sample <table>` to explore\n  Run `mysql-axi query \"<sql>\"` or `mysql-axi explain \"<select>\"`; `mysql-axi <command> --help` for flags\n",
+    "tasks": {
+      "orders per status": "How many orders are there per status?",
+      "FK delete rule": "Which foreign keys does the orders table have, and what happens to a customer's orders when that customer is deleted?",
+      "index use": "Does this query use an index? SELECT id, total FROM orders WHERE status = 'paid' AND created_at >= '2026-10-01'. Answer yes or no first.",
+      "orphan rows": "Which reviews point at an order that does not exist? Give the review ids.",
+      "largest table": "Which table uses the most disk space?",
+      "duplicate emails": "Which subscriber emails appear more than once, ignoring letter case?",
+      "top country revenue": "Which shipping country (orders.meta, key ship.country) has the highest total revenue from paid orders?",
+      "long text article": "What is article 2 in the articles table about? A few words are enough.",
+      "schema overview": "Give an overview of every table in the database: its approximate row count and which tables it references. The ANSWER line lists the table names, comma-separated.",
+      "customers without orders": "How many customers have never placed an order?"
+    },
+    "rescored": "answers normalized for thousands separators after the run (check fix); no run was repeated"
+  },
+  "results": [
+    {
+      "arm": "plain",
+      "task": "orders per status",
+      "correct": true,
+      "answer": "paid 3334, refunded 3333, pending 3333",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 55,
+      "inputTokens": 4,
+      "cacheCreationTokens": 3566,
+      "cacheReadTokens": 7633,
+      "outputTokens": 225,
+      "costUsd": 0.00090243,
+      "durationMs": 3295,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SELECT status, COUNT(*) AS order_count FROM orders GROUP BY status ORDER BY order_count DESC;\"",
+          "outputChars": 55,
+          "isError": false,
+          "preview": "status\torder_count\npaid\t3334\nrefunded\t3333\npending\t3333"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "orders per status",
+      "correct": true,
+      "answer": "paid 3334, refunded 3333, pending 3333 (10000 total)",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 523,
+      "inputTokens": 6,
+      "cacheCreationTokens": 3832,
+      "cacheReadTokens": 13370,
+      "outputTokens": 406,
+      "costUsd": 0.0011037,
+      "durationMs": 6016,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi query \"SELECT status, COUNT(*) AS order_count FROM shop.orders GROUP BY status ORDER BY order_count DESC\" 2>&1",
+          "outputChars": 73,
+          "isError": false,
+          "preview": "result[3]{status,order_count}:\n  paid,3334\n  refunded,3333\n  pending,3333"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "orders per status",
+      "correct": true,
+      "answer": "paid 3334; refunded 3333; pending 3333",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 980,
+      "inputTokens": 6,
+      "cacheCreationTokens": 4693,
+      "cacheReadTokens": 14541,
+      "outputTokens": 532,
+      "costUsd": 0.0013506100000000001,
+      "durationMs": 5289,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi tables",
+          "outputChars": 325,
+          "isError": false,
+          "preview": "database: shop\ntotal: 6 tables; 0 views; 2.1 MB\ntables[6]{name,kind,rows_est,size}:\n  articles,table,4,16 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  orders,table,10126,1.9 MB\n  reviews"
+        },
+        {
+          "command": "<bin>/mysql-axi describe orders",
+          "outputChars": 582,
+          "isError": false,
+          "preview": "table:\n  name: shop.orders\n  rows_est: 10126\n  size: 1.9 MB\ncolumns[6]{name,type,nullable,key,default,extra}:\n  id,bigint unsigned,false,PRI,null,auto_increment\n  customer_id,bigint unsigned,false,MUL"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT status, COUNT(*) AS order_count FROM orders GROUP BY status ORDER BY order_count DESC\"",
+          "outputChars": 73,
+          "isError": false,
+          "preview": "result[3]{status,order_count}:\n  paid,3334\n  refunded,3333\n  pending,3333"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "orders per status",
+      "correct": true,
+      "answer": "paid 3334, refunded 3333, pending 3333 (10000 orders total)",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 55,
+      "inputTokens": 4,
+      "cacheCreationTokens": 3566,
+      "cacheReadTokens": 7633,
+      "outputTokens": 285,
+      "costUsd": 0.0009324299999999999,
+      "durationMs": 4500,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SELECT status, COUNT(*) AS order_count FROM orders GROUP BY status ORDER BY order_count DESC;\"",
+          "outputChars": 55,
+          "isError": false,
+          "preview": "status\torder_count\npaid\t3334\nrefunded\t3333\npending\t3333"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "orders per status",
+      "correct": true,
+      "answer": "paid 3334, refunded 3333, pending 3333",
+      "turns": 5,
+      "toolCalls": 4,
+      "toolOutputChars": 1330,
+      "inputTokens": 6,
+      "cacheCreationTokens": 4500,
+      "cacheReadTokens": 13619,
+      "outputTokens": 604,
+      "costUsd": 0.00133879,
+      "durationMs": 6228,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi \"SHOW TABLES FROM shop\" 2>&1 | head -50",
+          "outputChars": 225,
+          "isError": false,
+          "preview": "error: unknown command 'SHOW TABLES FROM shop'\ncode: VALIDATION_ERROR\nhelp[2]:\n  commands: databases, tables, describe, sample, query, explain, doctor, auth, setup (no command = overview)\n  Run `mysql"
+        },
+        {
+          "command": "mysql-axi describe orders 2>&1 | head -60",
+          "outputChars": 582,
+          "isError": false,
+          "preview": "table:\n  name: shop.orders\n  rows_est: 10126\n  size: 1.9 MB\ncolumns[6]{name,type,nullable,key,default,extra}:\n  id,bigint unsigned,false,PRI,null,auto_increment\n  customer_id,bigint unsigned,false,MUL"
+        },
+        {
+          "command": "mysql-axi query \"SELECT status, COUNT(*) AS order_count FROM orders GROUP BY status ORDER BY order_count DESC\" 2>&1 | head -60",
+          "outputChars": 73,
+          "isError": false,
+          "preview": "result[3]{status,order_count}:\n  paid,3334\n  refunded,3333\n  pending,3333"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "orders per status",
+      "correct": true,
+      "answer": "paid 3334; refunded 3333; pending 3333",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 73,
+      "inputTokens": 4,
+      "cacheCreationTokens": 3901,
+      "cacheReadTokens": 7947,
+      "outputTokens": 252,
+      "costUsd": 0.0009860700000000001,
+      "durationMs": 3375,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi query \"SELECT status, COUNT(*) AS order_count FROM orders GROUP BY status ORDER BY order_count DESC\"",
+          "outputChars": 73,
+          "isError": false,
+          "preview": "result[3]{status,order_count}:\n  paid,3334\n  refunded,3333\n  pending,3333"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "orders per status",
+      "correct": true,
+      "answer": "paid 3334, refunded 3333, pending 3333",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 55,
+      "inputTokens": 4,
+      "cacheCreationTokens": 3566,
+      "cacheReadTokens": 7633,
+      "outputTokens": 249,
+      "costUsd": 0.0009144299999999999,
+      "durationMs": 4376,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SELECT status, COUNT(*) AS order_count FROM orders GROUP BY status ORDER BY order_count DESC;\"",
+          "outputChars": 55,
+          "isError": false,
+          "preview": "status\torder_count\npaid\t3334\nrefunded\t3333\npending\t3333"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "orders per status",
+      "correct": true,
+      "answer": "paid 3334, refunded 3333, pending 3333",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 523,
+      "inputTokens": 6,
+      "cacheCreationTokens": 3832,
+      "cacheReadTokens": 13375,
+      "outputTokens": 376,
+      "costUsd": 0.00108875,
+      "durationMs": 5359,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi query \"SELECT status, COUNT(*) AS order_count FROM orders GROUP BY status ORDER BY order_count DESC\" 2>&1",
+          "outputChars": 73,
+          "isError": false,
+          "preview": "result[3]{status,order_count}:\n  paid,3334\n  refunded,3333\n  pending,3333"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "orders per status",
+      "correct": true,
+      "answer": "paid 3334; refunded 3333; pending 3333 (10000 total)",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 980,
+      "inputTokens": 8,
+      "cacheCreationTokens": 4789,
+      "cacheReadTokens": 20884,
+      "outputTokens": 767,
+      "costUsd": 0.00155094,
+      "durationMs": 7937,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi tables",
+          "outputChars": 325,
+          "isError": false,
+          "preview": "database: shop\ntotal: 6 tables; 0 views; 2.1 MB\ntables[6]{name,kind,rows_est,size}:\n  articles,table,4,16 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  orders,table,10126,1.9 MB\n  reviews"
+        },
+        {
+          "command": "<bin>/mysql-axi describe orders",
+          "outputChars": 582,
+          "isError": false,
+          "preview": "table:\n  name: shop.orders\n  rows_est: 10126\n  size: 1.9 MB\ncolumns[6]{name,type,nullable,key,default,extra}:\n  id,bigint unsigned,false,PRI,null,auto_increment\n  customer_id,bigint unsigned,false,MUL"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT status, COUNT(*) AS order_count FROM orders GROUP BY status ORDER BY order_count DESC\"",
+          "outputChars": 73,
+          "isError": false,
+          "preview": "result[3]{status,order_count}:\n  paid,3334\n  refunded,3333\n  pending,3333"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "FK delete rule",
+      "correct": true,
+      "answer": "`orders` has one FK, `fk_orders_customer` (customer_id \u2192 customers.id), with ON DELETE CASCADE, so deleting a customer deletes their orders.",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 243,
+      "inputTokens": 4,
+      "cacheCreationTokens": 3947,
+      "cacheReadTokens": 7656,
+      "outputTokens": 684,
+      "costUsd": 0.0012083600000000001,
+      "durationMs": 5675,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SELECT CONSTRAINT_NAME, COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='shop' AND TABLE_NAME='orders' AND REFERENCED_TABLE_NAME IS NOT NULL; SELECT CONSTRAINT_NAME, TABLE_NAME, UPDATE_RULE, DELETE_RULE, REFERENCED_TABLE_NAME FROM information_schema.REFERENTIAL_CONSTRAINTS WHERE CON",
+          "outputChars": 243,
+          "isError": false,
+          "preview": "CONSTRAINT_NAME\tCOLUMN_NAME\tREFERENCED_TABLE_NAME\tREFERENCED_COLUMN_NAME\nfk_orders_customer\tcustomer_id\tcustomers\tid\nCONSTRAINT_NAME\tTABLE_NAME\tUPDATE_RULE\tDELETE_RULE\tREFERENCED_TABLE_NAME\nfk_orders_"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "FK delete rule",
+      "correct": true,
+      "answer": "orders has one FK, fk_orders_customer (customer_id \u2192 customers.id, ON DELETE CASCADE); deleting a customer deletes all their orders.",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 1209,
+      "inputTokens": 6,
+      "cacheCreationTokens": 4497,
+      "cacheReadTokens": 13420,
+      "outputTokens": 900,
+      "costUsd": 0.0014842,
+      "durationMs": 7102,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi describe orders 2>&1; echo ---; mysql-axi query \"SELECT rc.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, rc.UPDATE_RULE, rc.DELETE_RULE FROM information_schema.REFERENTIAL_CONSTRAINTS rc JOIN information_schema.KEY_COLUMN_USAGE kcu ON kcu.CONSTRAINT_NAME = rc.CONSTRAINT_NAME AND kcu.CONSTRAINT_SCHEMA = rc.CONSTRAINT_SCHEMA AND kcu.TABLE_NAME = r",
+          "outputChars": 759,
+          "isError": false,
+          "preview": "table:\n  name: shop.orders\n  rows_est: 10126\n  size: 1.9 MB\ncolumns[6]{name,type,nullable,key,default,extra}:\n  id,bigint unsigned,false,PRI,null,auto_increment\n  customer_id,bigint unsigned,false,MUL"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "FK delete rule",
+      "correct": true,
+      "answer": "`orders` has one FK, `customer_id` \u2192 `customers.id` (ON DELETE CASCADE), so deleting a customer deletes their orders.",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 772,
+      "inputTokens": 4,
+      "cacheCreationTokens": 4783,
+      "cacheReadTokens": 7974,
+      "outputTokens": 939,
+      "costUsd": 0.0015062400000000003,
+      "durationMs": 5176,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi describe orders",
+          "outputChars": 582,
+          "isError": false,
+          "preview": "table:\n  name: shop.orders\n  rows_est: 10126\n  size: 1.9 MB\ncolumns[6]{name,type,nullable,key,default,extra}:\n  id,bigint unsigned,false,PRI,null,auto_increment\n  customer_id,bigint unsigned,false,MUL"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT rc.CONSTRAINT_NAME, rc.TABLE_NAME, rc.REFERENCED_TABLE_NAME, rc.UPDATE_RULE, rc.DELETE_RULE, kcu.COLUMN_NAME, kcu.REFERENCED_COLUMN_NAME FROM information_schema.REFERENTIAL_CONSTRAINTS rc JOIN information_schema.KEY_COLUMN_USAGE kcu ON kcu.CONSTRAINT_SCHEMA = rc.CONSTRAINT_SCHEMA AND kcu.CONSTRAINT",
+          "outputChars": 190,
+          "isError": false,
+          "preview": "result[1]{CONSTRAINT_NAME,TABLE_NAME,REFERENCED_TABLE_NAME,UPDATE_RULE,DELETE_RULE,COLUMN_NAME,REFERENCED_COLUMN_NAME}:\n  fk_orders_customer,orders,customers,NO ACTION,CASCADE,customer_id,id"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "FK delete rule",
+      "correct": true,
+      "answer": "`orders` has one FK, `fk_orders_customer` (`customer_id` \u2192 `customers.id`), with `ON DELETE CASCADE`, so deleting a customer deletes their orders.",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 756,
+      "inputTokens": 4,
+      "cacheCreationTokens": 4312,
+      "cacheReadTokens": 7658,
+      "outputTokens": 854,
+      "costUsd": 0.0013663800000000002,
+      "durationMs": 7104,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SELECT rc.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, rc.UPDATE_RULE, rc.DELETE_RULE FROM information_schema.REFERENTIAL_CONSTRAINTS rc JOIN information_schema.KEY_COLUMN_USAGE kcu ON kcu.CONSTRAINT_SCHEMA=rc.CONSTRAINT_SCHEMA AND kcu.CONSTRAINT_NAME=rc.CONSTRAINT_NAME AND kcu.TABLE_NAME=rc.TABLE_NAME WHERE ",
+          "outputChars": 756,
+          "isError": false,
+          "preview": "CONSTRAINT_NAME\tCOLUMN_NAME\tREFERENCED_TABLE_NAME\tREFERENCED_COLUMN_NAME\tUPDATE_RULE\tDELETE_RULE\nfk_orders_customer\tcustomer_id\tcustomers\tid\tNO ACTION\tCASCADE\n*************************** 1. row ******"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "FK delete rule",
+      "correct": true,
+      "answer": "orders has one FK, `fk_orders_customer` (customer_id \u2192 customers.id, ON DELETE CASCADE), so deleting a customer deletes all their orders.",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 1209,
+      "inputTokens": 6,
+      "cacheCreationTokens": 4497,
+      "cacheReadTokens": 13420,
+      "outputTokens": 893,
+      "costUsd": 0.0014807000000000002,
+      "durationMs": 7121,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi describe orders 2>&1; echo ---; mysql-axi query \"SELECT rc.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, rc.UPDATE_RULE, rc.DELETE_RULE FROM information_schema.REFERENTIAL_CONSTRAINTS rc JOIN information_schema.KEY_COLUMN_USAGE kcu ON kcu.CONSTRAINT_SCHEMA = rc.CONSTRAINT_SCHEMA AND kcu.CONSTRAINT_NAME = rc.CONSTRAINT_NAME AND kcu.TABLE_NAME = r",
+          "outputChars": 759,
+          "isError": false,
+          "preview": "table:\n  name: shop.orders\n  rows_est: 10126\n  size: 1.9 MB\ncolumns[6]{name,type,nullable,key,default,extra}:\n  id,bigint unsigned,false,PRI,null,auto_increment\n  customer_id,bigint unsigned,false,MUL"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "FK delete rule",
+      "correct": true,
+      "answer": "One FK, `fk_orders_customer` (customer_id \u2192 customers.id, ON DELETE CASCADE); deleting a customer deletes all their orders.",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 852,
+      "inputTokens": 4,
+      "cacheCreationTokens": 4758,
+      "cacheReadTokens": 7972,
+      "outputTokens": 845,
+      "costUsd": 0.00145422,
+      "durationMs": 6184,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi describe orders",
+          "outputChars": 582,
+          "isError": false,
+          "preview": "table:\n  name: shop.orders\n  rows_est: 10126\n  size: 1.9 MB\ncolumns[6]{name,type,nullable,key,default,extra}:\n  id,bigint unsigned,false,PRI,null,auto_increment\n  customer_id,bigint unsigned,false,MUL"
+        },
+        {
+          "command": "mysql-axi query \"SELECT CONSTRAINT_NAME, COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = 'shop' AND TABLE_NAME = 'orders' AND REFERENCED_TABLE_NAME IS NOT NULL\"",
+          "outputChars": 130,
+          "isError": false,
+          "preview": "result[1]{CONSTRAINT_NAME,COLUMN_NAME,REFERENCED_TABLE_NAME,REFERENCED_COLUMN_NAME}:\n  fk_orders_customer,customer_id,customers,id"
+        },
+        {
+          "command": "mysql-axi query \"SELECT CONSTRAINT_NAME, TABLE_NAME, UPDATE_RULE, DELETE_RULE, REFERENCED_TABLE_NAME FROM information_schema.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = 'shop' AND TABLE_NAME = 'orders'\"",
+          "outputChars": 140,
+          "isError": false,
+          "preview": "result[1]{CONSTRAINT_NAME,TABLE_NAME,UPDATE_RULE,DELETE_RULE,REFERENCED_TABLE_NAME}:\n  fk_orders_customer,orders,NO ACTION,CASCADE,customers"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "FK delete rule",
+      "correct": true,
+      "answer": "One FK, `orders.customer_id` \u2192 `customers.id` with ON DELETE CASCADE, so deleting a customer deletes their orders.",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 225,
+      "inputTokens": 4,
+      "cacheCreationTokens": 3933,
+      "cacheReadTokens": 7658,
+      "outputTokens": 686,
+      "costUsd": 0.00120658,
+      "durationMs": 5747,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SELECT CONSTRAINT_NAME, COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='shop' AND TABLE_NAME='orders' AND REFERENCED_TABLE_NAME IS NOT NULL; SELECT CONSTRAINT_NAME, UPDATE_RULE, DELETE_RULE, REFERENCED_TABLE_NAME FROM information_schema.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_SCHE",
+          "outputChars": 225,
+          "isError": false,
+          "preview": "CONSTRAINT_NAME\tCOLUMN_NAME\tREFERENCED_TABLE_NAME\tREFERENCED_COLUMN_NAME\nfk_orders_customer\tcustomer_id\tcustomers\tid\nCONSTRAINT_NAME\tUPDATE_RULE\tDELETE_RULE\tREFERENCED_TABLE_NAME\nfk_orders_customer\tNO"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "FK delete rule",
+      "correct": true,
+      "answer": "`orders` has one FK (`fk_orders_customer`, customer_id \u2192 customers.id); deleting a customer cascades and deletes all their orders.",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 1209,
+      "inputTokens": 6,
+      "cacheCreationTokens": 4494,
+      "cacheReadTokens": 13413,
+      "outputTokens": 788,
+      "costUsd": 0.00142753,
+      "durationMs": 6140,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi describe orders 2>&1; echo ---; mysql-axi query \"SELECT rc.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, rc.UPDATE_RULE, rc.DELETE_RULE FROM information_schema.REFERENTIAL_CONSTRAINTS rc JOIN information_schema.KEY_COLUMN_USAGE kcu ON kcu.CONSTRAINT_SCHEMA = rc.CONSTRAINT_SCHEMA AND kcu.CONSTRAINT_NAME = rc.CONSTRAINT_NAME AND kcu.TABLE_NAME = r",
+          "outputChars": 759,
+          "isError": false,
+          "preview": "table:\n  name: shop.orders\n  rows_est: 10126\n  size: 1.9 MB\ncolumns[6]{name,type,nullable,key,default,extra}:\n  id,bigint unsigned,false,PRI,null,auto_increment\n  customer_id,bigint unsigned,false,MUL"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "FK delete rule",
+      "correct": true,
+      "answer": "`orders` has one foreign key, `customer_id` \u2192 `customers.id` with ON DELETE CASCADE, so deleting a customer also deletes all their orders.",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 772,
+      "inputTokens": 4,
+      "cacheCreationTokens": 4780,
+      "cacheReadTokens": 7970,
+      "outputTokens": 976,
+      "costUsd": 0.0015241000000000002,
+      "durationMs": 5739,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi describe orders",
+          "outputChars": 582,
+          "isError": false,
+          "preview": "table:\n  name: shop.orders\n  rows_est: 10126\n  size: 1.9 MB\ncolumns[6]{name,type,nullable,key,default,extra}:\n  id,bigint unsigned,false,PRI,null,auto_increment\n  customer_id,bigint unsigned,false,MUL"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT rc.CONSTRAINT_NAME, rc.TABLE_NAME, kcu.COLUMN_NAME, rc.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, rc.UPDATE_RULE, rc.DELETE_RULE FROM information_schema.REFERENTIAL_CONSTRAINTS rc JOIN information_schema.KEY_COLUMN_USAGE kcu ON kcu.CONSTRAINT_SCHEMA = rc.CONSTRAINT_SCHEMA AND kcu.CONSTRAINT",
+          "outputChars": 190,
+          "isError": false,
+          "preview": "result[1]{CONSTRAINT_NAME,TABLE_NAME,COLUMN_NAME,REFERENCED_TABLE_NAME,REFERENCED_COLUMN_NAME,UPDATE_RULE,DELETE_RULE}:\n  fk_orders_customer,orders,customer_id,customers,id,NO ACTION,CASCADE"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "index use",
+      "correct": true,
+      "answer": "no. The query does a full table scan because no index covers `status` or `created_at`.",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 584,
+      "inputTokens": 4,
+      "cacheCreationTokens": 3883,
+      "cacheReadTokens": 7680,
+      "outputTokens": 439,
+      "costUsd": 0.0010733000000000001,
+      "durationMs": 4188,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"EXPLAIN SELECT id, total FROM orders WHERE status = 'paid' AND created_at >= '2026-10-01'\\G; SHOW INDEX FROM orders;\"",
+          "outputChars": 584,
+          "isError": false,
+          "preview": "*************************** 1. row ***************************\n           id: 1\n  select_type: SIMPLE\n        table: orders\n   partitions: NULL\n         type: ALL\npossible_keys: NULL\n          key: NU"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "index use",
+      "correct": true,
+      "answer": "No \u2014 full table scan; no index covers status or created_at.",
+      "turns": 5,
+      "toolCalls": 4,
+      "toolOutputChars": 2369,
+      "inputTokens": 8,
+      "cacheCreationTokens": 5200,
+      "cacheReadTokens": 21067,
+      "outputTokens": 800,
+      "costUsd": 0.0016514700000000002,
+      "durationMs": 7411,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi \"EXPLAIN SELECT id, total FROM shop.orders WHERE status = 'paid' AND created_at >= '2026-10-01'\" 2>&1; echo \"---\"; mysql-axi \"SHOW INDEX FROM shop.orders\" 2>&1",
+          "outputChars": 548,
+          "isError": true,
+          "preview": "Exit code 2\nerror: \"unknown command 'EXPLAIN SELECT id, total FROM shop.orders WHERE status = 'paid' AND created_at >= '2026-10-01''\"\ncode: VALIDATION_ERROR\nhelp[2]:\n  commands: databases, tables, des"
+        },
+        {
+          "command": "mysql-axi explain --help 2>&1 | head -30; echo \"---\"; mysql-axi describe orders 2>&1",
+          "outputChars": 1203,
+          "isError": false,
+          "preview": "usage: mysql-axi explain \"<select>\" [flags]\nThe optimizer plan of a read query (EXPLAIN FORMAT=TREE). --analyze runs the query read-only and adds actual rows and times.\nflags:\n  --profile <name>, -d/-"
+        },
+        {
+          "command": "mysql-axi explain --format traditional \"SELECT id, total FROM orders WHERE status = 'paid' AND created_at >= '2026-10-01'\" 2>&1",
+          "outputChars": 168,
+          "isError": false,
+          "preview": "result[1]{id,select_type,table,partitions,type,possible_keys,key,key_len,ref,rows,filtered,Extra}:\n  1,SIMPLE,orders,null,ALL,null,null,null,null,10126,3.33,Using where"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "index use",
+      "correct": true,
+      "answer": "no, full table scan; no index on status or created_at.",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 767,
+      "inputTokens": 4,
+      "cacheCreationTokens": 4476,
+      "cacheReadTokens": 7994,
+      "outputTokens": 434,
+      "costUsd": 0.0011925400000000002,
+      "durationMs": 4086,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi explain \"SELECT id, total FROM orders WHERE status = 'paid' AND created_at >= '2026-10-01'\"",
+          "outputChars": 185,
+          "isError": false,
+          "preview": "plan:\n---\n-> Filter: ((orders.`status` = 'paid') and (orders.created_at >= TIMESTAMP'2026-10-01 00:00:00'))  (cost=1037 rows=337)\n    -> Table scan on orders  (cost=1037 rows=10126)\n---"
+        },
+        {
+          "command": "<bin>/mysql-axi describe orders",
+          "outputChars": 582,
+          "isError": false,
+          "preview": "table:\n  name: shop.orders\n  rows_est: 10126\n  size: 1.9 MB\ncolumns[6]{name,type,nullable,key,default,extra}:\n  id,bigint unsigned,false,PRI,null,auto_increment\n  customer_id,bigint unsigned,false,MUL"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "index use",
+      "correct": true,
+      "answer": "no, full table scan; no index on status or created_at",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 428,
+      "inputTokens": 4,
+      "cacheCreationTokens": 3850,
+      "cacheReadTokens": 7678,
+      "outputTokens": 480,
+      "costUsd": 0.00108718,
+      "durationMs": 4459,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SHOW INDEX FROM orders; EXPLAIN SELECT id, total FROM orders WHERE status = 'paid' AND created_at >= '2026-10-01';\"",
+          "outputChars": 428,
+          "isError": false,
+          "preview": "Table\tNon_unique\tKey_name\tSeq_in_index\tColumn_name\tCollation\tCardinality\tSub_part\tPacked\tNull\tIndex_type\tComment\tIndex_comment\tVisible\tExpression\norders\t0\tPRIMARY\t1\tid\tA\t10126\tNULL\tNULL\t\tBTREE\t\t\tYES\tN"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "index use",
+      "correct": true,
+      "answer": "No, it does a full table scan because no index covers `status` or `created_at`.",
+      "turns": 6,
+      "toolCalls": 5,
+      "toolOutputChars": 2561,
+      "inputTokens": 8,
+      "cacheCreationTokens": 5380,
+      "cacheReadTokens": 21161,
+      "outputTokens": 968,
+      "costUsd": 0.00177241,
+      "durationMs": 7778,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi \"EXPLAIN SELECT id, total FROM orders WHERE status = 'paid' AND created_at >= '2026-10-01'\" 2>&1",
+          "outputChars": 307,
+          "isError": true,
+          "preview": "Exit code 2\nerror: \"unknown command 'EXPLAIN SELECT id, total FROM orders WHERE status = 'paid' AND created_at >= '2026-10-01''\"\ncode: VALIDATION_ERROR\nhelp[2]:\n  commands: databases, tables, describe"
+        },
+        {
+          "command": "mysql-axi \"SHOW INDEX FROM shop.orders\" 2>&1",
+          "outputChars": 243,
+          "isError": true,
+          "preview": "Exit code 2\nerror: unknown command 'SHOW INDEX FROM shop.orders'\ncode: VALIDATION_ERROR\nhelp[2]:\n  commands: databases, tables, describe, sample, query, explain, doctor, auth, setup (no command = over"
+        },
+        {
+          "command": "mysql-axi explain --help 2>&1; echo ---; mysql-axi describe orders 2>&1",
+          "outputChars": 1203,
+          "isError": false,
+          "preview": "usage: mysql-axi explain \"<select>\" [flags]\nThe optimizer plan of a read query (EXPLAIN FORMAT=TREE). --analyze runs the query read-only and adds actual rows and times.\nflags:\n  --profile <name>, -d/-"
+        },
+        {
+          "command": "mysql-axi explain \"SELECT id, total FROM orders WHERE status = 'paid' AND created_at >= '2026-10-01'\" 2>&1; echo ---; mysql-axi explain --format traditional \"SELECT id, total FROM orders WHERE status = 'paid' AND created_at >= '2026-10-01'\" 2>&1",
+          "outputChars": 358,
+          "isError": false,
+          "preview": "plan:\n---\n-> Filter: ((orders.`status` = 'paid') and (orders.created_at >= TIMESTAMP'2026-10-01 00:00:00'))  (cost=1037 rows=337)\n    -> Table scan on orders  (cost=1037 rows=10126)\n---\n---\nresult[1]{"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "index use",
+      "correct": true,
+      "answer": "No, it does a full table scan because there is no index on `status` or `created_at`.",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 767,
+      "inputTokens": 4,
+      "cacheCreationTokens": 4474,
+      "cacheReadTokens": 7992,
+      "outputTokens": 441,
+      "costUsd": 0.00119562,
+      "durationMs": 4135,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi explain \"SELECT id, total FROM orders WHERE status = 'paid' AND created_at >= '2026-10-01'\"",
+          "outputChars": 185,
+          "isError": false,
+          "preview": "plan:\n---\n-> Filter: ((orders.`status` = 'paid') and (orders.created_at >= TIMESTAMP'2026-10-01 00:00:00'))  (cost=1037 rows=337)\n    -> Table scan on orders  (cost=1037 rows=10126)\n---"
+        },
+        {
+          "command": "<bin>/mysql-axi describe orders",
+          "outputChars": 582,
+          "isError": false,
+          "preview": "table:\n  name: shop.orders\n  rows_est: 10126\n  size: 1.9 MB\ncolumns[6]{name,type,nullable,key,default,extra}:\n  id,bigint unsigned,false,PRI,null,auto_increment\n  customer_id,bigint unsigned,false,MUL"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "index use",
+      "correct": true,
+      "answer": "No. The query does a full table scan because there is no index on `status` or `created_at`.",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 1014,
+      "inputTokens": 4,
+      "cacheCreationTokens": 4144,
+      "cacheReadTokens": 7682,
+      "outputTokens": 532,
+      "costUsd": 0.00117202,
+      "durationMs": 5269,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"EXPLAIN SELECT id, total FROM orders WHERE status = 'paid' AND created_at >= '2026-10-01'\\G\" && mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SHOW INDEX FROM orders\\G\"",
+          "outputChars": 1014,
+          "isError": false,
+          "preview": "*************************** 1. row ***************************\n           id: 1\n  select_type: SIMPLE\n        table: orders\n   partitions: NULL\n         type: ALL\npossible_keys: NULL\n          key: NU"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "index use",
+      "correct": true,
+      "answer": "No, it does a full table scan because no index covers `status` or `created_at`.",
+      "turns": 5,
+      "toolCalls": 4,
+      "toolOutputChars": 2694,
+      "inputTokens": 8,
+      "cacheCreationTokens": 5299,
+      "cacheReadTokens": 20842,
+      "outputTokens": 881,
+      "costUsd": 0.0017095200000000002,
+      "durationMs": 8425,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi \"EXPLAIN SELECT id, total FROM shop.orders WHERE status = 'paid' AND created_at >= '2026-10-01'\" 2>&1; echo \"---\"; mysql-axi \"SHOW INDEX FROM shop.orders\" 2>&1",
+          "outputChars": 548,
+          "isError": true,
+          "preview": "Exit code 2\nerror: \"unknown command 'EXPLAIN SELECT id, total FROM shop.orders WHERE status = 'paid' AND created_at >= '2026-10-01''\"\ncode: VALIDATION_ERROR\nhelp[2]:\n  commands: databases, tables, des"
+        },
+        {
+          "command": "mysql-axi explain --help 2>&1; echo \"---\"; mysql-axi describe --help 2>&1",
+          "outputChars": 941,
+          "isError": false,
+          "preview": "usage: mysql-axi explain \"<select>\" [flags]\nThe optimizer plan of a read query (EXPLAIN FORMAT=TREE). --analyze runs the query read-only and adds actual rows and times.\nflags:\n  --profile <name>, -d/-"
+        },
+        {
+          "command": "mysql-axi explain \"SELECT id, total FROM orders WHERE status = 'paid' AND created_at >= '2026-10-01'\" -d shop --format traditional 2>&1; echo \"---\"; mysql-axi describe orders -d shop 2>&1",
+          "outputChars": 755,
+          "isError": false,
+          "preview": "result[1]{id,select_type,table,partitions,type,possible_keys,key,key_len,ref,rows,filtered,Extra}:\n  1,SIMPLE,orders,null,ALL,null,null,null,null,10126,3.33,Using where\n---\ntable:\n  name: shop.orders\n"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "index use",
+      "correct": true,
+      "answer": "No, the query does a full table scan with no index used.",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 185,
+      "inputTokens": 4,
+      "cacheCreationTokens": 4044,
+      "cacheReadTokens": 7994,
+      "outputTokens": 357,
+      "costUsd": 0.00106764,
+      "durationMs": 5150,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi explain \"SELECT id, total FROM orders WHERE status = 'paid' AND created_at >= '2026-10-01'\"",
+          "outputChars": 185,
+          "isError": false,
+          "preview": "plan:\n---\n-> Filter: ((orders.`status` = 'paid') and (orders.created_at >= TIMESTAMP'2026-10-01 00:00:00'))  (cost=1037 rows=337)\n    -> Table scan on orders  (cost=1037 rows=10126)\n---"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "orphan rows",
+      "correct": true,
+      "answer": "Reviews 7 and 13 (pointing at missing orders 990006 and 990012)",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 1018,
+      "inputTokens": 6,
+      "cacheCreationTokens": 4375,
+      "cacheReadTokens": 13538,
+      "outputTokens": 607,
+      "costUsd": 0.00131448,
+      "durationMs": 7841,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SHOW TABLES; SHOW CREATE TABLE reviews\\G\" 2>&1",
+          "outputChars": 371,
+          "isError": false,
+          "preview": "Tables_in_shop\narticles\ncustomers\ndigits\norders\nreviews\nsubscribers\n*************************** 1. row ***************************\n       Table: reviews\nCreate Table: CREATE TABLE `reviews` (\n  `id` i"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SHOW CREATE TABLE orders\\G; SELECT r.id, r.order_id FROM reviews r LEFT JOIN orders o ON o.id = r.order_id WHERE o.id IS NULL ORDER BY r.id; SELECT COUNT(*) total, SUM(order_id IS NULL) null_fk FROM reviews;\" 2>&1",
+          "outputChars": 647,
+          "isError": false,
+          "preview": "*************************** 1. row ***************************\n       Table: orders\nCreate Table: CREATE TABLE `orders` (\n  `id` bigint unsigned NOT NULL AUTO_INCREMENT,\n  `customer_id` bigint unsigne"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "orphan rows",
+      "correct": true,
+      "answer": "Review ids 7 and 13",
+      "turns": 5,
+      "toolCalls": 4,
+      "toolOutputChars": 1918,
+      "inputTokens": 8,
+      "cacheCreationTokens": 4918,
+      "cacheReadTokens": 20418,
+      "outputTokens": 746,
+      "costUsd": 0.00156158,
+      "durationMs": 8764,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi \"SHOW TABLES FROM shop\" 2>&1 | head -50",
+          "outputChars": 225,
+          "isError": false,
+          "preview": "error: unknown command 'SHOW TABLES FROM shop'\ncode: VALIDATION_ERROR\nhelp[2]:\n  commands: databases, tables, describe, sample, query, explain, doctor, auth, setup (no command = overview)\n  Run `mysql"
+        },
+        {
+          "command": "mysql-axi tables 2>&1; echo ---; mysql-axi describe reviews 2>&1; echo ---; mysql-axi describe orders 2>&1",
+          "outputChars": 1187,
+          "isError": false,
+          "preview": "database: shop\ntotal: 6 tables; 0 views; 2.2 MB\ntables[6]{name,kind,rows_est,size}:\n  articles,table,4,64 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  orders,table,10126,1.9 MB\n  reviews"
+        },
+        {
+          "command": "mysql-axi query \"SELECT r.id, r.order_id, r.stars FROM reviews r LEFT JOIN orders o ON o.id = r.order_id WHERE o.id IS NULL ORDER BY r.id\" 2>&1",
+          "outputChars": 56,
+          "isError": false,
+          "preview": "result[2]{id,order_id,stars}:\n  7,990006,2\n  13,990012,3"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "orphan rows",
+      "correct": true,
+      "answer": "Review ids 7 and 13 (order_ids 990006 and 990012)",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 1235,
+      "inputTokens": 6,
+      "cacheCreationTokens": 4849,
+      "cacheReadTokens": 14340,
+      "outputTokens": 717,
+      "costUsd": 0.0014723000000000002,
+      "durationMs": 6386,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi tables && <bin>/mysql-axi describe reviews",
+          "outputChars": 596,
+          "isError": false,
+          "preview": "database: shop\ntotal: 6 tables; 0 views; 2.2 MB\ntables[6]{name,kind,rows_est,size}:\n  articles,table,4,64 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  orders,table,10126,1.9 MB\n  reviews"
+        },
+        {
+          "command": "<bin>/mysql-axi describe orders; <bin>/mysql-axi query \"SELECT r.id, r.order_id, r.stars FROM reviews r LEFT JOIN orders o ON o.id = r.order_id WHERE o.id IS NULL ORDER BY r.id\"",
+          "outputChars": 639,
+          "isError": false,
+          "preview": "table:\n  name: shop.orders\n  rows_est: 10126\n  size: 1.9 MB\ncolumns[6]{name,type,nullable,key,default,extra}:\n  id,bigint unsigned,false,PRI,null,auto_increment\n  customer_id,bigint unsigned,false,MUL"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "orphan rows",
+      "correct": true,
+      "answer": "7, 13",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 1043,
+      "inputTokens": 6,
+      "cacheCreationTokens": 4411,
+      "cacheReadTokens": 13546,
+      "outputTokens": 592,
+      "costUsd": 0.00131426,
+      "durationMs": 5492,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SHOW TABLES; SHOW CREATE TABLE reviews\\G\" 2>&1",
+          "outputChars": 371,
+          "isError": false,
+          "preview": "Tables_in_shop\narticles\ncustomers\ndigits\norders\nreviews\nsubscribers\n*************************** 1. row ***************************\n       Table: reviews\nCreate Table: CREATE TABLE `reviews` (\n  `id` i"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SHOW CREATE TABLE orders\\G; SELECT r.id, r.order_id, r.stars FROM reviews r LEFT JOIN orders o ON o.id = r.order_id WHERE o.id IS NULL ORDER BY r.id; SELECT COUNT(*) AS reviews_total, SUM(order_id IS NULL) AS null_order_ids FROM reviews;\" 2>&1",
+          "outputChars": 672,
+          "isError": false,
+          "preview": "*************************** 1. row ***************************\n       Table: orders\nCreate Table: CREATE TABLE `orders` (\n  `id` bigint unsigned NOT NULL AUTO_INCREMENT,\n  `customer_id` bigint unsigne"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "orphan rows",
+      "correct": true,
+      "answer": "Review ids 7 and 13 (order_ids 990006 and 990012 don't exist)",
+      "turns": 5,
+      "toolCalls": 4,
+      "toolOutputChars": 1962,
+      "inputTokens": 8,
+      "cacheCreationTokens": 4990,
+      "cacheReadTokens": 20394,
+      "outputTokens": 817,
+      "costUsd": 0.0016112400000000001,
+      "durationMs": 7337,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi \"SHOW TABLES\" 2>&1 | head -50",
+          "outputChars": 215,
+          "isError": false,
+          "preview": "error: unknown command 'SHOW TABLES'\ncode: VALIDATION_ERROR\nhelp[2]:\n  commands: databases, tables, describe, sample, query, explain, doctor, auth, setup (no command = overview)\n  Run `mysql-axi --hel"
+        },
+        {
+          "command": "mysql-axi tables 2>&1; echo ---; mysql-axi describe reviews 2>&1; echo ---; mysql-axi describe orders 2>&1",
+          "outputChars": 1187,
+          "isError": false,
+          "preview": "database: shop\ntotal: 6 tables; 0 views; 2.2 MB\ntables[6]{name,kind,rows_est,size}:\n  articles,table,4,64 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  orders,table,10126,1.9 MB\n  reviews"
+        },
+        {
+          "command": "mysql-axi query \"SELECT r.id, r.order_id, r.stars FROM reviews r LEFT JOIN orders o ON o.id = r.order_id WHERE o.id IS NULL ORDER BY r.id\" 2>&1; echo ---; mysql-axi query \"SELECT COUNT(*) AS total_reviews, COUNT(DISTINCT order_id) AS distinct_orders FROM reviews\" 2>&1",
+          "outputChars": 110,
+          "isError": false,
+          "preview": "result[2]{id,order_id,stars}:\n  7,990006,2\n  13,990012,3\n---\nresult[1]{total_reviews,distinct_orders}:\n  20,20"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "orphan rows",
+      "correct": true,
+      "answer": "Review ids 7 and 13 (order_id 990006 and 990012) reference nonexistent orders.",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 1224,
+      "inputTokens": 8,
+      "cacheCreationTokens": 5044,
+      "cacheReadTokens": 20925,
+      "outputTokens": 836,
+      "costUsd": 0.00163685,
+      "durationMs": 7286,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi tables; <bin>/mysql-axi describe reviews",
+          "outputChars": 596,
+          "isError": false,
+          "preview": "database: shop\ntotal: 6 tables; 0 views; 2.2 MB\ntables[6]{name,kind,rows_est,size}:\n  articles,table,4,64 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  orders,table,10126,1.9 MB\n  reviews"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT r.id, r.order_id FROM reviews r LEFT JOIN orders o ON o.id = r.order_id WHERE o.id IS NULL ORDER BY r.id\"",
+          "outputChars": 46,
+          "isError": false,
+          "preview": "result[2]{id,order_id}:\n  7,990006\n  13,990012"
+        },
+        {
+          "command": "<bin>/mysql-axi describe orders | head -20",
+          "outputChars": 582,
+          "isError": false,
+          "preview": "table:\n  name: shop.orders\n  rows_est: 10126\n  size: 1.9 MB\ncolumns[6]{name,type,nullable,key,default,extra}:\n  id,bigint unsigned,false,PRI,null,auto_increment\n  customer_id,bigint unsigned,false,MUL"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "orphan rows",
+      "correct": true,
+      "answer": "Review ids 7 and 13",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 1026,
+      "inputTokens": 6,
+      "cacheCreationTokens": 4451,
+      "cacheReadTokens": 13903,
+      "outputTokens": 598,
+      "costUsd": 0.00132883,
+      "durationMs": 6074,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SHOW TABLES; SHOW CREATE TABLE reviews\\G; SHOW CREATE TABLE orders\\G\" 2>&1",
+          "outputChars": 969,
+          "isError": false,
+          "preview": "Tables_in_shop\narticles\ncustomers\ndigits\norders\nreviews\nsubscribers\n*************************** 1. row ***************************\n       Table: reviews\nCreate Table: CREATE TABLE `reviews` (\n  `id` i"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SELECT r.id, r.order_id, r.stars FROM reviews r LEFT JOIN orders o ON o.id = r.order_id WHERE o.id IS NULL ORDER BY r.id; SELECT COUNT(*) AS total_reviews FROM reviews;\" 2>&1",
+          "outputChars": 57,
+          "isError": false,
+          "preview": "id\torder_id\tstars\n7\t990006\t2\n13\t990012\t3\ntotal_reviews\n20"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "orphan rows",
+      "correct": true,
+      "answer": "Review ids 7 and 13 (order_id 990006 and 990012)",
+      "turns": 5,
+      "toolCalls": 4,
+      "toolOutputChars": 1908,
+      "inputTokens": 8,
+      "cacheCreationTokens": 4916,
+      "cacheReadTokens": 20394,
+      "outputTokens": 769,
+      "costUsd": 0.00157244,
+      "durationMs": 8189,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi \"SHOW TABLES\" 2>&1 | head -50",
+          "outputChars": 215,
+          "isError": false,
+          "preview": "error: unknown command 'SHOW TABLES'\ncode: VALIDATION_ERROR\nhelp[2]:\n  commands: databases, tables, describe, sample, query, explain, doctor, auth, setup (no command = overview)\n  Run `mysql-axi --hel"
+        },
+        {
+          "command": "mysql-axi tables 2>&1; echo ---; mysql-axi describe reviews 2>&1; echo ---; mysql-axi describe orders 2>&1",
+          "outputChars": 1187,
+          "isError": false,
+          "preview": "database: shop\ntotal: 6 tables; 0 views; 2.2 MB\ntables[6]{name,kind,rows_est,size}:\n  articles,table,4,64 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  orders,table,10126,1.9 MB\n  reviews"
+        },
+        {
+          "command": "mysql-axi query \"SELECT r.id, r.order_id, r.stars FROM reviews r LEFT JOIN orders o ON o.id = r.order_id WHERE o.id IS NULL ORDER BY r.id\" 2>&1",
+          "outputChars": 56,
+          "isError": false,
+          "preview": "result[2]{id,order_id,stars}:\n  7,990006,2\n  13,990012,3"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "orphan rows",
+      "correct": true,
+      "answer": "Review ids 7 and 13 (order_ids 990006 and 990012).",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 1235,
+      "inputTokens": 6,
+      "cacheCreationTokens": 4672,
+      "cacheReadTokens": 14504,
+      "outputTokens": 468,
+      "costUsd": 0.00131404,
+      "durationMs": 6048,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi tables; mysql-axi describe reviews; mysql-axi describe orders",
+          "outputChars": 1179,
+          "isError": false,
+          "preview": "database: shop\ntotal: 6 tables; 0 views; 2.2 MB\ntables[6]{name,kind,rows_est,size}:\n  articles,table,4,64 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  orders,table,10126,1.9 MB\n  reviews"
+        },
+        {
+          "command": "mysql-axi query \"SELECT r.id, r.order_id, r.stars FROM reviews r LEFT JOIN orders o ON o.id = r.order_id WHERE o.id IS NULL ORDER BY r.id\"",
+          "outputChars": 56,
+          "isError": false,
+          "preview": "result[2]{id,order_id,stars}:\n  7,990006,2\n  13,990012,3"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "largest table",
+      "correct": true,
+      "answer": "orders (about 1.91 MB total, including indexes)",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 260,
+      "inputTokens": 4,
+      "cacheCreationTokens": 3876,
+      "cacheReadTokens": 7633,
+      "outputTokens": 502,
+      "costUsd": 0.00110293,
+      "durationMs": 4464,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SELECT TABLE_NAME, ENGINE, TABLE_ROWS, ROUND(DATA_LENGTH/1024/1024,2) AS data_mb, ROUND(INDEX_LENGTH/1024/1024,2) AS index_mb, ROUND((DATA_LENGTH+INDEX_LENGTH)/1024/1024,2) AS total_mb FROM information_schema.TABLES WHERE TABLE_SCHEMA='shop' ORDER BY (DATA_LENGTH+INDEX_LENGTH) DESC;\"",
+          "outputChars": 260,
+          "isError": false,
+          "preview": "TABLE_NAME\tENGINE\tTABLE_ROWS\tdata_mb\tindex_mb\ttotal_mb\norders\tInnoDB\t10126\t1.52\t0.39\t1.91\ncustomers\tInnoDB\t1000\t0.09\t0.08\t0.17\narticles\tInnoDB\t4\t0.06\t0.00\t0.06\ndigits\tInnoDB\t10\t0.02\t0.00\t0.02\nreviews\t"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "largest table",
+      "correct": true,
+      "answer": "orders (about 1.9 MB)",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 775,
+      "inputTokens": 6,
+      "cacheCreationTokens": 3927,
+      "cacheReadTokens": 13373,
+      "outputTokens": 354,
+      "costUsd": 0.00109673,
+      "durationMs": 5112,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi tables --sort size 2>&1 | head -60",
+          "outputChars": 325,
+          "isError": false,
+          "preview": "database: shop\ntotal: 6 tables; 0 views; 2.2 MB\ntables[6]{name,kind,rows_est,size}:\n  orders,table,10126,1.9 MB\n  customers,table,1000,176 KB\n  articles,table,4,64 KB\n  digits,table,10,16 KB\n  reviews"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "largest table",
+      "correct": true,
+      "answer": "orders (~1.91 MiB, data + indexes)",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 254,
+      "inputTokens": 4,
+      "cacheCreationTokens": 4093,
+      "cacheReadTokens": 7949,
+      "outputTokens": 508,
+      "costUsd": 0.00115249,
+      "durationMs": 4833,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi query \"SELECT table_name, table_rows, data_length, index_length, data_length + index_length AS total_bytes FROM information_schema.tables WHERE table_schema = 'shop' ORDER BY total_bytes DESC\"",
+          "outputChars": 254,
+          "isError": false,
+          "preview": "result[6]{TABLE_NAME,TABLE_ROWS,DATA_LENGTH,INDEX_LENGTH,total_bytes}:\n  orders,10126,1589248,409600,1998848\n  customers,1000,98304,81920,180224\n  articles,4,65536,0,65536\n  digits,10,16384,0,16384\n  "
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "largest table",
+      "correct": true,
+      "answer": "orders (about 1.91 MB total, data + indexes)",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 211,
+      "inputTokens": 4,
+      "cacheCreationTokens": 3777,
+      "cacheReadTokens": 7637,
+      "outputTokens": 452,
+      "costUsd": 0.00105817,
+      "durationMs": 4811,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SELECT table_name, ROUND((data_length + index_length)/1024/1024, 2) AS total_mb, ROUND(data_length/1024/1024, 2) AS data_mb, ROUND(index_length/1024/1024, 2) AS index_mb, table_rows FROM information_schema.tables WHERE table_schema = 'shop' ORDER BY (data_length + index_length) DESC;\"",
+          "outputChars": 211,
+          "isError": false,
+          "preview": "TABLE_NAME\ttotal_mb\tdata_mb\tindex_mb\tTABLE_ROWS\norders\t1.91\t1.52\t0.39\t10126\ncustomers\t0.17\t0.09\t0.08\t1000\narticles\t0.06\t0.06\t0.00\t4\ndigits\t0.02\t0.02\t0.00\t10\nreviews\t0.02\t0.02\t0.00\t20\nsubscribers\t0.02\t"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "largest table",
+      "correct": true,
+      "answer": "orders (1.9 MB)",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 775,
+      "inputTokens": 6,
+      "cacheCreationTokens": 3927,
+      "cacheReadTokens": 13373,
+      "outputTokens": 335,
+      "costUsd": 0.00108723,
+      "durationMs": 4648,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi tables --sort size 2>&1 | head -60",
+          "outputChars": 325,
+          "isError": false,
+          "preview": "database: shop\ntotal: 6 tables; 0 views; 2.2 MB\ntables[6]{name,kind,rows_est,size}:\n  orders,table,10126,1.9 MB\n  customers,table,1000,176 KB\n  articles,table,4,64 KB\n  digits,table,10,16 KB\n  reviews"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "largest table",
+      "correct": true,
+      "answer": "orders (about 5.91 MB total, including ~4 MB of data_free)",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 223,
+      "inputTokens": 4,
+      "cacheCreationTokens": 4113,
+      "cacheReadTokens": 7947,
+      "outputTokens": 566,
+      "costUsd": 0.00118547,
+      "durationMs": 5521,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi query \"SELECT table_name, ROUND((data_length + index_length + data_free)/1024/1024, 2) AS total_mb, ROUND(data_length/1024/1024, 2) AS data_mb, ROUND(index_length/1024/1024, 2) AS index_mb, table_rows FROM information_schema.tables WHERE table_schema = 'shop' ORDER BY (data_length + index_length + data_free) DES",
+          "outputChars": 223,
+          "isError": false,
+          "preview": "result[6]{TABLE_NAME,total_mb,data_mb,index_mb,TABLE_ROWS}:\n  orders,5.91,1.52,0.39,10126\n  customers,0.17,0.09,0.08,1000\n  articles,0.06,0.06,0,4\n  digits,0.02,0.02,0,10\n  reviews,0.02,0.02,0,20\n  su"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "largest table",
+      "correct": true,
+      "answer": "orders",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 318,
+      "inputTokens": 4,
+      "cacheCreationTokens": 3914,
+      "cacheReadTokens": 7635,
+      "outputTokens": 485,
+      "costUsd": 0.00110205,
+      "durationMs": 4305,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SELECT TABLE_NAME, ENGINE, TABLE_ROWS, DATA_LENGTH, INDEX_LENGTH, DATA_LENGTH+INDEX_LENGTH AS TOTAL_BYTES, ROUND((DATA_LENGTH+INDEX_LENGTH)/1024/1024,2) AS TOTAL_MB FROM information_schema.TABLES WHERE TABLE_SCHEMA='shop' AND TABLE_TYPE='BASE TABLE' ORDER BY TOTAL_BYTES DESC;\" 2>&1",
+          "outputChars": 318,
+          "isError": false,
+          "preview": "TABLE_NAME\tENGINE\tTABLE_ROWS\tDATA_LENGTH\tINDEX_LENGTH\tTOTAL_BYTES\tTOTAL_MB\norders\tInnoDB\t10126\t1589248\t409600\t1998848\t1.91\ncustomers\tInnoDB\t1000\t98304\t81920\t180224\t0.17\narticles\tInnoDB\t4\t65536\t0\t65536"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "largest table",
+      "correct": true,
+      "answer": "orders (1.9 MB)",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 775,
+      "inputTokens": 6,
+      "cacheCreationTokens": 3919,
+      "cacheReadTokens": 13368,
+      "outputTokens": 358,
+      "costUsd": 0.00109708,
+      "durationMs": 6005,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi tables --sort size 2>&1",
+          "outputChars": 325,
+          "isError": false,
+          "preview": "database: shop\ntotal: 6 tables; 0 views; 2.2 MB\ntables[6]{name,kind,rows_est,size}:\n  orders,table,10126,1.9 MB\n  customers,table,1000,176 KB\n  articles,table,4,64 KB\n  digits,table,10,16 KB\n  reviews"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "largest table",
+      "correct": true,
+      "answer": "orders (about 1.95 MiB total, data plus indexes)",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 303,
+      "inputTokens": 4,
+      "cacheCreationTokens": 4120,
+      "cacheReadTokens": 7949,
+      "outputTokens": 466,
+      "costUsd": 0.00113689,
+      "durationMs": 4336,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi query \"SELECT table_name, engine, table_rows, data_length, index_length, data_length + index_length AS total_bytes FROM information_schema.tables WHERE table_schema = 'shop' ORDER BY total_bytes DESC\"",
+          "outputChars": 303,
+          "isError": false,
+          "preview": "result[6]{TABLE_NAME,ENGINE,TABLE_ROWS,DATA_LENGTH,INDEX_LENGTH,total_bytes}:\n  orders,InnoDB,10126,1589248,409600,1998848\n  customers,InnoDB,1000,98304,81920,180224\n  articles,InnoDB,4,65536,0,65536\n"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "duplicate emails",
+      "correct": true,
+      "answer": "a@x.test (2 rows, one stored as A@x.test) and b@x.test (2 rows)",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 276,
+      "inputTokens": 6,
+      "cacheCreationTokens": 4138,
+      "cacheReadTokens": 13461,
+      "outputTokens": 751,
+      "costUsd": 0.00133831,
+      "durationMs": 7380,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SHOW TABLES; SHOW COLUMNS FROM subscribers;\" 2>&1",
+          "outputChars": 195,
+          "isError": false,
+          "preview": "Tables_in_shop\narticles\ncustomers\ndigits\norders\nreviews\nsubscribers\nField\tType\tNull\tKey\tDefault\tExtra\nid\tint\tNO\tPRI\tNULL\tauto_increment\nemail\tvarchar(100)\tYES\t\tNULL\t\ncreated_at\tdatetime\tYES\t\tNULL"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SELECT LOWER(email) AS email_lc, COUNT(*) AS n, GROUP_CONCAT(email ORDER BY id SEPARATOR ' | ') AS variants FROM subscribers WHERE email IS NOT NULL GROUP BY LOWER(email) HAVING COUNT(*) > 1 ORDER BY n DESC, email_lc;\" 2>&1",
+          "outputChars": 81,
+          "isError": false,
+          "preview": "email_lc\tn\tvariants\na@x.test\t2\ta@x.test | A@x.test\nb@x.test\t2\tb@x.test | b@x.test"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "duplicate emails",
+      "correct": true,
+      "answer": "a@x.test (2 rows, ids 1 and 2) and b@x.test (2 rows, ids 3 and 4)",
+      "turns": 5,
+      "toolCalls": 4,
+      "toolOutputChars": 1588,
+      "inputTokens": 8,
+      "cacheCreationTokens": 4819,
+      "cacheReadTokens": 20159,
+      "outputTokens": 846,
+      "costUsd": 0.00158919,
+      "durationMs": 10157,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi \"SHOW TABLES\" 2>&1 | head -50",
+          "outputChars": 215,
+          "isError": false,
+          "preview": "error: unknown command 'SHOW TABLES'\ncode: VALIDATION_ERROR\nhelp[2]:\n  commands: databases, tables, describe, sample, query, explain, doctor, auth, setup (no command = overview)\n  Run `mysql-axi --hel"
+        },
+        {
+          "command": "mysql-axi tables 2>&1; echo ---; mysql-axi describe subscribers 2>&1",
+          "outputChars": 612,
+          "isError": false,
+          "preview": "database: shop\ntotal: 6 tables; 0 views; 2.2 MB\ntables[6]{name,kind,rows_est,size}:\n  articles,table,4,64 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  orders,table,10126,1.9 MB\n  reviews"
+        },
+        {
+          "command": "mysql-axi query \"SELECT id, email, LOWER(TRIM(email)) AS norm, created_at FROM subscribers ORDER BY id\" 2>&1; echo ---; mysql-axi query \"SELECT LOWER(email) AS email_lc, COUNT(*) AS cnt FROM subscribers GROUP BY LOWER(email) HAVING COUNT(*) > 1\" 2>&1",
+          "outputChars": 311,
+          "isError": false,
+          "preview": "result[5]{id,email,norm,created_at}:\n  1,a@x.test,a@x.test,\"2026-01-01 00:00:00\"\n  2,A@x.test,a@x.test,\"2026-01-02 00:00:00\"\n  3,b@x.test,b@x.test,\"2026-01-03 00:00:00\"\n  4,b@x.test,b@x.test,\"2026-01-"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "duplicate emails",
+      "correct": true,
+      "answer": "a@x.test and b@x.test (each appears twice, ids 1\u20132 and 3\u20134)",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 878,
+      "inputTokens": 8,
+      "cacheCreationTokens": 4858,
+      "cacheReadTokens": 20752,
+      "outputTokens": 856,
+      "costUsd": 0.00160792,
+      "durationMs": 8239,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi tables",
+          "outputChars": 325,
+          "isError": false,
+          "preview": "database: shop\ntotal: 6 tables; 0 views; 2.2 MB\ntables[6]{name,kind,rows_est,size}:\n  articles,table,4,64 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  orders,table,10126,1.9 MB\n  reviews"
+        },
+        {
+          "command": "<bin>/mysql-axi describe subscribers; <bin>/mysql-axi sample subscribers",
+          "outputChars": 489,
+          "isError": false,
+          "preview": "table:\n  name: shop.subscribers\n  rows_est: 5\n  size: 16 KB\ncolumns[3]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,auto_increment\n  email,varchar(100),true,null,null,null\n  created_"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT LOWER(email) AS email_lc, COUNT(*) AS n, GROUP_CONCAT(id ORDER BY id) AS ids FROM subscribers WHERE email IS NOT NULL GROUP BY LOWER(email) HAVING COUNT(*) > 1\"",
+          "outputChars": 64,
+          "isError": false,
+          "preview": "result[2]{email_lc,n,ids}:\n  a@x.test,2,\"1,2\"\n  b@x.test,2,\"3,4\""
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "duplicate emails",
+      "correct": true,
+      "answer": "a@x.test (ids 1, 2) and b@x.test (ids 3, 4)",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 317,
+      "inputTokens": 6,
+      "cacheCreationTokens": 4090,
+      "cacheReadTokens": 13449,
+      "outputTokens": 832,
+      "costUsd": 0.00136909,
+      "durationMs": 7811,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SHOW TABLES; SHOW COLUMNS FROM subscribers;\" 2>&1",
+          "outputChars": 195,
+          "isError": false,
+          "preview": "Tables_in_shop\narticles\ncustomers\ndigits\norders\nreviews\nsubscribers\nField\tType\tNull\tKey\tDefault\tExtra\nid\tint\tNO\tPRI\tNULL\tauto_increment\nemail\tvarchar(100)\tYES\t\tNULL\t\ncreated_at\tdatetime\tYES\t\tNULL"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SELECT LOWER(TRIM(email)) AS norm_email, COUNT(*) AS n, GROUP_CONCAT(id ORDER BY id) AS ids, GROUP_CONCAT(CONCAT('[',email,']') SEPARATOR ' ') AS raw FROM subscribers WHERE email IS NOT NULL GROUP BY norm_email HAVING n > 1; SELECT COUNT(*) total, SUM(email IS NULL) nulls, SUM(email <> TRIM(email)) untrimmed FROM subscribers;\" 2>&1",
+          "outputChars": 122,
+          "isError": false,
+          "preview": "norm_email\tn\tids\traw\na@x.test\t2\t1,2\t[a@x.test] [A@x.test]\nb@x.test\t2\t3,4\t[b@x.test] [b@x.test]\ntotal\tnulls\tuntrimmed\n5\t0\t0"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "duplicate emails",
+      "correct": true,
+      "answer": "a@x.test and b@x.test",
+      "turns": 6,
+      "toolCalls": 5,
+      "toolOutputChars": 1593,
+      "inputTokens": 10,
+      "cacheCreationTokens": 5015,
+      "cacheReadTokens": 26759,
+      "outputTokens": 870,
+      "costUsd": 0.00170659,
+      "durationMs": 10238,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi \"SHOW TABLES;\" 2>&1",
+          "outputChars": 228,
+          "isError": true,
+          "preview": "Exit code 2\nerror: unknown command 'SHOW TABLES;'\ncode: VALIDATION_ERROR\nhelp[2]:\n  commands: databases, tables, describe, sample, query, explain, doctor, auth, setup (no command = overview)\n  Run `my"
+        },
+        {
+          "command": "mysql-axi tables 2>&1",
+          "outputChars": 325,
+          "isError": false,
+          "preview": "database: shop\ntotal: 6 tables; 0 views; 2.2 MB\ntables[6]{name,kind,rows_est,size}:\n  articles,table,4,64 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  orders,table,10126,1.9 MB\n  reviews"
+        },
+        {
+          "command": "mysql-axi describe subscribers 2>&1; echo ---; mysql-axi sample subscribers 2>&1",
+          "outputChars": 493,
+          "isError": false,
+          "preview": "table:\n  name: shop.subscribers\n  rows_est: 5\n  size: 16 KB\ncolumns[3]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,auto_increment\n  email,varchar(100),true,null,null,null\n  created_"
+        },
+        {
+          "command": "mysql-axi query \"SELECT LOWER(email) AS email_lc, COUNT(*) AS n, GROUP_CONCAT(email ORDER BY id) AS variants FROM subscribers WHERE email IS NOT NULL GROUP BY LOWER(email) HAVING COUNT(*) > 1\" 2>&1",
+          "outputChars": 97,
+          "isError": false,
+          "preview": "result[2]{email_lc,n,variants}:\n  a@x.test,2,\"a@x.test,A@x.test\"\n  b@x.test,2,\"b@x.test,b@x.test\""
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "duplicate emails",
+      "correct": true,
+      "answer": "a@x.test and b@x.test (each appears twice, case-insensitively)",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 878,
+      "inputTokens": 8,
+      "cacheCreationTokens": 4927,
+      "cacheReadTokens": 20790,
+      "outputTokens": 838,
+      "costUsd": 0.0016131000000000001,
+      "durationMs": 9255,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi tables",
+          "outputChars": 325,
+          "isError": false,
+          "preview": "database: shop\ntotal: 6 tables; 0 views; 2.2 MB\ntables[6]{name,kind,rows_est,size}:\n  articles,table,4,64 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  orders,table,10126,1.9 MB\n  reviews"
+        },
+        {
+          "command": "<bin>/mysql-axi describe subscribers; <bin>/mysql-axi sample subscribers",
+          "outputChars": 489,
+          "isError": false,
+          "preview": "table:\n  name: shop.subscribers\n  rows_est: 5\n  size: 16 KB\ncolumns[3]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,auto_increment\n  email,varchar(100),true,null,null,null\n  created_"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT LOWER(email) AS email_lc, COUNT(*) AS n, GROUP_CONCAT(id ORDER BY id) AS ids FROM subscribers WHERE email IS NOT NULL GROUP BY LOWER(email) HAVING COUNT(*) > 1\"",
+          "outputChars": 64,
+          "isError": false,
+          "preview": "result[2]{email_lc,n,ids}:\n  a@x.test,2,\"1,2\"\n  b@x.test,2,\"3,4\""
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "duplicate emails",
+      "correct": true,
+      "answer": "a@x.test (ids 1 and 2, differing only in case) and b@x.test (ids 3 and 4, exact duplicates)",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 500,
+      "inputTokens": 8,
+      "cacheCreationTokens": 4617,
+      "cacheReadTokens": 19624,
+      "outputTokens": 1193,
+      "costUsd": 0.0017169400000000001,
+      "durationMs": 10349,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SHOW TABLES; SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='shop' AND COLUMN_NAME LIKE '%mail%';\"",
+          "outputChars": 150,
+          "isError": false,
+          "preview": "Tables_in_shop\narticles\ncustomers\ndigits\norders\nreviews\nsubscribers\nTABLE_NAME\tCOLUMN_NAME\tDATA_TYPE\ncustomers\temail\tvarchar\nsubscribers\temail\tvarchar"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SELECT LOWER(email) AS email_lc, COUNT(*) AS n, GROUP_CONCAT(email SEPARATOR ' | ') AS variants FROM subscribers GROUP BY LOWER(email) HAVING COUNT(*) > 1 ORDER BY n DESC, email_lc;\"",
+          "outputChars": 81,
+          "isError": false,
+          "preview": "email_lc\tn\tvariants\na@x.test\t2\ta@x.test | A@x.test\nb@x.test\t2\tb@x.test | b@x.test"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SELECT id, CONCAT('[',email,']') AS raw, HEX(email) AS hx, LENGTH(email) AS len FROM subscribers WHERE LOWER(TRIM(email)) IN ('a@x.test','b@x.test') ORDER BY email;\" 2>&1; mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SHOW COLUMNS FROM subscribers;\" 2>&1",
+          "outputChars": 269,
+          "isError": false,
+          "preview": "id\traw\thx\tlen\n1\t[a@x.test]\t6140782E74657374\t8\n2\t[A@x.test]\t4140782E74657374\t8\n3\t[b@x.test]\t6240782E74657374\t8\n4\t[b@x.test]\t6240782E74657374\t8\nField\tType\tNull\tKey\tDefault\tExtra\nid\tint\tNO\tPRI\tNULL\tauto_"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "duplicate emails",
+      "correct": true,
+      "answer": "a@x.test and b@x.test",
+      "turns": 6,
+      "toolCalls": 5,
+      "toolOutputChars": 1690,
+      "inputTokens": 10,
+      "cacheCreationTokens": 5044,
+      "cacheReadTokens": 26952,
+      "outputTokens": 885,
+      "costUsd": 0.00172182,
+      "durationMs": 7440,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi shop \"SHOW TABLES\" 2>&1 | head -50",
+          "outputChars": 208,
+          "isError": false,
+          "preview": "error: unknown command 'shop'\ncode: VALIDATION_ERROR\nhelp[2]:\n  commands: databases, tables, describe, sample, query, explain, doctor, auth, setup (no command = overview)\n  Run `mysql-axi --help` for "
+        },
+        {
+          "command": "mysql-axi tables 2>&1; echo ---; mysql-axi databases 2>&1",
+          "outputChars": 491,
+          "isError": false,
+          "preview": "database: shop\ntotal: 6 tables; 0 views; 2.2 MB\ntables[6]{name,kind,rows_est,size}:\n  articles,table,4,64 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  orders,table,10126,1.9 MB\n  reviews"
+        },
+        {
+          "command": "mysql-axi describe subscribers 2>&1; echo ---; mysql-axi query \"SELECT * FROM subscribers\" 2>&1",
+          "outputChars": 493,
+          "isError": false,
+          "preview": "table:\n  name: shop.subscribers\n  rows_est: 5\n  size: 16 KB\ncolumns[3]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,auto_increment\n  email,varchar(100),true,null,null,null\n  created_"
+        },
+        {
+          "command": "mysql-axi query \"SELECT LOWER(email) AS email_ci, COUNT(*) AS n FROM subscribers WHERE email IS NOT NULL GROUP BY LOWER(email) HAVING COUNT(*) > 1\" 2>&1",
+          "outputChars": 48,
+          "isError": false,
+          "preview": "result[2]{email_ci,n}:\n  a@x.test,2\n  b@x.test,2"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "duplicate emails",
+      "correct": true,
+      "answer": "a@x.test and b@x.test",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 926,
+      "inputTokens": 8,
+      "cacheCreationTokens": 4997,
+      "cacheReadTokens": 20794,
+      "outputTokens": 976,
+      "costUsd": 0.00169614,
+      "durationMs": 9520,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi tables",
+          "outputChars": 325,
+          "isError": false,
+          "preview": "database: shop\ntotal: 6 tables; 0 views; 2.2 MB\ntables[6]{name,kind,rows_est,size}:\n  articles,table,4,64 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  orders,table,10126,1.9 MB\n  reviews"
+        },
+        {
+          "command": "<bin>/mysql-axi describe subscribers; <bin>/mysql-axi sample subscribers",
+          "outputChars": 489,
+          "isError": false,
+          "preview": "table:\n  name: shop.subscribers\n  rows_est: 5\n  size: 16 KB\ncolumns[3]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,auto_increment\n  email,varchar(100),true,null,null,null\n  created_"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT LOWER(email) AS email_lower, COUNT(*) AS n, GROUP_CONCAT(id ORDER BY id) AS ids, GROUP_CONCAT(email ORDER BY id SEPARATOR '|') AS variants FROM subscribers WHERE email IS NOT NULL GROUP BY LOWER(email) HAVING COUNT(*) > 1\"",
+          "outputChars": 112,
+          "isError": false,
+          "preview": "result[2]{email_lower,n,ids,variants}:\n  a@x.test,2,\"1,2\",a@x.test|A@x.test\n  b@x.test,2,\"3,4\",b@x.test|b@x.test"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "top country revenue",
+      "correct": true,
+      "answer": "AT (Austria), 84651.00 from paid orders",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 723,
+      "inputTokens": 6,
+      "cacheCreationTokens": 4521,
+      "cacheReadTokens": 13654,
+      "outputTokens": 801,
+      "costUsd": 0.00144184,
+      "durationMs": 6604,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SHOW TABLES; DESCRIBE orders; SELECT * FROM orders LIMIT 3;\"",
+          "outputChars": 541,
+          "isError": false,
+          "preview": "Tables_in_shop\narticles\ncustomers\ndigits\norders\nreviews\nsubscribers\nField\tType\tNull\tKey\tDefault\tExtra\nid\tbigint unsigned\tNO\tPRI\tNULL\tauto_increment\ncustomer_id\tbigint unsigned\tNO\tMUL\tNULL\t\nstatus\tvarc"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SELECT status, COUNT(*) FROM orders GROUP BY status; SELECT JSON_UNQUOTE(JSON_EXTRACT(meta,'\\$.ship.country')) AS country, COUNT(*) FROM orders GROUP BY country;\"",
+          "outputChars": 101,
+          "isError": false,
+          "preview": "status\tCOUNT(*)\npaid\t3334\nrefunded\t3333\npending\t3333\ncountry\tCOUNT(*)\nNL\t2500\nDE\t2500\nAT\t2500\nFR\t2500"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SELECT JSON_UNQUOTE(JSON_EXTRACT(meta,'\\$.ship.country')) AS country, ROUND(SUM(total),2) AS revenue, COUNT(*) AS n FROM orders WHERE status='paid' GROUP BY country ORDER BY revenue DESC;\"",
+          "outputChars": 81,
+          "isError": false,
+          "preview": "country\trevenue\tn\nAT\t84651.00\t834\nNL\t83750.50\t833\nFR\t82849.50\t833\nDE\t82149.00\t834"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "top country revenue",
+      "correct": true,
+      "answer": "AT (Austria), 84651.00 paid revenue",
+      "turns": 5,
+      "toolCalls": 4,
+      "toolOutputChars": 2282,
+      "inputTokens": 8,
+      "cacheCreationTokens": 5329,
+      "cacheReadTokens": 20661,
+      "outputTokens": 995,
+      "costUsd": 0.0017707100000000002,
+      "durationMs": 11345,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi \"DESCRIBE orders\" 2>&1 | head -50",
+          "outputChars": 219,
+          "isError": false,
+          "preview": "error: unknown command 'DESCRIBE orders'\ncode: VALIDATION_ERROR\nhelp[2]:\n  commands: databases, tables, describe, sample, query, explain, doctor, auth, setup (no command = overview)\n  Run `mysql-axi -"
+        },
+        {
+          "command": "mysql-axi describe orders 2>&1; echo ---; mysql-axi sample orders 2>&1 | head -30",
+          "outputChars": 1439,
+          "isError": false,
+          "preview": "table:\n  name: shop.orders\n  rows_est: 10126\n  size: 1.9 MB\ncolumns[6]{name,type,nullable,key,default,extra}:\n  id,bigint unsigned,false,PRI,null,auto_increment\n  customer_id,bigint unsigned,false,MUL"
+        },
+        {
+          "command": "mysql-axi query \"SELECT CONCAT('[', status, ']') AS s, COUNT(*) AS n FROM orders GROUP BY status\" 2>&1; echo ---; mysql-axi query \"SELECT CONCAT('[', JSON_UNQUOTE(JSON_EXTRACT(meta,'\\$.ship.country')), ']') AS c, COUNT(*) AS n, SUM(total) AS rev FROM orders WHERE status='paid' GROUP BY c ORDER BY rev DESC\" 2>&1",
+          "outputChars": 174,
+          "isError": false,
+          "preview": "result[3]{s,n}:\n  \"[paid]\",3334\n  \"[refunded]\",3333\n  \"[pending]\",3333\n---\nresult[4]{c,n,rev}:\n  \"[AT]\",834,84651\n  \"[NL]\",833,83750.5\n  \"[FR]\",833,82849.5\n  \"[DE]\",834,82149"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "top country revenue",
+      "correct": true,
+      "answer": "AT (Austria), 84651.00 paid revenue",
+      "turns": 6,
+      "toolCalls": 5,
+      "toolOutputChars": 1152,
+      "inputTokens": 8,
+      "cacheCreationTokens": 5494,
+      "cacheReadTokens": 21831,
+      "outputTokens": 1284,
+      "costUsd": 0.00195991,
+      "durationMs": 9235,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi tables",
+          "outputChars": 325,
+          "isError": false,
+          "preview": "database: shop\ntotal: 6 tables; 0 views; 2.2 MB\ntables[6]{name,kind,rows_est,size}:\n  articles,table,4,64 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  orders,table,10126,1.9 MB\n  reviews"
+        },
+        {
+          "command": "<bin>/mysql-axi describe orders",
+          "outputChars": 582,
+          "isError": false,
+          "preview": "table:\n  name: shop.orders\n  rows_est: 10126\n  size: 1.9 MB\ncolumns[6]{name,type,nullable,key,default,extra}:\n  id,bigint unsigned,false,PRI,null,auto_increment\n  customer_id,bigint unsigned,false,MUL"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT status, COUNT(*) AS n, SUM(total) AS revenue FROM orders GROUP BY status\"",
+          "outputChars": 96,
+          "isError": false,
+          "preview": "result[3]{status,n,revenue}:\n  paid,3334,333400\n  refunded,3333,333266.5\n  pending,3333,333333.5"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT JSON_TYPE(JSON_EXTRACT(meta,'$.ship.country')) AS t, COUNT(*) AS n, COUNT(DISTINCT JSON_UNQUOTE(JSON_EXTRACT(meta,'$.ship.country'))) AS distinct_vals FROM orders GROUP BY t\"",
+          "outputChars": 46,
+          "isError": false,
+          "preview": "result[1]{t,n,distinct_vals}:\n  STRING,10000,4"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT JSON_UNQUOTE(JSON_EXTRACT(meta,'$.ship.country')) AS country, COUNT(*) AS paid_orders, SUM(total) AS revenue FROM orders WHERE status='paid' GROUP BY country ORDER BY revenue DESC\"",
+          "outputChars": 103,
+          "isError": false,
+          "preview": "result[4]{country,paid_orders,revenue}:\n  AT,834,84651\n  NL,833,83750.5\n  FR,833,82849.5\n  DE,834,82149"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "top country revenue",
+      "correct": true,
+      "answer": "AT (Austria), 84651.00 total paid revenue",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 871,
+      "inputTokens": 8,
+      "cacheCreationTokens": 4762,
+      "cacheReadTokens": 20128,
+      "outputTokens": 1059,
+      "costUsd": 0.0016839800000000003,
+      "durationMs": 9820,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SHOW TABLES; SHOW CREATE TABLE orders\\G\"",
+          "outputChars": 665,
+          "isError": false,
+          "preview": "Tables_in_shop\narticles\ncustomers\ndigits\norders\nreviews\nsubscribers\n*************************** 1. row ***************************\n       Table: orders\nCreate Table: CREATE TABLE `orders` (\n  `id` big"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SELECT status, COUNT(*), COUNT(DISTINCT status) FROM orders GROUP BY status; SELECT DISTINCT JSON_UNQUOTE(JSON_EXTRACT(meta,'$.ship.country')) AS c, JSON_TYPE(JSON_EXTRACT(meta,'$.ship.country')) t FROM orders ORDER BY c;\"",
+          "outputChars": 125,
+          "isError": false,
+          "preview": "status\tCOUNT(*)\tCOUNT(DISTINCT status)\npaid\t3334\t1\npending\t3333\t1\nrefunded\t3333\t1\nc\tt\nAT\tSTRING\nDE\tSTRING\nFR\tSTRING\nNL\tSTRING"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SELECT JSON_UNQUOTE(JSON_EXTRACT(meta,'$.ship.country')) AS country, COUNT(*) n, SUM(total) revenue FROM orders WHERE status='paid' GROUP BY country ORDER BY revenue DESC;\"",
+          "outputChars": 81,
+          "isError": false,
+          "preview": "country\tn\trevenue\nAT\t834\t84651.00\nNL\t833\t83750.50\nFR\t833\t82849.50\nDE\t834\t82149.00"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "top country revenue",
+      "correct": true,
+      "answer": "AT (Austria), 84651.00 in paid revenue",
+      "turns": 5,
+      "toolCalls": 4,
+      "toolOutputChars": 1792,
+      "inputTokens": 10,
+      "cacheCreationTokens": 5168,
+      "cacheReadTokens": 26973,
+      "outputTokens": 1084,
+      "costUsd": 0.00184633,
+      "durationMs": 10590,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50; echo ---; mysql-axi \"SHOW TABLES\" 2>&1 | head -50",
+          "outputChars": 670,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi tables 2>&1; echo ---; mysql-axi describe orders 2>&1",
+          "outputChars": 912,
+          "isError": false,
+          "preview": "database: shop\ntotal: 6 tables; 0 views; 2.2 MB\ntables[6]{name,kind,rows_est,size}:\n  articles,table,4,64 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  orders,table,10126,1.9 MB\n  reviews"
+        },
+        {
+          "command": "mysql-axi query \"SELECT status, COUNT(*) n FROM orders GROUP BY status\" 2>&1; echo ---; mysql-axi query \"SELECT JSON_UNQUOTE(JSON_EXTRACT(meta,'$.ship.country')) c, COUNT(*) n FROM orders GROUP BY c ORDER BY n DESC\" 2>&1",
+          "outputChars": 123,
+          "isError": false,
+          "preview": "result[3]{status,n}:\n  paid,3334\n  refunded,3333\n  pending,3333\n---\nresult[4]{c,n}:\n  NL,2500\n  DE,2500\n  AT,2500\n  FR,2500"
+        },
+        {
+          "command": "mysql-axi query \"SELECT JSON_UNQUOTE(JSON_EXTRACT(meta,'$.ship.country')) c, COUNT(*) n, SUM(total) revenue FROM orders WHERE status='paid' GROUP BY c ORDER BY revenue DESC\" 2>&1",
+          "outputChars": 87,
+          "isError": false,
+          "preview": "result[4]{c,n,revenue}:\n  AT,834,84651\n  NL,833,83750.5\n  FR,833,82849.5\n  DE,834,82149"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "top country revenue",
+      "correct": true,
+      "answer": "AT (Austria), 84651.00 revenue from paid orders",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 1618,
+      "inputTokens": 6,
+      "cacheCreationTokens": 5405,
+      "cacheReadTokens": 14848,
+      "outputTokens": 966,
+      "costUsd": 0.00171308,
+      "durationMs": 7415,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi describe orders; <bin>/mysql-axi sample orders",
+          "outputChars": 1435,
+          "isError": false,
+          "preview": "table:\n  name: shop.orders\n  rows_est: 10126\n  size: 1.9 MB\ncolumns[6]{name,type,nullable,key,default,extra}:\n  id,bigint unsigned,false,PRI,null,auto_increment\n  customer_id,bigint unsigned,false,MUL"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT JSON_UNQUOTE(JSON_EXTRACT(meta,'$.ship.country')) AS country, COUNT(*) AS n, SUM(total) AS revenue FROM orders WHERE status='paid' GROUP BY country ORDER BY revenue DESC\"",
+          "outputChars": 93,
+          "isError": false,
+          "preview": "result[4]{country,n,revenue}:\n  AT,834,84651\n  NL,833,83750.5\n  FR,833,82849.5\n  DE,834,82149"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT DISTINCT status, CONCAT('[',status,']') AS bracketed FROM orders\"",
+          "outputChars": 90,
+          "isError": false,
+          "preview": "result[3]{status,bracketed}:\n  paid,\"[paid]\"\n  refunded,\"[refunded]\"\n  pending,\"[pending]\""
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "top country revenue",
+      "correct": true,
+      "answer": "AT (Austria), 84651.00 from 834 paid orders",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 914,
+      "inputTokens": 8,
+      "cacheCreationTokens": 4686,
+      "cacheReadTokens": 20206,
+      "outputTokens": 924,
+      "costUsd": 0.0016020600000000002,
+      "durationMs": 9820,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SHOW TABLES; SHOW CREATE TABLE orders\\G\" 2>&1 | head -100",
+          "outputChars": 665,
+          "isError": false,
+          "preview": "Tables_in_shop\narticles\ncustomers\ndigits\norders\nreviews\nsubscribers\n*************************** 1. row ***************************\n       Table: orders\nCreate Table: CREATE TABLE `orders` (\n  `id` big"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SELECT status, COUNT(*), COUNT(DISTINCT JSON_UNQUOTE(JSON_EXTRACT(meta,'$.ship.country'))) FROM orders GROUP BY status; SELECT DISTINCT JSON_TYPE(JSON_EXTRACT(meta,'$.ship.country')) t, JSON_UNQUOTE(JSON_EXTRACT(meta,'$.ship.country')) c FROM orders ORDER BY c;\" 2>&1",
+          "outputChars": 168,
+          "isError": false,
+          "preview": "status\tCOUNT(*)\tCOUNT(DISTINCT JSON_UNQUOTE(JSON_EXTRACT(meta,'$.ship.country')))\npaid\t3334\t4\npending\t3333\t4\nrefunded\t3333\t4\nt\tc\nSTRING\tAT\nSTRING\tDE\nSTRING\tFR\nSTRING\tNL"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SELECT JSON_UNQUOTE(JSON_EXTRACT(meta,'$.ship.country')) country, COUNT(*) n, SUM(total) revenue FROM orders WHERE status='paid' GROUP BY country ORDER BY revenue DESC;\" 2>&1",
+          "outputChars": 81,
+          "isError": false,
+          "preview": "country\tn\trevenue\nAT\t834\t84651.00\nNL\t833\t83750.50\nFR\t833\t82849.50\nDE\t834\t82149.00"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "top country revenue",
+      "correct": true,
+      "answer": "AT (Austria), 84651.00 paid revenue",
+      "turns": 5,
+      "toolCalls": 4,
+      "toolOutputChars": 2118,
+      "inputTokens": 8,
+      "cacheCreationTokens": 5224,
+      "cacheReadTokens": 20735,
+      "outputTokens": 986,
+      "costUsd": 0.00174595,
+      "durationMs": 8775,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50; echo ---; mysql-axi \"SHOW TABLES\" 2>&1 | head -50",
+          "outputChars": 670,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi \"DESCRIBE orders\" 2>&1 | head -50",
+          "outputChars": 219,
+          "isError": false,
+          "preview": "error: unknown command 'DESCRIBE orders'\ncode: VALIDATION_ERROR\nhelp[2]:\n  commands: databases, tables, describe, sample, query, explain, doctor, auth, setup (no command = overview)\n  Run `mysql-axi -"
+        },
+        {
+          "command": "mysql-axi describe orders 2>&1 | head -60; echo ---; mysql-axi sample orders --limit 5 2>&1 | head -60",
+          "outputChars": 1060,
+          "isError": false,
+          "preview": "table:\n  name: shop.orders\n  rows_est: 10126\n  size: 1.9 MB\ncolumns[6]{name,type,nullable,key,default,extra}:\n  id,bigint unsigned,false,PRI,null,auto_increment\n  customer_id,bigint unsigned,false,MUL"
+        },
+        {
+          "command": "mysql-axi query \"SELECT status, COUNT(*) n, COUNT(DISTINCT JSON_UNQUOTE(JSON_EXTRACT(meta,'$.ship.country'))) c FROM orders GROUP BY status\" 2>&1 | head -30; echo ---; mysql-axi query \"SELECT JSON_UNQUOTE(JSON_EXTRACT(meta,'$.ship.country')) country, COUNT(*) n, SUM(total) revenue FROM orders WHERE status='paid' GROUP BY country ORDER BY revenue DESC\" 2>&1 | head -60",
+          "outputChars": 169,
+          "isError": false,
+          "preview": "result[3]{status,n,c}:\n  paid,3334,4\n  pending,3333,4\n  refunded,3333,4\n---\nresult[4]{country,n,revenue}:\n  AT,834,84651\n  NL,833,83750.5\n  FR,833,82849.5\n  DE,834,82149"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "top country revenue",
+      "correct": true,
+      "answer": "AT (Austria), 84651.00 paid revenue",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 1196,
+      "inputTokens": 8,
+      "cacheCreationTokens": 5529,
+      "cacheReadTokens": 21521,
+      "outputTokens": 1377,
+      "costUsd": 0.00201031,
+      "durationMs": 10980,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi tables; <bin>/mysql-axi describe orders",
+          "outputChars": 908,
+          "isError": false,
+          "preview": "database: shop\ntotal: 6 tables; 0 views; 2.2 MB\ntables[6]{name,kind,rows_est,size}:\n  articles,table,4,64 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  orders,table,10126,1.9 MB\n  reviews"
+        },
+        {
+          "command": "M=<bin>/mysql-axi; $M query \"SELECT status, COUNT(*) AS n, SUM(total) AS t FROM orders GROUP BY status\"; $M query \"SELECT JSON_TYPE(JSON_EXTRACT(meta,'\\$.ship.country')) AS typ, COUNT(*) AS n FROM orders GROUP BY typ\"; $M query \"SELECT JSON_UNQUOTE(JSON_EXTRACT(meta,'\\$.ship.country')) AS country, COUNT(*) AS n FROM orders GROU",
+          "outputChars": 185,
+          "isError": false,
+          "preview": "result[3]{status,n,t}:\n  paid,3334,333400\n  refunded,3333,333266.5\n  pending,3333,333333.5\nresult[1]{typ,n}:\n  STRING,10000\nresult[4]{country,n}:\n  NL,2500\n  DE,2500\n  AT,2500\n  FR,2500"
+        },
+        {
+          "command": "M=<bin>/mysql-axi; $M query \"SELECT JSON_UNQUOTE(JSON_EXTRACT(meta,'\\$.ship.country')) AS country, COUNT(*) AS paid_orders, SUM(total) AS revenue FROM orders WHERE status='paid' GROUP BY country ORDER BY revenue DESC\"",
+          "outputChars": 103,
+          "isError": false,
+          "preview": "result[4]{country,paid_orders,revenue}:\n  AT,834,84651\n  NL,833,83750.5\n  FR,833,82849.5\n  DE,834,82149"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "long text article",
+      "correct": true,
+      "answer": "Rotating database credentials without downtime (titled \"Operations handbook\")",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 6625,
+      "inputTokens": 4,
+      "cacheCreationTokens": 5035,
+      "cacheReadTokens": 7644,
+      "outputTokens": 209,
+      "costUsd": 0.00118834,
+      "durationMs": 3222,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SELECT * FROM articles WHERE id = 2\\G\"",
+          "outputChars": 6625,
+          "isError": false,
+          "preview": "*************************** 1. row ***************************\n          id: 2\n       title: Operations handbook\n        body: This guide explains how to rotate database credentials without downtime. "
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "long text article",
+      "correct": true,
+      "answer": "Rotating database credentials without downtime",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 1261,
+      "inputTokens": 6,
+      "cacheCreationTokens": 4304,
+      "cacheReadTokens": 13640,
+      "outputTokens": 470,
+      "costUsd": 0.0012328,
+      "durationMs": 5211,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi shop \"SELECT * FROM articles WHERE id = 2\" 2>&1 | head -50",
+          "outputChars": 208,
+          "isError": false,
+          "preview": "error: unknown command 'shop'\ncode: VALIDATION_ERROR\nhelp[2]:\n  commands: databases, tables, describe, sample, query, explain, doctor, auth, setup (no command = overview)\n  Run `mysql-axi --help` for "
+        },
+        {
+          "command": "mysql-axi describe articles 2>&1 | head -60; echo ---; mysql-axi query \"SELECT * FROM articles WHERE id = 2\" 2>&1 | head -60",
+          "outputChars": 603,
+          "isError": false,
+          "preview": "table:\n  name: shop.articles\n  rows_est: 4\n  size: 64 KB\ncolumns[4]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  title,varchar(100),true,null,null,null\n  body,text,true,null,n"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "long text article",
+      "correct": true,
+      "answer": "Rotating database credentials without downtime (operations handbook)",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 299,
+      "inputTokens": 4,
+      "cacheCreationTokens": 3952,
+      "cacheReadTokens": 7958,
+      "outputTokens": 304,
+      "costUsd": 0.00102238,
+      "durationMs": 4420,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi query \"SELECT * FROM articles WHERE id = 2\"",
+          "outputChars": 299,
+          "isError": false,
+          "preview": "result[1]{id,title,body,published_at}:\n  2,Operations handbook,This guide explains how to rotate database credentials without downtime. Background details and examples follow. Background details and e"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "long text article",
+      "correct": true,
+      "answer": "Rotating database credentials without downtime (titled \"Operations handbook\")",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 6625,
+      "inputTokens": 4,
+      "cacheCreationTokens": 5033,
+      "cacheReadTokens": 7644,
+      "outputTokens": 216,
+      "costUsd": 0.00119144,
+      "durationMs": 3436,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SELECT * FROM articles WHERE id = 2\\G\"",
+          "outputChars": 6625,
+          "isError": false,
+          "preview": "*************************** 1. row ***************************\n          id: 2\n       title: Operations handbook\n        body: This guide explains how to rotate database credentials without downtime. "
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "long text article",
+      "correct": true,
+      "answer": "Rotating database credentials without downtime (Operations handbook)",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 1053,
+      "inputTokens": 6,
+      "cacheCreationTokens": 4053,
+      "cacheReadTokens": 13396,
+      "outputTokens": 390,
+      "costUsd": 0.00114016,
+      "durationMs": 5008,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi describe articles 2>&1; echo ---; mysql-axi query \"SELECT * FROM shop.articles WHERE id = 2\" 2>&1",
+          "outputChars": 603,
+          "isError": false,
+          "preview": "table:\n  name: shop.articles\n  rows_est: 4\n  size: 64 KB\ncolumns[4]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  title,varchar(100),true,null,null,null\n  body,text,true,null,n"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "long text article",
+      "correct": true,
+      "answer": "Rotating database credentials without downtime (Operations handbook)",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 598,
+      "inputTokens": 4,
+      "cacheCreationTokens": 4278,
+      "cacheReadTokens": 7958,
+      "outputTokens": 425,
+      "costUsd": 0.00114808,
+      "durationMs": 4318,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi describe articles",
+          "outputChars": 299,
+          "isError": false,
+          "preview": "table:\n  name: shop.articles\n  rows_est: 4\n  size: 64 KB\ncolumns[4]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  title,varchar(100),true,null,null,null\n  body,text,true,null,n"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT * FROM articles WHERE id = 2\"",
+          "outputChars": 299,
+          "isError": false,
+          "preview": "result[1]{id,title,body,published_at}:\n  2,Operations handbook,This guide explains how to rotate database credentials without downtime. Background details and examples follow. Background details and e"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "long text article",
+      "correct": true,
+      "answer": "Rotating database credentials without downtime (titled \"Operations handbook\")",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 6625,
+      "inputTokens": 4,
+      "cacheCreationTokens": 5033,
+      "cacheReadTokens": 7644,
+      "outputTokens": 204,
+      "costUsd": 0.00118544,
+      "durationMs": 3945,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SELECT * FROM articles WHERE id = 2\\G\"",
+          "outputChars": 6625,
+          "isError": false,
+          "preview": "*************************** 1. row ***************************\n          id: 2\n       title: Operations handbook\n        body: This guide explains how to rotate database credentials without downtime. "
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "long text article",
+      "correct": true,
+      "answer": "Rotating database credentials without downtime (Operations handbook)",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 1053,
+      "inputTokens": 6,
+      "cacheCreationTokens": 4051,
+      "cacheReadTokens": 13390,
+      "outputTokens": 341,
+      "costUsd": 0.0011152,
+      "durationMs": 5128,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi describe articles 2>&1; echo ---; mysql-axi query \"SELECT * FROM shop.articles WHERE id = 2\" 2>&1",
+          "outputChars": 603,
+          "isError": false,
+          "preview": "table:\n  name: shop.articles\n  rows_est: 4\n  size: 64 KB\ncolumns[4]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  title,varchar(100),true,null,null,null\n  body,text,true,null,n"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "long text article",
+      "correct": true,
+      "answer": "Rotating database credentials without downtime (Operations handbook)",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 599,
+      "inputTokens": 4,
+      "cacheCreationTokens": 4161,
+      "cacheReadTokens": 7956,
+      "outputTokens": 356,
+      "costUsd": 0.0010901600000000002,
+      "durationMs": 7373,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi describe articles && <bin>/mysql-axi query \"SELECT * FROM articles WHERE id = 2\"",
+          "outputChars": 599,
+          "isError": false,
+          "preview": "table:\n  name: shop.articles\n  rows_est: 4\n  size: 64 KB\ncolumns[4]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  title,varchar(100),true,null,null,null\n  body,text,true,null,n"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "schema overview",
+      "correct": true,
+      "answer": "articles (4 rows, no refs), customers (1000, no refs), digits (10, no refs), orders (10000, references customers), reviews (20, no declared refs; order_id implies orders), subscribers (5, no refs)",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 591,
+      "inputTokens": 6,
+      "cacheCreationTokens": 4632,
+      "cacheReadTokens": 13742,
+      "outputTokens": 1315,
+      "costUsd": 0.00172192,
+      "durationMs": 8546,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SELECT TABLE_NAME, TABLE_ROWS, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA='shop' ORDER BY TABLE_NAME; SELECT TABLE_NAME, COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='shop' AND REFERENCED_TABLE_NAME IS NOT NULL ORDER BY TABLE_NAME, COLUMN_NAME;\"",
+          "outputChars": 272,
+          "isError": false,
+          "preview": "TABLE_NAME\tTABLE_ROWS\tTABLE_TYPE\narticles\t4\tBASE TABLE\ncustomers\t1000\tBASE TABLE\ndigits\t10\tBASE TABLE\norders\t10126\tBASE TABLE\nreviews\t20\tBASE TABLE\nsubscribers\t5\tBASE TABLE\nTABLE_NAME\tCOLUMN_NAME\tREFE"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SELECT TABLE_NAME, GROUP_CONCAT(COLUMN_NAME ORDER BY ORDINAL_POSITION) AS columns_list FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='shop' GROUP BY TABLE_NAME; SELECT TABLE_NAME, COUNT(*) AS exact_rows FROM (SELECT 'articles' AS TABLE_NAME FROM articles UNION ALL SELECT 'customers' FROM customers UNION ALL SELECT 'digits' FROM digits UNION ALL SE",
+          "outputChars": 319,
+          "isError": false,
+          "preview": "TABLE_NAME\tcolumns_list\narticles\tid,title,body,published_at\ncustomers\tid,email,name,created_at,deleted_at\ndigits\td\norders\tid,customer_id,status,total,meta,created_at\nreviews\tid,order_id,stars\nsubscrib"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "schema overview",
+      "correct": true,
+      "answer": "articles (~4 rows), customers (~1000 rows), digits (~10 rows), orders (~10126 rows; references customers), reviews (~20 rows; implied but undeclared reference to orders), subscribers (~5 rows)",
+      "turns": 5,
+      "toolCalls": 4,
+      "toolOutputChars": 3194,
+      "inputTokens": 10,
+      "cacheCreationTokens": 5848,
+      "cacheReadTokens": 26687,
+      "outputTokens": 1272,
+      "costUsd": 0.00207347,
+      "durationMs": 125912,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi tables 2>&1; echo ---; mysql-axi query \"SELECT TABLE_NAME, TABLE_ROWS FROM information_schema.TABLES WHERE TABLE_SCHEMA='shop' ORDER BY TABLE_NAME\" 2>&1; echo ---; mysql-axi query \"SELECT TABLE_NAME, COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='shop' AND REFERENCED_TABLE_NAME IS NOT NULL ORDER BY TABLE_NAME\" 2>&1",
+          "outputChars": 567,
+          "isError": false,
+          "preview": "database: shop\ntotal: 6 tables; 0 views; 2.2 MB\ntables[6]{name,kind,rows_est,size}:\n  articles,table,4,64 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  orders,table,10126,1.9 MB\n  reviews"
+        },
+        {
+          "command": "for t in articles customers digits orders reviews subscribers; do mysql-axi describe $t 2>&1; echo ---; done",
+          "outputChars": 58,
+          "isError": true,
+          "preview": "A variable in this command can't be checked before it runs"
+        },
+        {
+          "command": "mysql-axi describe articles; echo ---; mysql-axi describe customers; echo ---; mysql-axi describe digits; echo ---; mysql-axi describe orders; echo ---; mysql-axi describe reviews; echo ---; mysql-axi describe subscribers",
+          "outputChars": 2119,
+          "isError": false,
+          "preview": "table:\n  name: shop.articles\n  rows_est: 4\n  size: 64 KB\ncolumns[4]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  title,varchar(100),true,null,null,null\n  body,text,true,null,n"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "schema overview",
+      "correct": true,
+      "answer": "articles, customers, digits, orders, reviews, subscribers",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 2424,
+      "inputTokens": 6,
+      "cacheCreationTokens": 5284,
+      "cacheReadTokens": 14156,
+      "outputTokens": 764,
+      "costUsd": 0.0015809600000000002,
+      "durationMs": 7867,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi tables",
+          "outputChars": 325,
+          "isError": false,
+          "preview": "database: shop\ntotal: 6 tables; 0 views; 2.2 MB\ntables[6]{name,kind,rows_est,size}:\n  articles,table,4,64 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  orders,table,10126,1.9 MB\n  reviews"
+        },
+        {
+          "command": "B=<bin>/mysql-axi; $B describe articles; $B describe customers; $B describe digits; $B describe orders; $B describe reviews; $B describe subscribers",
+          "outputChars": 2099,
+          "isError": false,
+          "preview": "table:\n  name: shop.articles\n  rows_est: 4\n  size: 64 KB\ncolumns[4]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  title,varchar(100),true,null,null,null\n  body,text,true,null,n"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "schema overview",
+      "correct": true,
+      "answer": "articles, customers, digits, orders, reviews, subscribers",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 144,
+      "inputTokens": 4,
+      "cacheCreationTokens": 3903,
+      "cacheReadTokens": 7668,
+      "outputTokens": 803,
+      "costUsd": 0.00125918,
+      "durationMs": 6374,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SELECT t.TABLE_NAME, t.TABLE_ROWS, GROUP_CONCAT(DISTINCT k.REFERENCED_TABLE_NAME) AS references_to FROM information_schema.TABLES t LEFT JOIN information_schema.KEY_COLUMN_USAGE k ON k.TABLE_SCHEMA = t.TABLE_SCHEMA AND k.TABLE_NAME = t.TABLE_NAME AND k.REFERENCED_TABLE_NAME IS NOT NULL WHERE t.TABLE_SCHEMA = 'shop' AND t.TABLE_TYPE = 'BASE TABLE' GROUP",
+          "outputChars": 144,
+          "isError": false,
+          "preview": "TABLE_NAME\tTABLE_ROWS\treferences_to\narticles\t4\tNULL\ncustomers\t1000\tNULL\ndigits\t10\tNULL\norders\t10126\tcustomers\nreviews\t20\tNULL\nsubscribers\t5\tNULL"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "schema overview",
+      "correct": true,
+      "answer": "orders, customers, reviews, articles, subscribers, digits",
+      "turns": 9,
+      "toolCalls": 8,
+      "toolOutputChars": 3086,
+      "inputTokens": 8,
+      "cacheCreationTokens": 5797,
+      "cacheReadTokens": 19641,
+      "outputTokens": 1142,
+      "costUsd": 0.0019276100000000002,
+      "durationMs": 10039,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi tables 2>&1; echo ---; mysql-axi overview 2>&1 | head -60",
+          "outputChars": 542,
+          "isError": false,
+          "preview": "database: shop\ntotal: 6 tables; 0 views; 2.2 MB\ntables[6]{name,kind,rows_est,size}:\n  articles,table,4,64 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  orders,table,10126,1.9 MB\n  reviews"
+        },
+        {
+          "command": "mysql-axi describe articles 2>&1",
+          "outputChars": 299,
+          "isError": false,
+          "preview": "table:\n  name: shop.articles\n  rows_est: 4\n  size: 64 KB\ncolumns[4]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  title,varchar(100),true,null,null,null\n  body,text,true,null,n"
+        },
+        {
+          "command": "mysql-axi describe customers 2>&1",
+          "outputChars": 474,
+          "isError": false,
+          "preview": "table:\n  name: shop.customers\n  rows_est: 1000\n  size: 176 KB\ncolumns[5]{name,type,nullable,key,default,extra}:\n  id,bigint unsigned,false,PRI,null,auto_increment\n  email,varchar(191),false,MUL,null,n"
+        },
+        {
+          "command": "mysql-axi describe digits 2>&1",
+          "outputChars": 187,
+          "isError": false,
+          "preview": "table:\n  name: shop.digits\n  rows_est: 10\n  size: 16 KB\ncolumns[1]{name,type,nullable,key,default,extra}:\n  d,tinyint,false,PRI,null,null\nindexes[1]{name,columns,unique}:\n  PRIMARY,d,true"
+        },
+        {
+          "command": "mysql-axi describe orders 2>&1",
+          "outputChars": 582,
+          "isError": false,
+          "preview": "table:\n  name: shop.orders\n  rows_est: 10126\n  size: 1.9 MB\ncolumns[6]{name,type,nullable,key,default,extra}:\n  id,bigint unsigned,false,PRI,null,auto_increment\n  customer_id,bigint unsigned,false,MUL"
+        },
+        {
+          "command": "mysql-axi describe reviews 2>&1",
+          "outputChars": 270,
+          "isError": false,
+          "preview": "table:\n  name: shop.reviews\n  rows_est: 20\n  size: 16 KB\ncolumns[3]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  order_id,bigint unsigned,false,null,null,null\n  stars,tinyint,"
+        },
+        {
+          "command": "mysql-axi describe subscribers 2>&1",
+          "outputChars": 282,
+          "isError": false,
+          "preview": "table:\n  name: shop.subscribers\n  rows_est: 5\n  size: 16 KB\ncolumns[3]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,auto_increment\n  email,varchar(100),true,null,null,null\n  created_"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "schema overview",
+      "correct": true,
+      "answer": "orders, customers, reviews, articles, subscribers, digits",
+      "turns": 5,
+      "toolCalls": 4,
+      "toolOutputChars": 2595,
+      "inputTokens": 10,
+      "cacheCreationTokens": 6234,
+      "cacheReadTokens": 27572,
+      "outputTokens": 1567,
+      "costUsd": 0.00230702,
+      "durationMs": 128689,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi tables",
+          "outputChars": 325,
+          "isError": false,
+          "preview": "database: shop\ntotal: 6 tables; 0 views; 2.2 MB\ntables[6]{name,kind,rows_est,size}:\n  articles,table,4,64 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  orders,table,10126,1.9 MB\n  reviews"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT TABLE_NAME, COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='shop' AND REFERENCED_TABLE_NAME IS NOT NULL\"",
+          "outputChars": 113,
+          "isError": false,
+          "preview": "result[1]{TABLE_NAME,COLUMN_NAME,REFERENCED_TABLE_NAME,REFERENCED_COLUMN_NAME}:\n  orders,customer_id,customers,id"
+        },
+        {
+          "command": "cd <bin> && for t in articles customers digits orders reviews subscribers; do ./mysql-axi describe $t; done",
+          "outputChars": 58,
+          "isError": true,
+          "preview": "A variable in this command can't be checked before it runs"
+        },
+        {
+          "command": "<bin>/mysql-axi describe articles; <bin>/mysql-axi describe customers; <bin>/mysql-axi describe digits; <bin>/mysql-",
+          "outputChars": 2099,
+          "isError": false,
+          "preview": "table:\n  name: shop.articles\n  rows_est: 4\n  size: 64 KB\ncolumns[4]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  title,varchar(100),true,null,null,null\n  body,text,true,null,n"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "schema overview",
+      "correct": true,
+      "answer": "articles (4), customers (1000), digits (10), orders (10126; references customers), reviews (20; implicit order_id\u2192orders, undeclared), subscribers (5)",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 495,
+      "inputTokens": 6,
+      "cacheCreationTokens": 4459,
+      "cacheReadTokens": 13772,
+      "outputTokens": 1140,
+      "costUsd": 0.00160012,
+      "durationMs": 7473,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SELECT TABLE_NAME, TABLE_ROWS, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA='shop' ORDER BY TABLE_NAME;\" && mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SELECT TABLE_NAME, COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='shop' AND REFERENCED_TABLE_NAME IS NOT NULL O",
+          "outputChars": 272,
+          "isError": false,
+          "preview": "TABLE_NAME\tTABLE_ROWS\tTABLE_TYPE\narticles\t4\tBASE TABLE\ncustomers\t1000\tBASE TABLE\ndigits\t10\tBASE TABLE\norders\t10126\tBASE TABLE\nreviews\t20\tBASE TABLE\nsubscribers\t5\tBASE TABLE\nTABLE_NAME\tCOLUMN_NAME\tREFE"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SELECT TABLE_NAME, GROUP_CONCAT(COLUMN_NAME ORDER BY ORDINAL_POSITION) AS columns_list FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='shop' GROUP BY TABLE_NAME ORDER BY TABLE_NAME;\"",
+          "outputChars": 223,
+          "isError": false,
+          "preview": "TABLE_NAME\tcolumns_list\narticles\tid,title,body,published_at\ncustomers\tid,email,name,created_at,deleted_at\ndigits\td\norders\tid,customer_id,status,total,meta,created_at\nreviews\tid,order_id,stars\nsubscrib"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "schema overview",
+      "correct": true,
+      "answer": "articles, customers, digits, orders, reviews, subscribers",
+      "turns": 7,
+      "toolCalls": 6,
+      "toolOutputChars": 3261,
+      "inputTokens": 10,
+      "cacheCreationTokens": 6174,
+      "cacheReadTokens": 27322,
+      "outputTokens": 1539,
+      "costUsd": 0.00227852,
+      "durationMs": 130041,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi tables 2>&1",
+          "outputChars": 325,
+          "isError": false,
+          "preview": "database: shop\ntotal: 6 tables; 0 views; 2.2 MB\ntables[6]{name,kind,rows_est,size}:\n  articles,table,4,64 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  orders,table,10126,1.9 MB\n  reviews"
+        },
+        {
+          "command": "mysql-axi query \"SELECT TABLE_NAME, TABLE_ROWS, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA='shop' ORDER BY TABLE_NAME\" 2>&1",
+          "outputChars": 196,
+          "isError": false,
+          "preview": "result[6]{TABLE_NAME,TABLE_ROWS,TABLE_TYPE}:\n  articles,4,BASE TABLE\n  customers,1000,BASE TABLE\n  digits,10,BASE TABLE\n  orders,10126,BASE TABLE\n  reviews,20,BASE TABLE\n  subscribers,5,BASE TABLE"
+        },
+        {
+          "command": "mysql-axi query \"SELECT TABLE_NAME, COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA='shop' AND REFERENCED_TABLE_NAME IS NOT NULL ORDER BY TABLE_NAME, COLUMN_NAME\" 2>&1",
+          "outputChars": 113,
+          "isError": false,
+          "preview": "result[1]{TABLE_NAME,COLUMN_NAME,REFERENCED_TABLE_NAME,REFERENCED_COLUMN_NAME}:\n  orders,customer_id,customers,id"
+        },
+        {
+          "command": "for t in articles customers digits orders reviews subscribers; do mysql-axi describe $t 2>&1; echo \"---\"; done",
+          "outputChars": 58,
+          "isError": true,
+          "preview": "A variable in this command can't be checked before it runs"
+        },
+        {
+          "command": "mysql-axi describe articles; echo \"---\"; mysql-axi describe customers; echo \"---\"; mysql-axi describe digits; echo \"---\"; mysql-axi describe orders; echo \"---\"; mysql-axi describe reviews; echo \"---\"; mysql-axi describe subscribers",
+          "outputChars": 2119,
+          "isError": false,
+          "preview": "table:\n  name: shop.articles\n  rows_est: 4\n  size: 64 KB\ncolumns[4]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  title,varchar(100),true,null,null,null\n  body,text,true,null,n"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "schema overview",
+      "correct": true,
+      "answer": "orders (~10126 rows, references customers), customers (~1000), reviews (~20, implied reference to orders), articles (~4), digits (~10), subscribers (~5)",
+      "turns": 5,
+      "toolCalls": 4,
+      "toolOutputChars": 1290,
+      "inputTokens": 6,
+      "cacheCreationTokens": 5186,
+      "cacheReadTokens": 14150,
+      "outputTokens": 1087,
+      "costUsd": 0.0017228,
+      "durationMs": 7708,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi tables",
+          "outputChars": 325,
+          "isError": false,
+          "preview": "database: shop\ntotal: 6 tables; 0 views; 2.2 MB\ntables[6]{name,kind,rows_est,size}:\n  articles,table,4,64 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  orders,table,10126,1.9 MB\n  reviews"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT TABLE_NAME, COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = 'shop' AND REFERENCED_TABLE_NAME IS NOT NULL\"",
+          "outputChars": 113,
+          "isError": false,
+          "preview": "result[1]{TABLE_NAME,COLUMN_NAME,REFERENCED_TABLE_NAME,REFERENCED_COLUMN_NAME}:\n  orders,customer_id,customers,id"
+        },
+        {
+          "command": "<bin>/mysql-axi describe orders",
+          "outputChars": 582,
+          "isError": false,
+          "preview": "table:\n  name: shop.orders\n  rows_est: 10126\n  size: 1.9 MB\ncolumns[6]{name,type,nullable,key,default,extra}:\n  id,bigint unsigned,false,PRI,null,auto_increment\n  customer_id,bigint unsigned,false,MUL"
+        },
+        {
+          "command": "<bin>/mysql-axi describe reviews",
+          "outputChars": 270,
+          "isError": false,
+          "preview": "table:\n  name: shop.reviews\n  rows_est: 20\n  size: 16 KB\ncolumns[3]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  order_id,bigint unsigned,false,null,null,null\n  stars,tinyint,"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "customers without orders",
+      "correct": true,
+      "answer": "0",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 1408,
+      "inputTokens": 8,
+      "cacheCreationTokens": 5112,
+      "cacheReadTokens": 20821,
+      "outputTokens": 1049,
+      "costUsd": 0.00175591,
+      "durationMs": 8090,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SHOW TABLES; SHOW CREATE TABLE customers\\G; SHOW CREATE TABLE orders\\G\" 2>&1",
+          "outputChars": 1141,
+          "isError": false,
+          "preview": "Tables_in_shop\narticles\ncustomers\ndigits\norders\nreviews\nsubscribers\n*************************** 1. row ***************************\n       Table: customers\nCreate Table: CREATE TABLE `customers` (\n  `i"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"\nSELECT\n  COUNT(*) AS all_customers_without_orders,\n  SUM(c.deleted_at IS NULL) AS active_customers_without_orders,\n  SUM(c.deleted_at IS NOT NULL) AS soft_deleted_without_orders\nFROM customers c\nWHERE NOT EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id);\nSELECT COUNT(*) AS total_customers, SUM(deleted_at IS NOT NULL) AS soft_deleted FROM cus",
+          "outputChars": 136,
+          "isError": false,
+          "preview": "all_customers_without_orders\tactive_customers_without_orders\tsoft_deleted_without_orders\n0\tNULL\tNULL\ntotal_customers\tsoft_deleted\n1000\t0"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"\nSELECT COUNT(*) AS left_join_no_orders FROM customers c LEFT JOIN orders o ON o.customer_id = c.id WHERE o.id IS NULL;\nSELECT COUNT(DISTINCT customer_id) AS customers_with_orders, COUNT(*) AS total_orders, MIN(customer_id), MAX(customer_id) FROM orders;\nSELECT MIN(id), MAX(id) FROM customers;\" 2>&1",
+          "outputChars": 131,
+          "isError": false,
+          "preview": "left_join_no_orders\n0\ncustomers_with_orders\ttotal_orders\tMIN(customer_id)\tMAX(customer_id)\n1000\t10000\t1\t1000\nMIN(id)\tMAX(id)\n1\t1000"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "customers without orders",
+      "correct": true,
+      "answer": "0 customers have never placed an order (all 1000 have at least one order).",
+      "turns": 6,
+      "toolCalls": 5,
+      "toolOutputChars": 2319,
+      "inputTokens": 10,
+      "cacheCreationTokens": 5714,
+      "cacheReadTokens": 27967,
+      "outputTokens": 1359,
+      "costUsd": 0.00210297,
+      "durationMs": 12002,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi \"SHOW TABLES\" 2>&1 | head -50",
+          "outputChars": 215,
+          "isError": false,
+          "preview": "error: unknown command 'SHOW TABLES'\ncode: VALIDATION_ERROR\nhelp[2]:\n  commands: databases, tables, describe, sample, query, explain, doctor, auth, setup (no command = overview)\n  Run `mysql-axi --hel"
+        },
+        {
+          "command": "mysql-axi tables 2>&1; echo ---; mysql-axi describe customers 2>&1; echo ---; mysql-axi describe orders 2>&1",
+          "outputChars": 1391,
+          "isError": false,
+          "preview": "database: shop\ntotal: 6 tables; 0 views; 2.2 MB\ntables[6]{name,kind,rows_est,size}:\n  articles,table,4,64 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  orders,table,10126,1.9 MB\n  reviews"
+        },
+        {
+          "command": "mysql-axi query \"SELECT COUNT(*) AS total_never_ordered, SUM(c.deleted_at IS NULL) AS active_never_ordered, SUM(c.deleted_at IS NOT NULL) AS soft_deleted_never_ordered FROM customers c WHERE NOT EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id)\" 2>&1; echo ---; mysql-axi query \"SELECT (SELECT COUNT(*) FROM customers) AS all_customers, (SELECT COUNT(*) FROM customers WHERE deleted_at IS NU",
+          "outputChars": 152,
+          "isError": false,
+          "preview": "result[1]{total_never_ordered,active_never_ordered,soft_deleted_never_ordered}:\n  0,null,null\n---\nresult[1]{all_customers,active_customers}:\n  1000,1000"
+        },
+        {
+          "command": "mysql-axi query \"SELECT COUNT(DISTINCT customer_id) AS customers_with_orders, COUNT(*) AS total_orders, SUM(customer_id NOT IN (SELECT id FROM customers)) AS orphan_orders FROM orders\" 2>&1; echo ---; mysql-axi query \"SELECT COUNT(*) AS left_join_nulls FROM customers c LEFT JOIN orders o ON o.customer_id = c.id WHERE o.id IS NULL\" 2>&1",
+          "outputChars": 111,
+          "isError": false,
+          "preview": "result[1]{customers_with_orders,total_orders,orphan_orders}:\n  1000,10000,0\n---\nresult[1]{left_join_nulls}:\n  0"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "customers without orders",
+      "correct": true,
+      "answer": "0 customers have never placed an order (all 1000 have at least one order).",
+      "turns": 5,
+      "toolCalls": 4,
+      "toolOutputChars": 1521,
+      "inputTokens": 8,
+      "cacheCreationTokens": 5577,
+      "cacheReadTokens": 22247,
+      "outputTokens": 1227,
+      "costUsd": 0.0019521700000000003,
+      "durationMs": 8222,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi tables",
+          "outputChars": 325,
+          "isError": false,
+          "preview": "database: shop\ntotal: 6 tables; 0 views; 2.2 MB\ntables[6]{name,kind,rows_est,size}:\n  articles,table,4,64 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  orders,table,10126,1.9 MB\n  reviews"
+        },
+        {
+          "command": "<bin>/mysql-axi describe customers; <bin>/mysql-axi describe orders",
+          "outputChars": 1057,
+          "isError": false,
+          "preview": "table:\n  name: shop.customers\n  rows_est: 1000\n  size: 176 KB\ncolumns[5]{name,type,nullable,key,default,extra}:\n  id,bigint unsigned,false,PRI,null,auto_increment\n  email,varchar(191),false,MUL,null,n"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT COUNT(*) AS total_customers, SUM(c.deleted_at IS NULL) AS active_customers, SUM(NOT EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id)) AS never_ordered_all, SUM(c.deleted_at IS NULL AND NOT EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id)) AS never_ordered_active FROM customers c",
+          "outputChars": 99,
+          "isError": false,
+          "preview": "result[1]{total_customers,active_customers,never_ordered_all,never_ordered_active}:\n  1000,1000,0,0"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT COUNT(*) AS customers_left_join_null FROM customers c LEFT JOIN orders o ON o.customer_id = c.id WHERE o.id IS NULL\"",
+          "outputChars": 40,
+          "isError": false,
+          "preview": "result[1]{customers_left_join_null}:\n  0"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "customers without orders",
+      "correct": true,
+      "answer": "0",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 569,
+      "inputTokens": 8,
+      "cacheCreationTokens": 4666,
+      "cacheReadTokens": 19734,
+      "outputTokens": 1083,
+      "costUsd": 0.00167284,
+      "durationMs": 8500,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SELECT COUNT(*) AS customers_without_orders FROM customers c WHERE NOT EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id);\" 2>&1",
+          "outputChars": 26,
+          "isError": false,
+          "preview": "customers_without_orders\n0"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SELECT (SELECT COUNT(*) FROM customers) AS customers, (SELECT COUNT(*) FROM orders) AS orders, (SELECT COUNT(DISTINCT customer_id) FROM orders) AS distinct_ordering_customers; SHOW COLUMNS FROM customers; SHOW COLUMNS FROM orders;\" 2>&1",
+          "outputChars": 490,
+          "isError": false,
+          "preview": "customers\torders\tdistinct_ordering_customers\n1000\t10000\t1000\nField\tType\tNull\tKey\tDefault\tExtra\nid\tbigint unsigned\tNO\tPRI\tNULL\tauto_increment\nemail\tvarchar(191)\tNO\tMUL\tNULL\t\nname\tvarchar(80)\tNO\t\tNULL\t\n"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SELECT COUNT(*) AS deleted_customers FROM customers WHERE deleted_at IS NOT NULL; SELECT COUNT(*) AS active_customers_without_orders FROM customers c WHERE c.deleted_at IS NULL AND NOT EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id);\" 2>&1",
+          "outputChars": 53,
+          "isError": false,
+          "preview": "deleted_customers\n0\nactive_customers_without_orders\n0"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "customers without orders",
+      "correct": true,
+      "answer": "0 customers have never placed an order; all 1000 have at least one order.",
+      "turns": 6,
+      "toolCalls": 5,
+      "toolOutputChars": 2310,
+      "inputTokens": 10,
+      "cacheCreationTokens": 5682,
+      "cacheReadTokens": 27936,
+      "outputTokens": 1315,
+      "costUsd": 0.0020742599999999996,
+      "durationMs": 10381,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi \"SHOW TABLES FROM shop\" 2>&1 | head -50",
+          "outputChars": 225,
+          "isError": false,
+          "preview": "error: unknown command 'SHOW TABLES FROM shop'\ncode: VALIDATION_ERROR\nhelp[2]:\n  commands: databases, tables, describe, sample, query, explain, doctor, auth, setup (no command = overview)\n  Run `mysql"
+        },
+        {
+          "command": "mysql-axi tables 2>&1; echo ---; mysql-axi describe customers 2>&1; echo ---; mysql-axi describe orders 2>&1",
+          "outputChars": 1391,
+          "isError": false,
+          "preview": "database: shop\ntotal: 6 tables; 0 views; 2.2 MB\ntables[6]{name,kind,rows_est,size}:\n  articles,table,4,64 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  orders,table,10126,1.9 MB\n  reviews"
+        },
+        {
+          "command": "mysql-axi query \"SELECT COUNT(*) AS all_customers_no_order, SUM(c.deleted_at IS NULL) AS active_no_order, SUM(c.deleted_at IS NOT NULL) AS deleted_no_order FROM customers c WHERE NOT EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id)\" 2>&1; echo ---; mysql-axi query \"SELECT COUNT(*) AS total_customers, SUM(deleted_at IS NOT NULL) AS deleted FROM customers\" 2>&1",
+          "outputChars": 130,
+          "isError": false,
+          "preview": "result[1]{all_customers_no_order,active_no_order,deleted_no_order}:\n  0,null,null\n---\nresult[1]{total_customers,deleted}:\n  1000,0"
+        },
+        {
+          "command": "mysql-axi query \"SELECT COUNT(*) AS no_order FROM customers c LEFT JOIN orders o ON o.customer_id = c.id WHERE o.id IS NULL\" 2>&1; echo ---; mysql-axi query \"SELECT COUNT(DISTINCT customer_id) AS customers_with_orders, MIN(customer_id), MAX(customer_id) FROM orders\" 2>&1",
+          "outputChars": 114,
+          "isError": false,
+          "preview": "result[1]{no_order}:\n  0\n---\nresult[1]{customers_with_orders,\"MIN(customer_id)\",\"MAX(customer_id)\"}:\n  1000,1,1000"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "customers without orders",
+      "correct": true,
+      "answer": "0 customers have never placed an order (all 1000 have at least one).",
+      "turns": 5,
+      "toolCalls": 4,
+      "toolOutputChars": 1549,
+      "inputTokens": 8,
+      "cacheCreationTokens": 5730,
+      "cacheReadTokens": 22265,
+      "outputTokens": 1387,
+      "costUsd": 0.00206295,
+      "durationMs": 10445,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi tables",
+          "outputChars": 325,
+          "isError": false,
+          "preview": "database: shop\ntotal: 6 tables; 0 views; 2.2 MB\ntables[6]{name,kind,rows_est,size}:\n  articles,table,4,64 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  orders,table,10126,1.9 MB\n  reviews"
+        },
+        {
+          "command": "<bin>/mysql-axi describe customers; <bin>/mysql-axi describe orders",
+          "outputChars": 1057,
+          "isError": false,
+          "preview": "table:\n  name: shop.customers\n  rows_est: 1000\n  size: 176 KB\ncolumns[5]{name,type,nullable,key,default,extra}:\n  id,bigint unsigned,false,PRI,null,auto_increment\n  email,varchar(191),false,MUL,null,n"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT COUNT(*) AS total_no_orders, SUM(c.deleted_at IS NULL) AS active_no_orders, SUM(c.deleted_at IS NOT NULL) AS soft_deleted_no_orders FROM customers c WHERE NOT EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id)\"",
+          "outputChars": 81,
+          "isError": false,
+          "preview": "result[1]{total_no_orders,active_no_orders,soft_deleted_no_orders}:\n  0,null,null"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT (SELECT COUNT(*) FROM customers) AS customers, (SELECT COUNT(*) FROM customers WHERE deleted_at IS NOT NULL) AS soft_deleted, (SELECT COUNT(DISTINCT customer_id) FROM orders) AS customers_with_orders, (SELECT COUNT(*) FROM orders o LEFT JOIN customers c ON c.id = o.customer_id WHERE c.id IS NULL) A",
+          "outputChars": 86,
+          "isError": false,
+          "preview": "result[1]{customers,soft_deleted,customers_with_orders,orphan_orders}:\n  1000,0,1000,0"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "customers without orders",
+      "correct": true,
+      "answer": "0",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 603,
+      "inputTokens": 8,
+      "cacheCreationTokens": 4904,
+      "cacheReadTokens": 20159,
+      "outputTokens": 1248,
+      "costUsd": 0.0018071900000000002,
+      "durationMs": 9369,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"SHOW TABLES; SELECT TABLE_NAME, COLUMN_NAME, COLUMN_KEY FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='shop' AND (TABLE_NAME LIKE '%customer%' OR TABLE_NAME LIKE '%order%') ORDER BY TABLE_NAME, ORDINAL_POSITION;\"",
+          "outputChars": 295,
+          "isError": false,
+          "preview": "Tables_in_shop\narticles\ncustomers\ndigits\norders\nreviews\nsubscribers\nTABLE_NAME\tCOLUMN_NAME\tCOLUMN_KEY\ncustomers\tid\tPRI\ncustomers\temail\tMUL\ncustomers\tname\t\ncustomers\tcreated_at\t\ncustomers\tdeleted_at\t\no"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"\nSELECT COUNT(*) AS total_customers, SUM(deleted_at IS NOT NULL) AS soft_deleted FROM customers;\nSELECT COUNT(*) AS never_ordered_all FROM customers c WHERE NOT EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id);\nSELECT COUNT(*) AS never_ordered_active FROM customers c WHERE c.deleted_at IS NULL AND NOT EXISTS (SELECT 1 FROM orders o WHERE o.cu",
+          "outputChars": 154,
+          "isError": false,
+          "preview": "total_customers\tsoft_deleted\n1000\t0\nnever_ordered_all\n0\nnever_ordered_active\n0\norders_null_customer\n0\nstatus\tCOUNT(*)\npaid\t3334\nrefunded\t3333\npending\t3333"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 53401 -u bench shop -e \"\nSELECT COUNT(DISTINCT customer_id) AS distinct_ordering_customers, MIN(customer_id), MAX(customer_id) FROM orders;\nSELECT COUNT(*) AS orders_with_unknown_customer FROM orders o LEFT JOIN customers c ON c.id = o.customer_id WHERE c.id IS NULL;\nSELECT COUNT(*) AS customers_left_join_null FROM customers c LEFT JOIN orders o ON o.customer_id = c.id WHERE ",
+          "outputChars": 154,
+          "isError": false,
+          "preview": "distinct_ordering_customers\tMIN(customer_id)\tMAX(customer_id)\n1000\t1\t1000\norders_with_unknown_customer\n0\ncustomers_left_join_null\n0\nMIN(id)\tMAX(id)\n1\t1000"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "customers without orders",
+      "correct": true,
+      "answer": "0 customers have never placed an order (of 1000 total).",
+      "turns": 6,
+      "toolCalls": 5,
+      "toolOutputChars": 2241,
+      "inputTokens": 10,
+      "cacheCreationTokens": 5571,
+      "cacheReadTokens": 27809,
+      "outputTokens": 1236,
+      "costUsd": 0.00201129,
+      "durationMs": 10661,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi \"SHOW TABLES\" 2>&1 | head -50",
+          "outputChars": 215,
+          "isError": false,
+          "preview": "error: unknown command 'SHOW TABLES'\ncode: VALIDATION_ERROR\nhelp[2]:\n  commands: databases, tables, describe, sample, query, explain, doctor, auth, setup (no command = overview)\n  Run `mysql-axi --hel"
+        },
+        {
+          "command": "mysql-axi tables 2>&1; echo ---; mysql-axi describe customers 2>&1; echo ---; mysql-axi describe orders 2>&1",
+          "outputChars": 1391,
+          "isError": false,
+          "preview": "database: shop\ntotal: 6 tables; 0 views; 2.2 MB\ntables[6]{name,kind,rows_est,size}:\n  articles,table,4,64 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  orders,table,10126,1.9 MB\n  reviews"
+        },
+        {
+          "command": "mysql-axi query \"SELECT COUNT(*) AS never_ordered_all, SUM(c.deleted_at IS NULL) AS never_ordered_active, SUM(c.deleted_at IS NOT NULL) AS never_ordered_deleted FROM customers c WHERE NOT EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id)\" 2>&1",
+          "outputChars": 86,
+          "isError": false,
+          "preview": "result[1]{never_ordered_all,never_ordered_active,never_ordered_deleted}:\n  0,null,null"
+        },
+        {
+          "command": "mysql-axi query \"SELECT (SELECT COUNT(*) FROM customers) AS total_customers, (SELECT COUNT(*) FROM customers WHERE deleted_at IS NULL) AS active_customers, (SELECT COUNT(DISTINCT customer_id) FROM orders) AS customers_with_orders, (SELECT COUNT(*) FROM orders o LEFT JOIN customers c ON c.id = o.customer_id WHERE c.id IS NULL) AS orphan_orders\" 2>&1",
+          "outputChars": 99,
+          "isError": false,
+          "preview": "result[1]{total_customers,active_customers,customers_with_orders,orphan_orders}:\n  1000,1000,1000,0"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "customers without orders",
+      "correct": true,
+      "answer": "0 customers have never placed an order; all 1000 have at least one.",
+      "turns": 5,
+      "toolCalls": 4,
+      "toolOutputChars": 1539,
+      "inputTokens": 10,
+      "cacheCreationTokens": 5574,
+      "cacheReadTokens": 28274,
+      "outputTokens": 1262,
+      "costUsd": 0.0020295400000000003,
+      "durationMs": 10542,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi tables",
+          "outputChars": 325,
+          "isError": false,
+          "preview": "database: shop\ntotal: 6 tables; 0 views; 2.2 MB\ntables[6]{name,kind,rows_est,size}:\n  articles,table,4,64 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  orders,table,10126,1.9 MB\n  reviews"
+        },
+        {
+          "command": "<bin>/mysql-axi describe customers; <bin>/mysql-axi describe orders",
+          "outputChars": 1057,
+          "isError": false,
+          "preview": "table:\n  name: shop.customers\n  rows_est: 1000\n  size: 176 KB\ncolumns[5]{name,type,nullable,key,default,extra}:\n  id,bigint unsigned,false,PRI,null,auto_increment\n  email,varchar(191),false,MUL,null,n"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT COUNT(*) AS never_ordered_all, SUM(c.deleted_at IS NULL) AS never_ordered_active, SUM(c.deleted_at IS NOT NULL) AS never_ordered_deleted FROM customers c WHERE NOT EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id)\"",
+          "outputChars": 86,
+          "isError": false,
+          "preview": "result[1]{never_ordered_all,never_ordered_active,never_ordered_deleted}:\n  0,null,null"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT (SELECT COUNT(*) FROM customers) AS customers, (SELECT COUNT(DISTINCT customer_id) FROM orders) AS customers_with_orders, (SELECT COUNT(*) FROM orders o LEFT JOIN customers c ON c.id = o.customer_id WHERE c.id IS NULL) AS orphan_orders\"",
+          "outputChars": 71,
+          "isError": false,
+          "preview": "result[1]{customers,customers_with_orders,orphan_orders}:\n  1000,1000,0"
+        }
+      ]
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 import { AxiError, exitCodeForError as sdkExitCode } from "axi-sdk-js";
+import { redactSecrets } from "./secrets.js";
 
 export { AxiError };
 
@@ -37,7 +38,8 @@ interface DriverError {
 export function fromDriverError(error: unknown, where: string): AxiError {
   if (error instanceof AxiError) return error;
   const e = (error ?? {}) as DriverError;
-  const sql = e.sqlMessage ? `${e.sqlMessage} (MySQL ${e.errno})` : undefined;
+  // Syntax errors quote the SQL near the problem, which can include a password.
+  const sql = e.sqlMessage ? `${redactSecrets(e.sqlMessage)} (MySQL ${e.errno})` : undefined;
   switch (e.code) {
     case "ECONNREFUSED":
       return axiError(`cannot reach ${where} - connection refused`, "NETWORK", ["Is the server running? Check `docker ps` or the host/port of the profile"]);

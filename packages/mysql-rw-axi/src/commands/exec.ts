@@ -8,14 +8,32 @@ import { classify, singleStatement } from "../classify.js";
 
 export const EXEC_HELP = `usage: mysql-rw-axi exec "<sql>" [flags]
 WRITES. Runs ONE statement of any kind on a loopback database, with no time limit.
-Irreversible statements preview until --confirm - DROP, TRUNCATE, ALTER ... DROP, and DELETE/UPDATE without WHERE.
+Irreversible statements preview until --confirm - DROP, TRUNCATE, ALTER ... DROP, REPLACE, and DELETE/UPDATE without WHERE.
 flags:
   ${CONNECTION_FLAGS_HELP}, --confirm, --file <path> (or - for stdin), --limit <n> (rows if it returns any; default 50), --full
 examples:
   mysql-rw-axi exec "UPDATE orders SET status = 'paid' WHERE id = 42"
-  mysql-rw-axi exec "ALTER TABLE orders ADD COLUMN note TEXT"
+  mysql-rw-axi exec "CREATE INDEX by_status_created ON orders (status, created_at) ALGORITHM=INPLACE LOCK=NONE"
+  mysql-rw-axi exec "INSERT INTO customers (id, name) VALUES (1, 'Ada') AS new ON DUPLICATE KEY UPDATE name = new.name"
   mysql-rw-axi exec "TRUNCATE TABLE sessions" --confirm
 `;
+
+// "Changed" repeats affected_rows (FOUND_ROWS is off); warnings get their own block.
+const INFO_KEYS: Record<string, string | null> = { "rows matched": "matched_rows", changed: null, warnings: null };
+
+/** "Rows matched: 1  Changed: 0  Warnings: 0" -> numbers; zero counts except matched_rows are dropped. */
+function infoFields(info: string): Obj {
+  if (!info) return {};
+  const fields: Obj = {};
+  const pairs = [...info.matchAll(/([A-Za-z ]+):\s*(\d+)/g)];
+  if (pairs.length === 0) return { info };
+  for (const [, label, value] of pairs) {
+    const name = label!.trim().toLowerCase();
+    const key = name in INFO_KEYS ? INFO_KEYS[name] : name.replace(/ /g, "_");
+    if (key && (Number(value) > 0 || key === "matched_rows")) fields[key] = Number(value);
+  }
+  return fields;
+}
 
 export async function execCommand(args: string[]): Promise<string> {
   const command = "mysql-rw-axi exec";
@@ -45,7 +63,7 @@ export async function execCommand(args: string[]): Promise<string> {
 
   const result: Obj = { statement: snippet(sql), verb: verb.toUpperCase(), affected_rows: outcome.affectedRows };
   if (outcome.insertId > 0) result["insert_id"] = outcome.insertId;
-  if (outcome.info) result["info"] = outcome.info;
+  Object.assign(result, infoFields(outcome.info));
   result["elapsed_ms"] = outcome.elapsedMs;
   return out(
     block({ exec: result }),

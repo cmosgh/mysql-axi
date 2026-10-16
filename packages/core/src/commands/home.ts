@@ -35,10 +35,8 @@ export async function homeCommand(): Promise<string> {
     Object.keys(status).length > 0 && block(status),
     profiles.length > 0 && block({ profiles }),
     helpBlock([
-      `Run \`${name} databases\` or \`${name} tables\` to explore`,
-      `Run \`${name} query "SELECT ..."\` for a capped read`,
-      `Run \`${name} doctor\` to check the connection and grants`,
-      `Run \`${name} --help\` for every command`,
+      `Run \`${name} tables\`, \`${name} describe <table>\` or \`${name} sample <table>\` to explore`,
+      `Run \`${name} query "<sql>"\` or \`${name} explain "<select>"\`; \`${name} <command> --help\` for flags`,
     ]),
   );
 }

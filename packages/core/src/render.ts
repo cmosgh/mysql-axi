@@ -1,4 +1,5 @@
 import { encode } from "@toon-format/toon";
+import { redactSecrets } from "./secrets.js";
 
 export type Obj = Record<string, unknown>;
 
@@ -43,6 +44,6 @@ export function humanBytes(value: unknown): string {
 
 /** Single-line preview of a statement for status blocks. */
 export function snippet(sql: string, max = 120): string {
-  const flat = sql.replace(/\s+/g, " ").trim();
+  const flat = redactSecrets(sql).replace(/\s+/g, " ").trim();
   return flat.length <= max ? flat : `${flat.slice(0, max)}... (+${flat.length - max} chars)`;
 }

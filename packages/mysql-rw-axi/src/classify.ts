@@ -18,9 +18,19 @@ export function classify(statement: readonly Token[]): Classification {
       return { verb, irreversible: "TRUNCATE deletes every row" };
     case "delete":
     case "update":
-      return words.includes("where") ? { verb } : { verb, irreversible: `${verb.toUpperCase()} without WHERE affects every row` };
+      if (words.includes("where")) return { verb };
+      return words.includes("join")
+        ? { verb, irreversible: `multi-table ${verb.toUpperCase()} without WHERE affects every joined row` }
+        : { verb, irreversible: `${verb.toUpperCase()} without WHERE affects every row` };
+    case "replace":
+      return { verb, irreversible: "REPLACE deletes the conflicting row first - ON DELETE CASCADE children go with it" };
+    case "load":
+      return words.includes("replace") ? { verb, irreversible: "LOAD DATA ... REPLACE deletes conflicting rows first" } : { verb };
     case "alter":
-      return words.includes("drop") ? { verb, irreversible: "ALTER ... DROP removes a column; index; partition or constraint" } : { verb };
+      // ALTER COLUMN c DROP DEFAULT loses no data.
+      return words.some((w, i) => w === "drop" && words[i + 1] !== "default")
+        ? { verb, irreversible: "ALTER ... DROP removes a column; index; partition or constraint" }
+        : { verb };
     default:
       return { verb };
   }

@@ -19,7 +19,7 @@ describe("home", () => {
     delete process.env["MYSQL_AXI_URL"];
     const { stdout, exitCode } = await ro();
     expect(exitCode).toBe(0);
-    expect(stdout).toContain("mode: READ-ONLY MySQL");
+    expect(stdout).toContain("mode: READ-ONLY - one SELECT");
     expect(stdout).toContain("not a grant check");
     expect(stdout).toContain("status: not configured");
     expect(fake.connections).toHaveLength(0);
@@ -119,13 +119,20 @@ describe("schema commands", () => {
         rows: [["id", "int", "NO", "PRI", null, "auto_increment", ""], ["customer_id", "int", "NO", "MUL", null, "", ""]],
       },
       "SELECT INDEX_NAME": { columns: ["name", "cols", "non_unique"], rows: [["PRIMARY", "id", 0], ["fk_customer", "customer_id", 1]] },
-      "SELECT CONSTRAINT_NAME": { columns: ["name", "cols", "ref_db", "ref_table", "ref_cols"], rows: [["fk_customer", "customer_id", "shop", "customers", "id"]] },
+      "SELECT k.CONSTRAINT_NAME": {
+        columns: ["name", "cols", "ref_db", "ref_table", "ref_cols", "on_delete", "on_update"],
+        rows: [["fk_customer", "customer_id", "shop", "customers", "id", "CASCADE", "NO ACTION"]],
+      },
+      "SELECT c.CONSTRAINT_NAME": { columns: ["name", "clause"], rows: [["chk_total", "(`total` >= 0)"]] },
+      "SELECT TRIGGER_NAME": { columns: ["name", "timing", "event"], rows: [] },
       "SELECT TABLE_SCHEMA": { columns: ["db", "tbl", "cols"], rows: [["shop", "order_items", "order_id"]] },
     });
     const { stdout } = await ro("describe", "orders");
     expect(stdout).toContain("columns[2]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,auto_increment");
     expect(stdout).toContain("indexes[2]{name,columns,unique}:\n  PRIMARY,id,true");
-    expect(stdout).toContain("fk_customer,customer_id,customers(id)");
+    expect(stdout).toContain("foreign_keys[1]{name,columns,references,on_delete,on_update}:\n  fk_customer,customer_id,customers(id),CASCADE,NO ACTION");
+    expect(stdout).toContain("checks[1]{name,clause}:");
+    expect(stdout).not.toContain("triggers");
     expect(stdout).toContain("referenced_by[1]{table,columns}:\n  order_items,order_id");
   });
 

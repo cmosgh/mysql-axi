@@ -49,6 +49,8 @@ function connectionOptions(target: Target): mysql.ConnectionOptions {
     supportBigNumbers: true,
     bigNumberStrings: true,
     connectTimeout: 10_000,
+    // affectedRows = rows changed, as in the mysql client, so a rerun UPDATE shows 0.
+    flags: ["-FOUND_ROWS"],
   };
 }
 
@@ -70,6 +72,14 @@ export class Session {
   async execute(sql: string): Promise<number> {
     const [result] = await this.conn.promise().query(sql);
     return Array.isArray(result) ? 0 : (result as mysql.ResultSetHeader).affectedRows;
+  }
+
+  /** Like execute, plus the warning count (import reports them). */
+  async apply(sql: string): Promise<{ affectedRows: number; warnings: number }> {
+    const [result] = await this.conn.promise().query(sql);
+    if (Array.isArray(result)) return { affectedRows: 0, warnings: 0 };
+    const header = result as mysql.ResultSetHeader;
+    return { affectedRows: header.affectedRows, warnings: header.warningStatus };
   }
 
   /**
@@ -106,12 +116,14 @@ export class Session {
         if (!Array.isArray(fields)) return;
         columns ??= (fields as mysql.FieldPacket[]).map((f) => ({ name: f.name, type: f.columnType ?? f.type ?? 0 }));
       });
-      query.on("result", (row: unknown) => {
+      query.on("result", (row: unknown, resultSet?: number) => {
         if (settled) return;
-        if (!columns) {
-          header = row as mysql.ResultSetHeader;
+        // OK packets arrive as objects, also after a CALL's result set; only the first set's rows count.
+        if (!Array.isArray(row)) {
+          if (!columns) header = row as mysql.ResultSetHeader;
           return;
         }
+        if (!columns || (resultSet ?? 0) > 0) return;
         if (rows.length < limit) {
           rows.push(row as unknown[]);
           return;

@@ -49,6 +49,9 @@ export async function doctorCommand(args: string[]): Promise<string> {
   let warning: Obj | undefined;
   if (tool().mode === "read-only" && (grants.write.length > 0 || grants.roles.length > 0)) {
     warning = { warning: `these credentials ${grants.write.length > 0 ? "can write" : "may write through roles"} - ${tool().name} blocks writes with its client guard and a read-only session only` };
+    if (grants.write.includes("EXECUTE")) {
+      help.push("EXECUTE runs stored routines with their definer's rights - a routine called from a SELECT can change server state the guard cannot see");
+    }
     help.push("For a hard guarantee use a SELECT-only account - CREATE USER 'agent_ro'@'%' IDENTIFIED BY '<password>'; GRANT SELECT, SHOW VIEW ON <database>.* TO 'agent_ro'@'%';");
   }
   return out(warning && block(warning), block({ doctor: report }), helpBlock(help));

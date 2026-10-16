@@ -1,9 +1,10 @@
 import { bool, enumFlag, expectPositionals, flag, intFlag, parseArgs, parseFields, type ParsedArgs } from "../args.js";
-import { rowsBlock } from "../cells.js";
-import { withSession, type Session } from "../connection.js";
+import { records, rowsBlock } from "../cells.js";
+import { withSession, type RowsOutcome, type Session } from "../connection.js";
 import { axiError, usageError } from "../errors.js";
 import { block, fenced, helpBlock, humanBytes, out, type Obj } from "../render.js";
-import { assertReadOnly, mainVerb, quoteIdent, statements, tokenize } from "../sql.js";
+import { redactSecrets } from "../secrets.js";
+import { assertReadOnly, mainVerb, quoteIdent, statements, tokenize, type Token } from "../sql.js";
 import type { Target } from "../target.js";
 import { tool } from "../tool.js";
 import { CONNECTION_FLAGS, CONNECTION_FLAGS_HELP, MAX_ROWS, requireDatabase, sqlInput, tableRef, targetFrom, TIMEOUT_FLAG, timeoutMs } from "./common.js";
@@ -128,7 +129,7 @@ export async function tablesCommand(args: string[]): Promise<string> {
     for (const field of fields) row[field] = extras[field as (typeof TABLE_FIELDS)[number]](r);
     return row;
   });
-  const help = [`Run \`${tool().name} describe <table>\` for columns; indexes and foreign keys`, `Run \`${tool().name} sample <table>\` for a few rows`];
+  const help = [`Run \`${tool().name} describe <table>\` for columns; indexes and foreign keys`];
   if (rows.length > limit) help.unshift(`Showing ${limit} of ${rows.length} - raise --limit`);
   return out(
     block({ database, total: `${rows.length - views} tables; ${views} views; ${humanBytes(total)}` }),
@@ -140,7 +141,7 @@ export async function tablesCommand(args: string[]): Promise<string> {
 // --- describe ---
 
 export const describeHelp = (): string => `usage: ${tool().name} describe <table|database.table> [flags]
-Columns, indexes, foreign keys and the tables that reference this one.
+Columns, indexes, foreign keys (with ON DELETE/UPDATE), CHECK constraints, triggers and the tables that reference this one.
 flags:
   ${CONNECTION_FLAGS_HELP}, --timeout <seconds>
 examples:
@@ -158,7 +159,8 @@ export async function describeCommand(args: string[]): Promise<string> {
 
   const result = await read(target, parsed, async (s) => {
     const [info] = await s.all<Obj>(
-      `SELECT TABLE_TYPE AS type, ENGINE AS engine, TABLE_ROWS AS rows_est, DATA_LENGTH + INDEX_LENGTH AS bytes, TABLE_COMMENT AS comment
+      `SELECT TABLE_TYPE AS type, ENGINE AS engine, TABLE_ROWS AS rows_est, DATA_LENGTH + INDEX_LENGTH AS bytes, TABLE_COMMENT AS comment,
+              TABLE_COLLATION AS collation
        FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?`,
       [database, table],
     );
@@ -167,7 +169,8 @@ export async function describeCommand(args: string[]): Promise<string> {
       return { found: false as const, names: names.map((r) => r.name) };
     }
     const columns = await s.all<Obj>(
-      `SELECT COLUMN_NAME AS name, COLUMN_TYPE AS type, IS_NULLABLE AS nullable, COLUMN_KEY AS k, COLUMN_DEFAULT AS def, EXTRA AS extra, COLUMN_COMMENT AS comment
+      `SELECT COLUMN_NAME AS name, COLUMN_TYPE AS type, IS_NULLABLE AS nullable, COLUMN_KEY AS k, COLUMN_DEFAULT AS def, EXTRA AS extra, COLUMN_COMMENT AS comment,
+              COLLATION_NAME AS coll, GENERATION_EXPRESSION AS gen
        FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION`,
       [database, table],
     );
@@ -178,12 +181,26 @@ export async function describeCommand(args: string[]): Promise<string> {
       [database, table],
     );
     const outgoing = await s.all<Obj>(
-      `SELECT CONSTRAINT_NAME AS name, GROUP_CONCAT(COLUMN_NAME ORDER BY ORDINAL_POSITION SEPARATOR ';') AS cols,
-              REFERENCED_TABLE_SCHEMA AS ref_db, REFERENCED_TABLE_NAME AS ref_table,
-              GROUP_CONCAT(REFERENCED_COLUMN_NAME ORDER BY ORDINAL_POSITION SEPARATOR ';') AS ref_cols
-       FROM information_schema.KEY_COLUMN_USAGE
-       WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND REFERENCED_TABLE_NAME IS NOT NULL
-       GROUP BY CONSTRAINT_NAME, REFERENCED_TABLE_SCHEMA, REFERENCED_TABLE_NAME ORDER BY CONSTRAINT_NAME`,
+      `SELECT k.CONSTRAINT_NAME AS name, GROUP_CONCAT(k.COLUMN_NAME ORDER BY k.ORDINAL_POSITION SEPARATOR ';') AS cols,
+              k.REFERENCED_TABLE_SCHEMA AS ref_db, k.REFERENCED_TABLE_NAME AS ref_table,
+              GROUP_CONCAT(k.REFERENCED_COLUMN_NAME ORDER BY k.ORDINAL_POSITION SEPARATOR ';') AS ref_cols,
+              MAX(r.DELETE_RULE) AS on_delete, MAX(r.UPDATE_RULE) AS on_update
+       FROM information_schema.KEY_COLUMN_USAGE k
+       JOIN information_schema.REFERENTIAL_CONSTRAINTS r ON r.CONSTRAINT_SCHEMA = k.TABLE_SCHEMA AND r.CONSTRAINT_NAME = k.CONSTRAINT_NAME AND r.TABLE_NAME = k.TABLE_NAME
+       WHERE k.TABLE_SCHEMA = ? AND k.TABLE_NAME = ? AND k.REFERENCED_TABLE_NAME IS NOT NULL
+       GROUP BY k.CONSTRAINT_NAME, k.REFERENCED_TABLE_SCHEMA, k.REFERENCED_TABLE_NAME ORDER BY k.CONSTRAINT_NAME`,
+      [database, table],
+    );
+    const checks = await s.all<Obj>(
+      `SELECT c.CONSTRAINT_NAME AS name, c.CHECK_CLAUSE AS clause
+       FROM information_schema.TABLE_CONSTRAINTS t
+       JOIN information_schema.CHECK_CONSTRAINTS c ON c.CONSTRAINT_SCHEMA = t.CONSTRAINT_SCHEMA AND c.CONSTRAINT_NAME = t.CONSTRAINT_NAME
+       WHERE t.TABLE_SCHEMA = ? AND t.TABLE_NAME = ? AND t.CONSTRAINT_TYPE = 'CHECK' ORDER BY c.CONSTRAINT_NAME`,
+      [database, table],
+    );
+    const triggers = await s.all<Obj>(
+      `SELECT TRIGGER_NAME AS name, ACTION_TIMING AS timing, EVENT_MANIPULATION AS event
+       FROM information_schema.TRIGGERS WHERE EVENT_OBJECT_SCHEMA = ? AND EVENT_OBJECT_TABLE = ? ORDER BY TRIGGER_NAME`,
       [database, table],
     );
     const incoming = await s.all<Obj>(
@@ -192,7 +209,7 @@ export async function describeCommand(args: string[]): Promise<string> {
        GROUP BY TABLE_SCHEMA, TABLE_NAME, CONSTRAINT_NAME ORDER BY TABLE_NAME`,
       [database, table],
     );
-    return { found: true as const, info, columns, indexes, outgoing, incoming };
+    return { found: true as const, info, columns, indexes, outgoing, incoming, checks, triggers };
   });
 
   if (!result.found) {
@@ -202,12 +219,21 @@ export async function describeCommand(args: string[]): Promise<string> {
       `Run \`${tool().name} tables -d ${database}\``,
     ]);
   }
-  const { info, columns, indexes, outgoing, incoming } = result;
+  const { info, columns, indexes, outgoing, incoming, checks, triggers } = result;
   const view = info["type"] === "VIEW";
-  const header: Obj = { name, kind: view ? "view" : "table" };
-  if (!view) Object.assign(header, { engine: info["engine"], rows_est: n(info["rows_est"]), size: humanBytes(n(info["bytes"])) });
+  // Defaults (a table, InnoDB) are left out; column collations are shown when they drift.
+  const header: Obj = { name };
+  if (view) header["kind"] = "view";
+  else {
+    if (info["engine"] !== "InnoDB") header["engine"] = info["engine"];
+    Object.assign(header, { rows_est: n(info["rows_est"]), size: humanBytes(n(info["bytes"])) });
+  }
   if (info["comment"]) header["comment"] = info["comment"];
   const withComments = columns.some((c) => c["comment"]);
+  // Optional fields appear only when some column needs them.
+  const drifted = (c: Obj) => (c["coll"] && info["collation"] && c["coll"] !== info["collation"] ? c["coll"] : null);
+  const withCollation = !view && columns.some(drifted);
+  const withGenerated = columns.some((c) => c["gen"]);
   const cols = columns.map((c) => ({
     name: c["name"],
     type: c["type"],
@@ -215,6 +241,8 @@ export async function describeCommand(args: string[]): Promise<string> {
     key: c["k"] || null,
     default: c["def"] ?? null,
     extra: c["extra"] || null,
+    ...(withGenerated ? { generated: c["gen"] || null } : {}),
+    ...(withCollation ? { collation: drifted(c) } : {}),
     ...(withComments ? { comment: c["comment"] || null } : {}),
   }));
   const ref = (db: unknown, t: unknown): string => (db === database ? String(t) : `${String(db)}.${String(t)}`);
@@ -223,9 +251,18 @@ export async function describeCommand(args: string[]): Promise<string> {
     block({ columns: cols }),
     indexes.length > 0 && block({ indexes: indexes.map((i) => ({ name: i["name"], columns: i["cols"], unique: n(i["non_unique"]) === 0 })) }),
     outgoing.length > 0 &&
-      block({ foreign_keys: outgoing.map((f) => ({ name: f["name"], columns: f["cols"], references: `${ref(f["ref_db"], f["ref_table"])}(${String(f["ref_cols"])})` })) }),
+      block({
+        foreign_keys: outgoing.map((f) => ({
+          name: f["name"],
+          columns: f["cols"],
+          references: `${ref(f["ref_db"], f["ref_table"])}(${String(f["ref_cols"])})`,
+          on_delete: f["on_delete"],
+          on_update: f["on_update"],
+        })),
+      }),
+    checks.length > 0 && block({ checks: checks.map((c) => ({ name: c["name"], clause: c["clause"] })) }),
+    triggers.length > 0 && block({ triggers: triggers.map((t) => ({ name: t["name"], timing: t["timing"], event: t["event"] })) }),
     incoming.length > 0 && block({ referenced_by: incoming.map((f) => ({ table: ref(f["db"], f["tbl"]), columns: f["cols"] })) }),
-    helpBlock([`Run \`${tool().name} sample ${raw}\` for a few rows`]),
   );
 }
 
@@ -261,7 +298,8 @@ flags:
   ${CONNECTION_FLAGS_HELP}, --limit <n> (rows; default 50; max ${MAX_ROWS}), --full (no 200-char cell truncation), --file <path> (SQL from a file; or pass - for stdin), --timeout <seconds> (default 30)
 examples:
   ${tool().name} query "SELECT id, status FROM orders WHERE created_at > NOW() - INTERVAL 1 DAY"
-  ${tool().name} query "SHOW CREATE TABLE orders"
+  ${tool().name} query "SELECT r.id, r.order_id FROM reviews r LEFT JOIN orders o ON o.id = r.order_id WHERE o.id IS NULL"
+  ${tool().name} query "SHOW CREATE TABLE orders" --full
   ${tool().name} query --file report.sql --limit 500
 `;
 
@@ -278,34 +316,72 @@ export async function queryCommand(args: string[]): Promise<string> {
   const target = await targetFrom(parsed);
   const outcome = await read(target, parsed, (s) => s.run(sql, limit));
   if (outcome.kind !== "rows") return block({ result: "ok - no rows", elapsed_ms: outcome.elapsedMs });
+  const raw = rawTextColumns(statements(tokenize(sql).tokens)[0] ?? [], outcome);
+  if (raw.size > 0 && outcome.rows.length > 0) return rawTextOutput(outcome, raw, bool(parsed, "--full"));
   const help = outcome.truncated ? [`Add WHERE or LIMIT to the query, or raise --limit (max ${MAX_ROWS})`] : [];
   return out(rowsBlock(outcome, bool(parsed, "--full"), limit), helpBlock(help));
+}
+
+/** Columns that hold one large text (DDL, InnoDB status, JSON plans): printed fenced and untruncated. */
+function rawTextColumns(statement: readonly Token[], outcome: RowsOutcome): Set<number> {
+  const [first, second] = statement;
+  const words = (t: Token | undefined) => (t?.kind === "word" ? t.text : "");
+  const raw = new Set<number>();
+  outcome.columns.forEach((c, i) => {
+    const name = c.name.toLowerCase();
+    if (words(first) === "show" && words(second) === "create" && name.startsWith("create ")) raw.add(i);
+    if (words(first) === "show" && words(second) === "engine" && name === "status") raw.add(i);
+    if (["explain", "desc", "describe"].includes(words(first)) && name === "explain") raw.add(i);
+  });
+  return raw;
+}
+
+function rawTextOutput(outcome: RowsOutcome, raw: Set<number>, full: boolean): string {
+  const rows = records({ ...outcome, columns: outcome.columns.filter((_, i) => !raw.has(i)), rows: outcome.rows.map((r) => r.filter((_, i) => !raw.has(i))) }, full);
+  return out(
+    ...outcome.rows.flatMap((row, r) => [
+      Object.keys(rows[r]!).length > 0 && block(rows[r]!),
+      ...[...raw].map((i) => fenced(outcome.columns[i]!.name.toLowerCase().split(" ").slice(0, 2).join("_"), redactSecrets(String(row[i] ?? "")))),
+    ]),
+  );
 }
 
 // --- explain ---
 
 export const explainHelp = (): string => `usage: ${tool().name} explain "<select>" [flags]
-The optimizer plan of a read query, without running it (EXPLAIN FORMAT=TREE; EXPLAIN ANALYZE is refused).
+The optimizer plan of a read query (EXPLAIN FORMAT=TREE). --analyze runs the query read-only and adds actual rows and times.
 flags:
-  ${CONNECTION_FLAGS_HELP}, --format tree|traditional (default tree), --file <path>, --timeout <seconds>
+  ${CONNECTION_FLAGS_HELP}, --format tree|traditional (default tree), --analyze, --file <path>, --timeout <seconds>
 examples:
-  ${tool().name} explain "SELECT * FROM orders WHERE customer_id = 42"
-  ${tool().name} explain --format traditional "SELECT ..."
+  ${tool().name} explain "SELECT id, total FROM orders WHERE status = 'paid' AND created_at >= '2026-10-01'"
+  ${tool().name} explain --format traditional "SELECT id, total FROM orders WHERE status = 'paid'"
+  ${tool().name} explain --analyze "SELECT COUNT(*) FROM orders o JOIN customers c ON c.id = o.customer_id"
 `;
 
 export async function explainCommand(args: string[]): Promise<string> {
   const command = `${tool().name} explain`;
-  const parsed = parseArgs(args, [...CONNECTION_FLAGS, TIMEOUT_FLAG, { name: "--format" }, { name: "--file" }], command);
+  const parsed = parseArgs(args, [...CONNECTION_FLAGS, TIMEOUT_FLAG, { name: "--format" }, { name: "--file" }, { name: "--analyze", boolean: true }], command);
   const sql = sqlInput(parsed, `${command} "<select>"`);
   const format = enumFlag(parsed, "--format", ["tree", "traditional"] as const, "tree");
+  const analyze = bool(parsed, "--analyze");
+  if (analyze && format !== "tree") throw usageError("--analyze prints a tree - drop --format traditional");
   assertReadOnly(sql);
   const verb = mainVerb(statements(tokenize(sql).tokens)[0] ?? []);
   if (verb !== "select" && verb !== "table") {
     throw usageError("explain takes a SELECT (or WITH ... SELECT / TABLE) query", ["Pass the query without the EXPLAIN keyword"]);
   }
   const target = await targetFrom(parsed);
-  const outcome = await read(target, parsed, (s) => s.run(`EXPLAIN FORMAT=${format.toUpperCase()} ${sql}`, MAX_ROWS));
+  // ANALYZE runs the SELECT, still inside the read-only transaction and --timeout.
+  const prefix = analyze ? "EXPLAIN ANALYZE" : `EXPLAIN FORMAT=${format.toUpperCase()}`;
+  const outcome = await read(target, parsed, (s) => s.run(`${prefix} ${sql}`, MAX_ROWS));
   if (outcome.kind !== "rows") throw axiError("the server returned no plan", "UNKNOWN");
-  if (format === "tree") return fenced("plan", outcome.rows.map((r) => String(r[0])).join("\n"));
-  return rowsBlock(outcome, true, MAX_ROWS);
+  const plan = fenced("plan", outcome.rows.map((r) => String(r[0])).join("\n"));
+  // The server cuts ANALYZE off at max_execution_time and still returns a plan.
+  if (analyze && outcome.elapsedMs >= timeoutMs(parsed) * 0.95) {
+    return out(plan, helpBlock([`Stopped at the ${timeoutMs(parsed) / 1000}s --timeout - actual rows and times are partial`]));
+  }
+  if (format === "tree") return plan;
+  // key_len, rows and filtered arrive as text.
+  const numeric = outcome.rows.map((row) => row.map((v) => (typeof v === "string" && /^\d+(\.\d+)?$/.test(v) ? Number(v) : v)));
+  return rowsBlock({ ...outcome, rows: numeric }, true, MAX_ROWS);
 }
