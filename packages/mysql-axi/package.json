@@ -1,0 +1,47 @@
+{
+  "name": "mysql-axi",
+  "version": "0.1.0",
+  "description": "Read-only MySQL CLI for agents - schemas, sample rows, capped SELECT/SHOW/DESC/EXPLAIN queries in token-efficient TOON. Writes are refused by a client-side guard plus a read-only session; not a grant check.",
+  "type": "module",
+  "keywords": [
+    "mysql",
+    "read-only",
+    "sql",
+    "cli",
+    "agent",
+    "axi",
+    "toon"
+  ],
+  "bin": {
+    "mysql-axi": "dist/mysql-axi.js"
+  },
+  "files": [
+    "dist",
+    "skills/mysql-axi",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "prepublishOnly": "cd ../.. && pnpm run check"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@napi-rs/keyring": "^2.1.1",
+    "@toon-format/toon": "^4.4.0",
+    "axi-sdk-js": "^0.1.13",
+    "mysql2": "^3.24.6"
+  },
+  "author": "Cristian Mos",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cmosgh/mysql-axi.git",
+    "directory": "packages/mysql-axi"
+  },
+  "homepage": "https://github.com/cmosgh/mysql-axi/tree/main/packages/mysql-axi#readme",
+  "bugs": {
+    "url": "https://github.com/cmosgh/mysql-axi/issues"
+  }
+}

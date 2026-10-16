@@ -1,0 +1,43 @@
+{
+  "name": "mysql-axi-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Monorepo for mysql-axi (read-only) and mysql-rw-axi (write, loopback only)",
+  "scripts": {
+    "build": "tsx scripts/build.ts",
+    "build:skill": "tsx scripts/build-skill.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:integration": "MYSQL_AXI_IT_URL=${MYSQL_AXI_IT_URL:-mysql://root@127.0.0.1:3306} vitest run test/integration.test.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "check": "pnpm run typecheck && pnpm run test && pnpm run build && pnpm run build:skill -- --check",
+    "version": "tsx scripts/sync-version.ts && git add packages/mysql-axi/package.json packages/mysql-rw-axi/package.json"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@napi-rs/keyring": "^2.1.1",
+    "@toon-format/toon": "^4.4.0",
+    "@types/node": "^26.6.5",
+    "axi-sdk-js": "^0.1.13",
+    "esbuild": "^0.28.2",
+    "mysql2": "^3.24.6",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.4"
+  },
+  "author": "Cristian Mos",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cmosgh/mysql-axi.git"
+  },
+  "packageManager": "pnpm@10.28.2",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "name": "mysql-rw-axi",
+  "version": "0.1.0",
+  "description": "WRITE ACCESS - loopback hosts only. MySQL CLI for agents that CAN MODIFY AND DROP DATA on local databases - exec, import, create/drop databases, plus every read-only mysql-axi command. Use mysql-axi for anything that is not a local dev database.",
+  "type": "module",
+  "keywords": [
+    "mysql",
+    "sql",
+    "cli",
+    "agent",
+    "axi",
+    "toon"
+  ],
+  "bin": {
+    "mysql-rw-axi": "dist/mysql-rw-axi.js"
+  },
+  "files": [
+    "dist",
+    "skills/mysql-rw-axi",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "prepublishOnly": "cd ../.. && pnpm run check"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@napi-rs/keyring": "^2.1.1",
+    "@toon-format/toon": "^4.4.0",
+    "axi-sdk-js": "^0.1.13",
+    "mysql2": "^3.24.6"
+  },
+  "author": "Cristian Mos",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cmosgh/mysql-axi.git",
+    "directory": "packages/mysql-rw-axi"
+  },
+  "homepage": "https://github.com/cmosgh/mysql-axi/tree/main/packages/mysql-rw-axi#readme",
+  "bugs": {
+    "url": "https://github.com/cmosgh/mysql-axi/issues"
+  }
+}
