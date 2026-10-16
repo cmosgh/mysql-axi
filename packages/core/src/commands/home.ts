@@ -37,6 +37,7 @@ export async function homeCommand(): Promise<string> {
     helpBlock([
       `Run \`${name} tables\`, \`${name} describe <table>\` or \`${name} sample <table>\` to explore`,
       `Run \`${name} query "<sql>"\` or \`${name} explain "<select>"\`; \`${name} <command> --help\` for flags`,
+      ...(tool().writeHint ? [tool().writeHint!] : []),
     ]),
   );
 }

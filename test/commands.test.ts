@@ -37,6 +37,7 @@ describe("home", () => {
     const { stdout } = await rw();
     expect(stdout.split("\n").find((l) => !l.startsWith("bin:") && !l.startsWith("description:"))).toMatch(/^warning: WRITE-CAPABLE/);
     expect(stdout).toContain("SSH tunnel to 127.0.0.1 also counts as loopback");
+    expect(stdout).toContain('Writes go through `mysql-rw-axi exec "<sql>"`');
   });
 });
 

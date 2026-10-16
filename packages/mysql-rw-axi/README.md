@@ -15,6 +15,7 @@ mysql-rw-axi exec "TRUNCATE TABLE sessions"            # previews; nothing runs
 mysql-rw-axi exec "TRUNCATE TABLE sessions" --confirm  # runs
 mysql-rw-axi import dump.sql --confirm
 mysql-rw-axi db create shop_test
+mysql-rw-axi "SELECT COUNT(*) FROM orders"            # bare SQL runs as a read-only query
 ```
 
 ## What it does
@@ -29,7 +30,8 @@ mysql-rw-axi db create shop_test
   - The file is streamed, so dumps larger than memory work; `-` (stdin) is spooled to a temp file first.
   - The summary counts server warnings and shows the first five (silent truncation, zero dates). DEFINER accounts that do not exist on this server are flagged, because their views, triggers and routines fail later with MySQL 1449.
 - **`db create|drop <name>`:** idempotent. `drop` previews the table count and size until `--confirm`, and system schemas are always refused.
-- **Every `mysql-axi` command** (`query`, `sample`, `describe`, `tables`, …). These **still run read-only**, so writes always go through `exec`.
+- **Every `mysql-axi` command** (`query`, `sample`, `describe`, `tables`, …). These **still run read-only**, so writes always go through `exec`. Bare SQL (`mysql-rw-axi "SELECT …"`) runs as `query`; a bare write is refused with a pointer to `exec`. Reads get the same protection as `mysql-axi`, shown in its [safety table](https://github.com/cmosgh/mysql-axi/tree/main/packages/mysql-axi#safe-to-auto-approve).
+- **Rows** from `query` or from an `exec` that returns rows are capped at 50 (`--limit`, max 1000). A cut result reports the total, such as `rows: 50 of 72 shown`, and the `--limit` that shows them all.
 
 The irreversible-statement detection is a best-effort check against mistakes, not a sandbox. The loopback rule is the real boundary.
 
@@ -64,10 +66,44 @@ mysql-rw-axi exec "UPDATE orders SET status = 'paid' WHERE id = 42"   # affected
 mysql-rw-axi exec "UPDATE orders SET status = 'paid' WHERE id = 42"   # affected_rows: 0, matched_rows: 1
 ```
 
+## Session hook
+
+Run `mysql-rw-axi` with no command and it prints a short overview that leads with the write warning, so an agent knows from the start that this tool can change data, where it may connect and how writes are made:
+
+```text
+$ mysql-rw-axi
+bin: ~/.npm-global/bin/mysql-rw-axi
+description: "WRITE ACCESS - MySQL CLI for agents that CAN MODIFY AND DROP DATA on loopback databases (local dev): exec, import, db create/drop, plus every read-only mysql-axi command. Irreversible statements preview until --confirm. Use mysql-axi for anything that is not local."
+warning: WRITE-CAPABLE - exec; import and db can modify and DROP data
+scope: loopback hosts only - 127.0.0.0/8; IPv6 loopback; unix sockets. An SSH tunnel to 127.0.0.1 also counts as loopback - never tunnel to a shared database
+reads: query; sample; describe and the other read commands still run read-only
+profiles[1]{name,target,active}:
+  local,"root@127.0.0.1:3306/shop_dev",true
+help[3]:
+  Run `mysql-rw-axi tables`, `mysql-rw-axi describe <table>` or `mysql-rw-axi sample <table>` to explore
+  Run `mysql-rw-axi query "<sql>"` or `mysql-rw-axi explain "<select>"`; `mysql-rw-axi <command> --help` for flags
+  Writes go through `mysql-rw-axi exec "<sql>"`
+```
+
+`mysql-rw-axi setup hooks` adds this overview to the agent's context at the start of every Claude Code, Codex or OpenCode session. It never connects to a database or reads the keychain. Because the overview tells the agent it can write, install it only where writing to the local database is wanted:
+
+| Command | Applies to | Files written |
+|---|---|---|
+| `mysql-rw-axi setup hooks --local` | only you, only in this repository (Claude Code) | `.claude/settings.local.json`; it says so if git would commit the file |
+| `mysql-rw-axi setup hooks --project` | everyone working in this repository (commit the files) | `.claude/settings.json`, `.codex/hooks.json`, `.opencode/plugins/`; Codex also needs `[features] hooks = true` in `~/.codex/config.toml`, which this adds |
+| `mysql-rw-axi setup hooks` | every session of yours | `~/.claude/settings.json`, `~/.codex/hooks.json`, `~/.config/opencode/plugins/` |
+
+Run `--local` and `--project` from the repository root; `setup status` and `setup uninstall` take the same flag. With both tools installed, a common setup is `mysql-axi setup hooks` for every session and `mysql-rw-axi setup hooks --local` in the repositories whose local database the agent may change. Why a hook rather than the skill: see [Session hook in mysql-axi](https://github.com/cmosgh/mysql-axi/tree/main/packages/mysql-axi#session-hook) and its benchmarks.
+
 ## Connections
 
 - **Profiles:** `auth login` connects first, then stores the profile. The password goes in the OS keychain and the rest goes in `~/.config/mysql-rw-axi/config.json`.
 - **Separate from `mysql-axi`:** the profiles, keychain entries and env vars are not shared, so read-write credentials are never visible to the read-only tool.
 - **Env override:** `MYSQL_RW_AXI_URL=mysql://user:password@127.0.0.1:3306/database`.
+
+## Agent integration
+
+- **Session start:** `mysql-rw-axi setup hooks --local`; see [Session hook](#session-hook).
+- **Skill:** a discovery skill ships in `skills/mysql-rw-axi/SKILL.md`.
 
 MySQL 8.x only. MIT licensed.
