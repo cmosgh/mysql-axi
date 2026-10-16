@@ -1,6 +1,7 @@
 // Local-only token benchmark: the same model, tasks and database, once with the plain
-// `mysql` client and with mysql-axi. TOKENS_MODEL picks the model (default sonnet); each run gets its own
-// container and writes test/tokens/results/<model>.json. `pnpm run tokens:readme` publishes them.
+// `mysql` client and with mysql-axi. TOKENS_MODEL picks the model (default sonnet), TOKENS_SUITE the task set
+// (efficiency, or accuracy: traps where the output format can cause a wrong answer). Each run gets its own
+// container and writes test/tokens/results/<suite>/<model>.json. `pnpm run tokens:readme` publishes them.
 // Needs Docker, a logged-in `claude` CLI and a `mysql` client on PATH. Never runs in CI.
 import { spawn, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
@@ -20,11 +21,12 @@ const MAX_TURNS = 25;
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
 const slug = MODEL.replace(/[^\w.-]+/g, "-");
-const runsDir = join(root, "test/tokens/.runs", slug);
+const SUITE = process.env["TOKENS_SUITE"] ?? "efficiency";
+if (SUITE !== "efficiency" && SUITE !== "accuracy") throw new Error(`TOKENS_SUITE must be efficiency or accuracy, not ${SUITE}`);
+const runsDir = join(root, "test/tokens/.runs", SUITE, slug);
 const DB = "shop";
 const USER = "bench";
 const PASSWORD = randomBytes(9).toString("hex");
-
 
 interface Task {
   id: string;
@@ -35,7 +37,7 @@ interface Task {
 
 const expected: Record<string, string> = {};
 
-const ALL_TASKS: Task[] = [
+const EFFICIENCY_TASKS: Task[] = [
   {
     id: "orders per status",
     prompt: "How many orders are there per status?",
@@ -88,9 +90,83 @@ const ALL_TASKS: Task[] = [
   },
 ];
 
+/** First number in an answer, thousands separators already removed. */
+const firstNumber = (a: string): number | undefined => {
+  const m = /-?\d+(\.\d+)?/.exec(a);
+  return m ? Number(m[0]) : undefined;
+};
+
+const ACCURACY_TASKS: Task[] = [
+  {
+    id: "all out-of-stock SKUs",
+    prompt: "List the SKU of every product that is out of stock (stock = 0). The ANSWER line must list all of them, comma-separated.",
+    check: (a) => {
+      const got = [...new Set(a.match(/SKU-\d{4}/g) ?? [])].sort();
+      return got.join(",") === expected["skus"];
+    },
+  },
+  {
+    id: "root cause at the end of a report",
+    prompt: "What does the final finding of incident 1 name as the root cause?",
+    check: (a) => /certificate|tls/i.test(a),
+  },
+  {
+    id: "literal 'NULL' text vs SQL NULL",
+    prompt: "Some contacts have the text 'NULL' stored as their phone (a data-entry bug), which is different from a missing phone (SQL NULL) or an empty string. How many contacts have that literal text?",
+    check: (a) => firstNumber(a) === Number(expected["nullText"]),
+  },
+  {
+    id: "exact BIGINT id",
+    prompt: "What is the id of the most recent event? Give the exact id.",
+    check: (a) => a.includes(expected["latestEvent"]!),
+  },
+  {
+    id: "top spender in March",
+    prompt: "Which customer spent the most on paid orders created in March 2026, and what is that exact total?",
+    check: (a) => new RegExp(`\\b${expected["spenderName"]}\\b`).test(a) && (a.match(/\d+(\.\d+)?/g) ?? []).some((n) => Number(n).toFixed(2) === expected["spenderTotal"]),
+  },
+];
+
+const EFFICIENCY_FIXTURE = [
+  "CREATE TABLE reviews (id INT PRIMARY KEY, order_id BIGINT UNSIGNED NOT NULL, stars TINYINT)",
+  "INSERT INTO reviews SELECT d + 1, IF(d + 1 IN (7, 13), 990000 + d, (d + 1) * 10), 1 + d % 5 FROM (SELECT a.d * 10 + b.d AS d FROM digits a, digits b) s WHERE d < 20",
+  "CREATE TABLE subscribers (id INT AUTO_INCREMENT PRIMARY KEY, email VARCHAR(100), created_at DATETIME)",
+  "INSERT INTO subscribers (email, created_at) VALUES ('a@x.test', '2026-01-01'), ('A@x.test', '2026-01-02'), ('b@x.test', '2026-01-03'), ('b@x.test', '2026-01-04'), ('c@x.test', '2026-01-05')",
+  "CREATE TABLE articles (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, published_at DATE)",
+  `INSERT INTO articles VALUES
+     (1, 'Release notes 4.2', CONCAT('Version 4.2 adds dark mode and faster search. ', REPEAT('More release details follow here. ', 180)), '2026-03-01'),
+     (2, 'Operations handbook', CONCAT('This guide explains how to rotate database credentials without downtime. ', REPEAT('Background details and examples follow. ', 160)), '2026-04-01'),
+     (3, 'Hiring update', CONCAT('We are hiring two backend engineers in Berlin. ', REPEAT('Role details and benefits are listed. ', 170)), '2026-05-01'),
+     (4, 'Incident review', CONCAT('A cache stampede caused the outage on May 3rd. ', REPEAT('Timeline entries and follow-ups. ', 190)), '2026-06-01')`,
+];
+
+/** Traps: more rows than a default cap, a fact at the end of a long text, 'NULL' text, ids above 2^53. */
+const ACCURACY_FIXTURE = [
+  "CREATE TABLE products (id INT PRIMARY KEY, sku VARCHAR(12), name VARCHAR(40), stock INT)",
+  `INSERT INTO products SELECT n + 1, CONCAT('SKU-', LPAD(n + 1, 4, '0')), CONCAT('Product ', n + 1), IF(n % 11 IN (3, 7), 0, 1 + n % 37)
+     FROM (SELECT a.d * 100 + b.d * 10 + c.d AS n FROM digits a, digits b, digits c) s WHERE n < 400`,
+  "CREATE TABLE incidents (id INT PRIMARY KEY, title VARCHAR(60), report TEXT)",
+  `INSERT INTO incidents VALUES
+     (1, 'Checkout outage', CONCAT('First responders suspected a cache stampede. ', REPEAT('Timeline entry: metrics were reviewed and alerts were triaged. ', 60),
+        'Final finding: the root cause was an expired TLS certificate on the internal message broker.')),
+     (2, 'Slow search', CONCAT('Search latency rose after a deploy. ', REPEAT('Investigation notes. ', 50), 'Final finding: a missing index on search_terms.'))`,
+  "CREATE TABLE contacts (id INT PRIMARY KEY, name VARCHAR(30), phone VARCHAR(20))",
+  `INSERT INTO contacts SELECT n + 1, CONCAT('Contact ', n + 1),
+       CASE WHEN n % 9 = 0 THEN NULL WHEN n % 9 = 4 THEN 'NULL' WHEN n % 9 = 6 THEN '' ELSE CONCAT('+49 30 ', 100000 + n) END
+     FROM (SELECT a.d * 100 + b.d * 10 + c.d AS n FROM digits a, digits b, digits c) s WHERE n < 120`,
+  "CREATE TABLE events (id BIGINT UNSIGNED PRIMARY KEY, kind VARCHAR(20), at DATETIME)",
+  "INSERT INTO events VALUES (18446744073709551557, 'login', '2026-09-01 10:00:00'), (18446744073709551558, 'logout', '2026-09-30 23:59:59'), (9007199254740993, 'signup', '2026-08-01 08:00:00')",
+  // March top spender with traps: a refund, an order late on 31 March (lost by BETWEEN dates), one on 1 April.
+  `INSERT INTO orders (customer_id, status, total, meta, created_at) VALUES
+     (500, 'paid', 612.40, NULL, '2026-03-03 09:00:00'), (500, 'paid', 387.59, NULL, '2026-03-31 23:30:00'),
+     (500, 'refunded', 1500.00, NULL, '2026-03-10 12:00:00'), (77, 'paid', 990.00, NULL, '2026-03-20 15:00:00'),
+     (77, 'paid', 500.00, NULL, '2026-04-01 00:00:00')`,
+];
+
 // TOKENS_ONLY="orders per status" runs a subset as a smoke test; it never touches the README.
 const ONLY = process.env["TOKENS_ONLY"]?.split(",").map((t) => t.trim());
-const TASKS = ONLY ? ALL_TASKS.filter((t) => ONLY.includes(t.id)) : ALL_TASKS;
+const SUITE_TASKS = SUITE === "accuracy" ? ACCURACY_TASKS : EFFICIENCY_TASKS;
+const TASKS = ONLY ? SUITE_TASKS.filter((t) => ONLY.includes(t.id)) : SUITE_TASKS;
 const ARMS: Arm[] = ["plain", "axi", "axi_home"];
 /** The home view, as `mysql-axi setup hooks` injects it at session start (axi_home arm). */
 let homeView = "";
@@ -193,7 +269,8 @@ function runAgent(arm: Arm, task: Task, bin: string, index: number): Promise<Run
 
 /** Machine-specific paths stay out of the committed results. */
 function scrub(text: string): string {
-  let out = binPath ? text.replaceAll(dirname(binPath), "<bin>") : text;
+  let out = text;
+  if (binPath) for (const dir of new Set([realpathSync(dirname(binPath)), dirname(binPath)])) out = out.replaceAll(dir, "<bin>");
   for (const dir of new Set([tmpdir(), realpathSync(tmpdir())])) out = out.replaceAll(dir, "$TMPDIR");
   return out;
 }
@@ -213,7 +290,6 @@ async function pool<T>(jobs: Array<() => Promise<T>>, limit: number): Promise<T[
   return results;
 }
 
-
 const runs: Run[] = [];
 
 beforeAll(async () => {
@@ -222,27 +298,28 @@ beforeAll(async () => {
   }
   await sql(`DROP DATABASE IF EXISTS ${DB}`);
   await sql(`CREATE DATABASE ${DB}`);
-  for (const statement of [
-    ...SHOP_FIXTURE,
-    "CREATE TABLE reviews (id INT PRIMARY KEY, order_id BIGINT UNSIGNED NOT NULL, stars TINYINT)",
-    "INSERT INTO reviews SELECT d + 1, IF(d + 1 IN (7, 13), 990000 + d, (d + 1) * 10), 1 + d % 5 FROM (SELECT a.d * 10 + b.d AS d FROM digits a, digits b) s WHERE d < 20",
-    "CREATE TABLE subscribers (id INT AUTO_INCREMENT PRIMARY KEY, email VARCHAR(100), created_at DATETIME)",
-    "INSERT INTO subscribers (email, created_at) VALUES ('a@x.test', '2026-01-01'), ('A@x.test', '2026-01-02'), ('b@x.test', '2026-01-03'), ('b@x.test', '2026-01-04'), ('c@x.test', '2026-01-05')",
-    "CREATE TABLE articles (id INT PRIMARY KEY, title VARCHAR(100), body TEXT, published_at DATE)",
-    `INSERT INTO articles VALUES
-       (1, 'Release notes 4.2', CONCAT('Version 4.2 adds dark mode and faster search. ', REPEAT('More release details follow here. ', 180)), '2026-03-01'),
-       (2, 'Operations handbook', CONCAT('This guide explains how to rotate database credentials without downtime. ', REPEAT('Background details and examples follow. ', 160)), '2026-04-01'),
-       (3, 'Hiring update', CONCAT('We are hiring two backend engineers in Berlin. ', REPEAT('Role details and benefits are listed. ', 170)), '2026-05-01'),
-       (4, 'Incident review', CONCAT('A cache stampede caused the outage on May 3rd. ', REPEAT('Timeline entries and follow-ups. ', 190)), '2026-06-01')`,
-  ]) {
+  for (const statement of [...SHOP_FIXTURE, ...(SUITE === "accuracy" ? ACCURACY_FIXTURE : EFFICIENCY_FIXTURE)]) {
     await sql(statement, DB);
   }
   // The 5.7 clients still common on dev machines cannot speak caching_sha2_password.
   await sql(`CREATE USER ${USER} IDENTIFIED WITH mysql_native_password BY '${PASSWORD}'`);
   await sql(`GRANT ALL ON ${DB}.* TO ${USER}`);
-  expected["country"] = String(
-    await scalar("SELECT meta->>'$.ship.country' FROM orders WHERE status = 'paid' GROUP BY 1 ORDER BY SUM(total) DESC LIMIT 1", DB),
-  );
+  if (SUITE === "accuracy") {
+    expected["skus"] = (await sql<{ sku: string }>("SELECT sku FROM products WHERE stock = 0 ORDER BY sku", DB)).map((r) => r.sku).join(",");
+    expected["nullText"] = String(await scalar("SELECT COUNT(*) FROM contacts WHERE phone = 'NULL'", DB));
+    expected["latestEvent"] = String(await scalar("SELECT CAST(id AS CHAR) FROM events ORDER BY at DESC LIMIT 1", DB));
+    const [top, second] = await sql<{ name: string; total: string }>(
+      "SELECT c.name, CAST(SUM(o.total) AS CHAR) AS total FROM orders o JOIN customers c ON c.id = o.customer_id WHERE o.status = 'paid' AND o.created_at >= '2026-03-01' AND o.created_at < '2026-04-01' GROUP BY c.id ORDER BY SUM(o.total) DESC LIMIT 2",
+      DB,
+    );
+    if (!top || top.total === second?.total) throw new Error("the March top spender must be unique");
+    expected["spenderName"] = top.name;
+    expected["spenderTotal"] = Number(top.total).toFixed(2);
+  } else {
+    expected["country"] = String(
+      await scalar("SELECT meta->>'$.ship.country' FROM orders WHERE status = 'paid' GROUP BY 1 ORDER BY SUM(total) DESC LIMIT 1", DB),
+    );
+  }
 
   const bin = mkdtempSync(join(tmpdir(), "mysql-axi-tokens-bin-"));
   // A symlink, like an npm global install, so the home view's `bin:` names this path.
@@ -275,20 +352,27 @@ beforeAll(async () => {
   runs.push(...(await pool(jobs, CONCURRENCY)));
 });
 
-// The README is only rewritten on request: `pnpm run tokens:readme` reads results.json.
+// The README is only rewritten on request: `pnpm run tokens:readme` reads the results files.
 afterAll(() => {
   if (runs.length === 0) return;
   if (ONLY) {
     writeFileSync(join(runsDir, "smoke.json"), `${JSON.stringify(runs, null, 2)}\n`);
     return;
   }
-  const results: Results = { model: MODEL, runs: RUNS, date: new Date().toISOString(), setup, results: runs };
-  mkdirSync(join(root, "test/tokens/results"), { recursive: true });
-  writeFileSync(join(root, `test/tokens/results/${slug}.json`), `${JSON.stringify(results, null, 2)}\n`);
+  const results: Results = { suite: SUITE, model: MODEL, runs: RUNS, date: new Date().toISOString(), setup, results: runs };
+  mkdirSync(join(root, "test/tokens/results", SUITE), { recursive: true });
+  writeFileSync(join(root, `test/tokens/results/${SUITE}/${slug}.json`), `${JSON.stringify(results, null, 2)}\n`);
   writeFileSync(join(runsDir, "table.md"), `${renderTable(results)}\n`);
 });
 
-describe("token usage: plain mysql client vs mysql-axi", () => {
+// Accuracy results are measurements, not pass/fail; efficiency tasks must be solvable with mysql-axi.
+describe("accuracy runs", () => {
+  it.runIf(SUITE === "accuracy")("recorded a result for every task, arm and run", () => {
+    expect(runs).toHaveLength(TASKS.length * ARMS.length * RUNS);
+  });
+});
+
+describe.runIf(SUITE === "efficiency")("token usage: plain mysql client vs mysql-axi", () => {
   it.each(TASKS.flatMap((t) => (["axi", "axi_home"] as const).map((arm) => [t.id, arm] as const)))("%s: the %s arm answers correctly in most runs", (id, arm) => {
     const rs = runs.filter((r) => r.task === id && r.arm === arm);
     expect(rs.filter((r) => r.correct).length, JSON.stringify(rs.map((r) => r.answer))).toBeGreaterThan(RUNS / 2);

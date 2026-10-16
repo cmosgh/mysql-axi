@@ -24,7 +24,7 @@ Headless Claude Code (Bash only, no MCP servers or user settings), each model in
 - **axi**: `mysql-axi` with no prior context, so the agent first discovers it (`--help`).
 - **axi+home**: `mysql-axi` with its home view in the system prompt, as `mysql-axi setup hooks` does at session start.
 
-Total tokens include the cached system prompt that every turn re-reads, so a saved turn matters as much as smaller output. Every run (commands, output sizes, answers, versions, prompts) is in `test/tokens/results/`. Reproduce with `TOKENS_MODEL=<model> pnpm run test:tokens`, then `pnpm run tokens:readme`.
+Total tokens include the cached system prompt that every turn re-reads, so a saved turn matters as much as smaller output. Every run (commands, output sizes, answers, versions, prompts) is in `test/tokens/results/efficiency/`. Reproduce with `TOKENS_MODEL=<model> pnpm run test:tokens`, then `pnpm run tokens:readme`.
 
 | Model | Arm | Correct | Turns | Tool output tokens ≈ | Total tokens | Cost USD |
 |---|---|---|---|---|---|---|
@@ -95,6 +95,70 @@ Total tokens include the cached system prompt that every turn re-reads, so a sav
 
 </details>
 <!-- token-usage:end -->
+
+## Accuracy
+
+Token savings only count if the answers stay right. These tasks are traps where the output format can mislead an agent:
+
+<!-- accuracy:start -->
+Same setup as above, with tasks built as traps where a tool's output can lead to a wrong answer: more matching rows than the 50-row cap, the deciding sentence at the end of a long text, the text 'NULL' next to SQL NULL, ids above 2^53 that lose precision as doubles, and an exact money total. Answers are checked strictly against values computed from the database.
+
+Runs are in `test/tokens/results/accuracy/`. Reproduce with `TOKENS_SUITE=accuracy TOKENS_MODEL=<model> pnpm run test:tokens`, then `pnpm run tokens:readme`.
+
+| Model | Arm | Correct | Turns | Tool output tokens ≈ | Total tokens | Cost USD |
+|---|---|---|---|---|---|---|
+| claude-haiku-5-5 | plain | 15/15 | 17 | 2,536 | 109,473 | 0.008 |
+| claude-haiku-5-5 | axi | 15/15 | 26 | 3,624 (+43%) | 160,913 (+47%) | 0.009 (+19%) |
+| claude-haiku-5-5 | axi+home | 15/15 | 22 | 2,664 (+5%) | 139,372 (+27%) | 0.009 (+20%) |
+| claude-sonnet-5-5 | plain | 15/15 | 13 | 1,587 | 68,309 | 0.092 |
+| claude-sonnet-5-5 | axi | 15/15 | 24 | 2,362 (+49%) | 132,001 (+93%) | 0.118 (+29%) |
+| claude-sonnet-5-5 | axi+home | 15/15 | 16 | 2,220 (+40%) | 92,419 (+35%) | 0.113 (+23%) |
+| claude-opus-5-5 | plain | 15/15 | 17 | 1,807 | 95,276 | 0.245 |
+| claude-opus-5-5 | axi | 15/15 | 21 | 2,236 (+24%) | 120,263 (+26%) | 0.264 (+8%) |
+| claude-opus-5-5 | axi+home | 15/15 | 17 | 1,540 (−15%) | 100,485 (+5%) | 0.252 (+3%) |
+
+<details><summary>Per task: claude-haiku-5-5</summary>
+
+`claude-haiku-5-5`, 3 runs per task and arm, 2026-10-16. Cells: plain / axi / axi+home.
+
+| Task | Correct | Turns | Tool output tokens ≈ | Total tokens | Cost USD |
+|---|---|---|---|---|---|
+| all out-of-stock SKUs | 3/3 / 3/3 / 3/3 | 4 / 5 / 5 | 537 / 683 / 537 | 25,636 / 33,661 / 35,963 | 0.002 / 0.002 / 0.003 |
+| root cause at the end of a report | 3/3 / 3/3 / 3/3 | 3 / 6 / 4 | 1,331 / 1,380 / 1,247 | 19,543 / 33,537 / 27,937 | 0.002 / 0.002 / 0.002 |
+| literal 'NULL' text vs SQL NULL | 3/3 / 3/3 / 3/3 | 3 / 6 / 4 | 81 / 401 / 173 | 18,516 / 33,404 / 20,181 | 0.001 / 0.002 / 0.002 |
+| exact BIGINT id | 3/3 / 3/3 / 3/3 | 3 / 4 / 4 | 150 / 368 / 219 | 18,323 / 24,848 / 25,848 | 0.001 / 0.001 / 0.001 |
+| top spender in March | 3/3 / 3/3 / 3/3 | 4 / 5 / 5 | 437 / 792 / 489 | 27,455 / 35,463 / 29,443 | 0.002 / 0.002 / 0.002 |
+
+</details>
+
+<details><summary>Per task: claude-sonnet-5-5</summary>
+
+`claude-sonnet-5-5`, 3 runs per task and arm, 2026-10-16. Cells: plain / axi / axi+home.
+
+| Task | Correct | Turns | Tool output tokens ≈ | Total tokens | Cost USD |
+|---|---|---|---|---|---|
+| all out-of-stock SKUs | 3/3 / 3/3 / 3/3 | 2 / 6 / 4 | 165 / 588 / 450 | 10,776 / 34,775 / 24,009 | 0.020 / 0.032 / 0.030 |
+| root cause at the end of a report | 3/3 / 3/3 / 3/3 | 3 / 5 / 4 | 1,156 / 837 / 1,378 | 16,694 / 27,617 / 24,188 | 0.023 / 0.024 / 0.027 |
+| literal 'NULL' text vs SQL NULL | 3/3 / 3/3 / 3/3 | 2 / 5 / 2 | 21 / 258 / 7 | 10,001 / 26,952 / 10,671 | 0.014 / 0.023 / 0.016 |
+| exact BIGINT id | 3/3 / 3/3 / 3/3 | 3 / 4 / 3 | 92 / 225 / 112 | 15,140 / 20,586 / 16,218 | 0.016 / 0.018 / 0.018 |
+| top spender in March | 3/3 / 3/3 / 3/3 | 3 / 4 / 3 | 154 / 455 / 274 | 15,698 / 22,071 / 17,333 | 0.018 / 0.023 / 0.022 |
+
+</details>
+
+<details><summary>Per task: claude-opus-5-5</summary>
+
+`claude-opus-5-5`, 3 runs per task and arm, 2026-10-16. Cells: plain / axi / axi+home.
+
+| Task | Correct | Turns | Tool output tokens ≈ | Total tokens | Cost USD |
+|---|---|---|---|---|---|
+| all out-of-stock SKUs | 3/3 / 3/3 / 3/3 | 3 / 4 / 4 | 298 / 525 / 315 | 16,658 / 24,088 / 24,346 | 0.051 / 0.064 / 0.066 |
+| root cause at the end of a report | 3/3 / 3/3 / 3/3 | 4 / 5 / 4 | 827 / 504 / 390 | 23,389 / 28,024 / 23,225 | 0.052 / 0.051 / 0.048 |
+| literal 'NULL' text vs SQL NULL | 3/3 / 3/3 / 3/3 | 3 / 3 / 2 | 102 / 130 / 77 | 16,076 / 15,743 / 10,896 | 0.042 / 0.038 / 0.035 |
+| exact BIGINT id | 3/3 / 3/3 / 3/3 | 3 / 4 / 3 | 178 / 385 / 217 | 15,746 / 21,727 / 16,544 | 0.039 / 0.044 / 0.038 |
+| top spender in March | 3/3 / 3/3 / 3/3 | 4 / 5 / 4 | 402 / 693 / 542 | 23,407 / 30,681 / 25,474 | 0.061 / 0.068 / 0.065 |
+
+</details>
+<!-- accuracy:end -->
 
 ## How writes are blocked
 

@@ -1,0 +1,1583 @@
+{
+  "suite": "accuracy",
+  "model": "opus",
+  "runs": 3,
+  "date": "2026-10-16T06:31:16.702Z",
+  "setup": {
+    "claude": "2.1.301 (Claude Code)",
+    "mysqlServer": "8.0.46",
+    "mysqlClient": "mysql  Ver 14.14 Distrib 5.7.42, for osx10.19 (x86_64) using  EditLine wrapper",
+    "mysqlAxi": "0.1.0 (6351431 + local changes)",
+    "maxTurns": 25,
+    "concurrency": 4,
+    "prompts": {
+      "plain": "You have a local MySQL 8 database named shop. Use the `mysql` command-line client through Bash: `mysql -h 127.0.0.1 -P 56128 -u bench shop` (the password is already in MYSQL_PWD).\nTask: <task prompt>\nEnd your reply with one line: ANSWER: <short answer>",
+      "axi": "You have a local MySQL 8 database named shop. Use the `mysql-axi` CLI through Bash; the connection is already configured.\nTask: <task prompt>\nEnd your reply with one line: ANSWER: <short answer>",
+      "axi_home": "You have a local MySQL 8 database named shop. Use the `mysql-axi` CLI through Bash; the connection is already configured.\nTask: <task prompt>\nEnd your reply with one line: ANSWER: <short answer>"
+    },
+    "homeView": "bin: <bin>/mysql-axi\ndescription: \"READ-ONLY MySQL CLI for agents - explore schemas and run capped read queries, with TOON output. Writes are refused by a client-side guard plus a read-only session (not a grant check).\"\nmode: READ-ONLY - one SELECT/WITH/SHOW/DESC/EXPLAIN/TABLE statement per call; results capped at 50 rows\nconnection: \"bench@127.0.0.1:56128/shop (MYSQL_AXI_URL)\"\nhelp[2]:\n  Run `mysql-axi tables`, `mysql-axi describe <table>` or `mysql-axi sample <table>` to explore\n  Run `mysql-axi query \"<sql>\"` or `mysql-axi explain \"<select>\"`; `mysql-axi <command> --help` for flags\n",
+    "tasks": {
+      "all out-of-stock SKUs": "List the SKU of every product that is out of stock (stock = 0). The ANSWER line must list all of them, comma-separated.",
+      "root cause at the end of a report": "What does the final finding of incident 1 name as the root cause?",
+      "literal 'NULL' text vs SQL NULL": "Some contacts have the text 'NULL' stored as their phone (a data-entry bug), which is different from a missing phone (SQL NULL) or an empty string. How many contacts have that literal text?",
+      "exact BIGINT id": "What is the id of the most recent event? Give the exact id.",
+      "top spender in March": "Which customer spent the most on paid orders created in March 2026, and what is that exact total?"
+    }
+  },
+  "results": [
+    {
+      "arm": "plain",
+      "task": "all out-of-stock SKUs",
+      "correct": true,
+      "answer": "SKU-0004, SKU-0008, SKU-0015, SKU-0019, SKU-0026, SKU-0030, SKU-0037, SKU-0041, SKU-0048, SKU-0052, SKU-0059, SKU-0063, SKU-0070, SKU-0074, SKU-0081, SKU-0085, SKU-0092, SKU-0096, SKU-0103, SKU-0107, SKU-0114, SKU-0118, SKU-0125, SKU-0129, SKU-0136, SKU-0140, SKU-0147, SKU-0151, SKU-0158, SKU-0162, SKU-0169, SKU-0173, SKU-0180, SKU-0184, SKU-0191, SKU-0195, SKU-0202, SKU-0206, SKU-0213, SKU-0217, SKU-0224, SKU-0228, SKU-0235, SKU-0239, SKU-0246, SKU-0250, SKU-0257, SKU-0261, SKU-0268, SKU-0272, SKU-0279, SKU-0283, SKU-0290, SKU-0294, SKU-0301, SKU-0305, SKU-0312, SKU-0316, SKU-0323, SKU-0327, SKU-0334, SKU-0338, SKU-0345, SKU-0349, SKU-0356, SKU-0360, SKU-0367, SKU-0371, SKU-0378, SKU-0382, SKU-0389, SKU-0393, SKU-0400",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 1301,
+      "inputTokens": 6,
+      "cacheCreationTokens": 3890,
+      "cacheReadTokens": 11891,
+      "outputTokens": 871,
+      "costUsd": 0.0509422,
+      "durationMs": 12585,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 56128 -u bench shop -e \"SHOW TABLES; DESCRIBE products;\" 2>&1",
+          "outputChars": 202,
+          "isError": false,
+          "preview": "Tables_in_shop\ncontacts\ncustomers\ndigits\nevents\nincidents\norders\nproducts\nField\tType\tNull\tKey\tDefault\tExtra\nid\tint\tNO\tPRI\tNULL\t\nsku\tvarchar(12)\tYES\t\tNULL\t\nname\tvarchar(40)\tYES\t\tNULL\t\nstock\tint\tYES\t\tNU"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 56128 -u bench shop -e \"SELECT id, sku, stock FROM products WHERE stock = 0 ORDER BY id; SELECT COUNT(*) FROM products WHERE stock=0;\" 2>&1",
+          "outputChars": 1099,
+          "isError": false,
+          "preview": "id\tsku\tstock\n4\tSKU-0004\t0\n8\tSKU-0008\t0\n15\tSKU-0015\t0\n19\tSKU-0019\t0\n26\tSKU-0026\t0\n30\tSKU-0030\t0\n37\tSKU-0037\t0\n41\tSKU-0041\t0\n48\tSKU-0048\t0\n52\tSKU-0052\t0\n59\tSKU-0059\t0\n63\tSKU-0063\t0\n70\tSKU-0070\t0\n74\tSKU-"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "all out-of-stock SKUs",
+      "correct": true,
+      "answer": "SKU-0004,SKU-0008,SKU-0015,SKU-0019,SKU-0026,SKU-0030,SKU-0037,SKU-0041,SKU-0048,SKU-0052,SKU-0059,SKU-0063,SKU-0070,SKU-0074,SKU-0081,SKU-0085,SKU-0092,SKU-0096,SKU-0103,SKU-0107,SKU-0114,SKU-0118,SKU-0125,SKU-0129,SKU-0136,SKU-0140,SKU-0147,SKU-0151,SKU-0158,SKU-0162,SKU-0169,SKU-0173,SKU-0180,SKU-0184,SKU-0191,SKU-0195,SKU-0202,SKU-0206,SKU-0213,SKU-0217,SKU-0224,SKU-0228,SKU-0235,SKU-0239,SKU-0246,SKU-0250,SKU-0257,SKU-0261,SKU-0268,SKU-0272,SKU-0279,SKU-0283,SKU-0290,SKU-0294,SKU-0301,SKU-0305,SKU-0312,SKU-0316,SKU-0323,SKU-0327,SKU-0334,SKU-0338,SKU-0345,SKU-0349,SKU-0356,SKU-0360,SKU-0367,SKU-0371,SKU-0378,SKU-0382,SKU-0389,SKU-0393,SKU-0400",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 2098,
+      "inputTokens": 8,
+      "cacheCreationTokens": 4562,
+      "cacheReadTokens": 18346,
+      "outputTokens": 1172,
+      "costUsd": 0.0636372,
+      "durationMs": 15166,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -30; mysql-axi query \"SELECT sku FROM products WHERE stock = 0 ORDER BY sku\" 2>&1",
+          "outputChars": 1133,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi query \"SELECT COUNT(*) n, GROUP_CONCAT(sku ORDER BY sku SEPARATOR ',') s FROM products WHERE stock = 0\" --limit 1000 2>&1; mysql-axi query \"SELECT @@group_concat_max_len\" 2>&1",
+          "outputChars": 291,
+          "isError": false,
+          "preview": "result[1]{n,s}:\n  73,\"SKU-0004,SKU-0008,SKU-0015,SKU-0019,SKU-0026,SKU-0030,SKU-0037,SKU-0041,SKU-0048,SKU-0052,SKU-0059,SKU-0063,SKU-0070,SKU-0074,SKU-0081,SKU-0085,SKU-0092,SKU-0096,SKU-0103,SKU-010"
+        },
+        {
+          "command": "mysql-axi query \"SELECT GROUP_CONCAT(sku ORDER BY sku SEPARATOR ',') s FROM products WHERE stock = 0\" --full 2>&1",
+          "outputChars": 674,
+          "isError": false,
+          "preview": "result[1]{s}:\n  \"SKU-0004,SKU-0008,SKU-0015,SKU-0019,SKU-0026,SKU-0030,SKU-0037,SKU-0041,SKU-0048,SKU-0052,SKU-0059,SKU-0063,SKU-0070,SKU-0074,SKU-0081,SKU-0085,SKU-0092,SKU-0096,SKU-0103,SKU-0107,SKU"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "all out-of-stock SKUs",
+      "correct": true,
+      "answer": "SKU-0004,SKU-0008,SKU-0015,SKU-0019,SKU-0026,SKU-0030,SKU-0037,SKU-0041,SKU-0048,SKU-0052,SKU-0059,SKU-0063,SKU-0070,SKU-0074,SKU-0081,SKU-0085,SKU-0092,SKU-0096,SKU-0103,SKU-0107,SKU-0114,SKU-0118,SKU-0125,SKU-0129,SKU-0136,SKU-0140,SKU-0147,SKU-0151,SKU-0158,SKU-0162,SKU-0169,SKU-0173,SKU-0180,SKU-0184,SKU-0191,SKU-0195,SKU-0202,SKU-0206,SKU-0213,SKU-0217,SKU-0224,SKU-0228,SKU-0235,SKU-0239,SKU-0246,SKU-0250,SKU-0257,SKU-0261,SKU-0268,SKU-0272,SKU-0279,SKU-0283,SKU-0290,SKU-0294,SKU-0301,SKU-0305,SKU-0312,SKU-0316,SKU-0323,SKU-0327,SKU-0334,SKU-0338,SKU-0345,SKU-0349,SKU-0356,SKU-0360,SKU-0367,SKU-0371,SKU-0378,SKU-0382,SKU-0389,SKU-0393,SKU-0400",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 1259,
+      "inputTokens": 8,
+      "cacheCreationTokens": 4533,
+      "cacheReadTokens": 18547,
+      "outputTokens": 1325,
+      "costUsd": 0.06650539999999999,
+      "durationMs": 23178,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "B=<bin>/mysql-axi; $B describe products; $B query \"SELECT COUNT(*) FROM products WHERE stock = 0\"",
+          "outputChars": 325,
+          "isError": false,
+          "preview": "table:\n  name: shop.products\n  rows_est: 400\n  size: 48 KB\ncolumns[4]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  sku,varchar(12),true,null,null,null\n  name,varchar(40),true,"
+        },
+        {
+          "command": "B=<bin>/mysql-axi; $B query \"SELECT COUNT(sku) n, COUNT(DISTINCT sku) d, GROUP_CONCAT(sku ORDER BY id SEPARATOR ',') s, LENGTH(GROUP_CONCAT(sku ORDER BY id SEPARATOR ',')) len FROM products WHERE stock = 0\"",
+          "outputChars": 260,
+          "isError": false,
+          "preview": "result[1]{n,d,s,len}:\n  73,73,\"SKU-0004,SKU-0008,SKU-0015,SKU-0019,SKU-0026,SKU-0030,SKU-0037,SKU-0041,SKU-0048,SKU-0052,SKU-0059,SKU-0063,SKU-0070,SKU-0074,SKU-0081,SKU-0085,SKU-0092,SKU-0096,SKU-010"
+        },
+        {
+          "command": "B=<bin>/mysql-axi; $B query --full \"SELECT GROUP_CONCAT(sku ORDER BY id SEPARATOR ',') s FROM products WHERE stock = 0\"",
+          "outputChars": 674,
+          "isError": false,
+          "preview": "result[1]{s}:\n  \"SKU-0004,SKU-0008,SKU-0015,SKU-0019,SKU-0026,SKU-0030,SKU-0037,SKU-0041,SKU-0048,SKU-0052,SKU-0059,SKU-0063,SKU-0070,SKU-0074,SKU-0081,SKU-0085,SKU-0092,SKU-0096,SKU-0103,SKU-0107,SKU"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "all out-of-stock SKUs",
+      "correct": true,
+      "answer": "SKU-0004, SKU-0008, SKU-0015, SKU-0019, SKU-0026, SKU-0030, SKU-0037, SKU-0041, SKU-0048, SKU-0052, SKU-0059, SKU-0063, SKU-0070, SKU-0074, SKU-0081, SKU-0085, SKU-0092, SKU-0096, SKU-0103, SKU-0107, SKU-0114, SKU-0118, SKU-0125, SKU-0129, SKU-0136, SKU-0140, SKU-0147, SKU-0151, SKU-0158, SKU-0162, SKU-0169, SKU-0173, SKU-0180, SKU-0184, SKU-0191, SKU-0195, SKU-0202, SKU-0206, SKU-0213, SKU-0217, SKU-0224, SKU-0228, SKU-0235, SKU-0239, SKU-0246, SKU-0250, SKU-0257, SKU-0261, SKU-0268, SKU-0272, SKU-0279, SKU-0283, SKU-0290, SKU-0294, SKU-0301, SKU-0305, SKU-0312, SKU-0316, SKU-0323, SKU-0327, SKU-0334, SKU-0338, SKU-0345, SKU-0349, SKU-0356, SKU-0360, SKU-0367, SKU-0371, SKU-0378, SKU-0382, SKU-0389, SKU-0393, SKU-0400",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 1192,
+      "inputTokens": 6,
+      "cacheCreationTokens": 3906,
+      "cacheReadTokens": 12654,
+      "outputTokens": 913,
+      "costUsd": 0.0520628,
+      "durationMs": 16430,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 56128 -u bench shop -e \"SHOW CREATE TABLE products\\G; SELECT sku, stock FROM products WHERE stock = 0 ORDER BY sku;\"",
+          "outputChars": 1144,
+          "isError": false,
+          "preview": "*************************** 1. row ***************************\n       Table: products\nCreate Table: CREATE TABLE `products` (\n  `id` int NOT NULL,\n  `sku` varchar(12) DEFAULT NULL,\n  `name` varchar(40"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 56128 -u bench shop -e \"SELECT COUNT(*), COUNT(sku), COUNT(DISTINCT sku) FROM products WHERE stock = 0;\"",
+          "outputChars": 48,
+          "isError": false,
+          "preview": "COUNT(*)\tCOUNT(sku)\tCOUNT(DISTINCT sku)\n73\t73\t73"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "all out-of-stock SKUs",
+      "correct": true,
+      "answer": "SKU-0004,SKU-0008,SKU-0015,SKU-0019,SKU-0026,SKU-0030,SKU-0037,SKU-0041,SKU-0048,SKU-0052,SKU-0059,SKU-0063,SKU-0070,SKU-0074,SKU-0081,SKU-0085,SKU-0092,SKU-0096,SKU-0103,SKU-0107,SKU-0114,SKU-0118,SKU-0125,SKU-0129,SKU-0136,SKU-0140,SKU-0147,SKU-0151,SKU-0158,SKU-0162,SKU-0169,SKU-0173,SKU-0180,SKU-0184,SKU-0191,SKU-0195,SKU-0202,SKU-0206,SKU-0213,SKU-0217,SKU-0224,SKU-0228,SKU-0235,SKU-0239,SKU-0246,SKU-0250,SKU-0257,SKU-0261,SKU-0268,SKU-0272,SKU-0279,SKU-0283,SKU-0290,SKU-0294,SKU-0301,SKU-0305,SKU-0312,SKU-0316,SKU-0323,SKU-0327,SKU-0334,SKU-0338,SKU-0345,SKU-0349,SKU-0356,SKU-0360,SKU-0367,SKU-0371,SKU-0378,SKU-0382,SKU-0389,SKU-0393,SKU-0400",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 2080,
+      "inputTokens": 8,
+      "cacheCreationTokens": 4517,
+      "cacheReadTokens": 18334,
+      "outputTokens": 1116,
+      "costUsd": 0.0621548,
+      "durationMs": 21497,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -30; mysql-axi query \"SELECT sku FROM products WHERE stock = 0 ORDER BY sku\" 2>&1",
+          "outputChars": 1133,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi query \"SELECT COUNT(*) n, GROUP_CONCAT(sku ORDER BY sku SEPARATOR ',') s FROM products WHERE stock = 0\" 2>&1; mysql-axi query \"SELECT @@group_concat_max_len\" 2>&1",
+          "outputChars": 291,
+          "isError": false,
+          "preview": "result[1]{n,s}:\n  73,\"SKU-0004,SKU-0008,SKU-0015,SKU-0019,SKU-0026,SKU-0030,SKU-0037,SKU-0041,SKU-0048,SKU-0052,SKU-0059,SKU-0063,SKU-0070,SKU-0074,SKU-0081,SKU-0085,SKU-0092,SKU-0096,SKU-0103,SKU-010"
+        },
+        {
+          "command": "mysql-axi query \"SELECT sku FROM products WHERE stock = 0 ORDER BY sku\" --limit 1000 2>&1 | tail -n +2 | tr -d ' ' | paste -sd, -",
+          "outputChars": 656,
+          "isError": false,
+          "preview": "SKU-0004,SKU-0008,SKU-0015,SKU-0019,SKU-0026,SKU-0030,SKU-0037,SKU-0041,SKU-0048,SKU-0052,SKU-0059,SKU-0063,SKU-0070,SKU-0074,SKU-0081,SKU-0085,SKU-0092,SKU-0096,SKU-0103,SKU-0107,SKU-0114,SKU-0118,SK"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "all out-of-stock SKUs",
+      "correct": true,
+      "answer": "SKU-0004,SKU-0008,SKU-0015,SKU-0019,SKU-0026,SKU-0030,SKU-0037,SKU-0041,SKU-0048,SKU-0052,SKU-0059,SKU-0063,SKU-0070,SKU-0074,SKU-0081,SKU-0085,SKU-0092,SKU-0096,SKU-0103,SKU-0107,SKU-0114,SKU-0118,SKU-0125,SKU-0129,SKU-0136,SKU-0140,SKU-0147,SKU-0151,SKU-0158,SKU-0162,SKU-0169,SKU-0173,SKU-0180,SKU-0184,SKU-0191,SKU-0195,SKU-0202,SKU-0206,SKU-0213,SKU-0217,SKU-0224,SKU-0228,SKU-0235,SKU-0239,SKU-0246,SKU-0250,SKU-0257,SKU-0261,SKU-0268,SKU-0272,SKU-0279,SKU-0283,SKU-0290,SKU-0294,SKU-0301,SKU-0305,SKU-0312,SKU-0316,SKU-0323,SKU-0327,SKU-0334,SKU-0338,SKU-0345,SKU-0349,SKU-0356,SKU-0360,SKU-0367,SKU-0371,SKU-0378,SKU-0382,SKU-0389,SKU-0393,SKU-0400",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 1288,
+      "inputTokens": 8,
+      "cacheCreationTokens": 4522,
+      "cacheReadTokens": 18535,
+      "outputTokens": 1281,
+      "costUsd": 0.065535,
+      "durationMs": 15777,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "B=<bin>/mysql-axi; $B describe products; $B query \"SELECT COUNT(*) FROM products WHERE stock = 0\"",
+          "outputChars": 325,
+          "isError": false,
+          "preview": "table:\n  name: shop.products\n  rows_est: 400\n  size: 48 KB\ncolumns[4]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  sku,varchar(12),true,null,null,null\n  name,varchar(40),true,"
+        },
+        {
+          "command": "B=<bin>/mysql-axi; $B query \"SELECT COUNT(sku), COUNT(DISTINCT sku), GROUP_CONCAT(COALESCE(sku,'<NULL>') ORDER BY id SEPARATOR ',') AS skus FROM products WHERE stock = 0\"",
+          "outputChars": 286,
+          "isError": false,
+          "preview": "result[1]{\"COUNT(sku)\",\"COUNT(DISTINCT sku)\",skus}:\n  73,73,\"SKU-0004,SKU-0008,SKU-0015,SKU-0019,SKU-0026,SKU-0030,SKU-0037,SKU-0041,SKU-0048,SKU-0052,SKU-0059,SKU-0063,SKU-0070,SKU-0074,SKU-0081,SKU-"
+        },
+        {
+          "command": "B=<bin>/mysql-axi; $B query --full \"SELECT GROUP_CONCAT(sku ORDER BY id SEPARATOR ',') AS skus FROM products WHERE stock = 0\"",
+          "outputChars": 677,
+          "isError": false,
+          "preview": "result[1]{skus}:\n  \"SKU-0004,SKU-0008,SKU-0015,SKU-0019,SKU-0026,SKU-0030,SKU-0037,SKU-0041,SKU-0048,SKU-0052,SKU-0059,SKU-0063,SKU-0070,SKU-0074,SKU-0081,SKU-0085,SKU-0092,SKU-0096,SKU-0103,SKU-0107,"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "all out-of-stock SKUs",
+      "correct": true,
+      "answer": "SKU-0004, SKU-0008, SKU-0015, SKU-0019, SKU-0026, SKU-0030, SKU-0037, SKU-0041, SKU-0048, SKU-0052, SKU-0059, SKU-0063, SKU-0070, SKU-0074, SKU-0081, SKU-0085, SKU-0092, SKU-0096, SKU-0103, SKU-0107, SKU-0114, SKU-0118, SKU-0125, SKU-0129, SKU-0136, SKU-0140, SKU-0147, SKU-0151, SKU-0158, SKU-0162, SKU-0169, SKU-0173, SKU-0180, SKU-0184, SKU-0191, SKU-0195, SKU-0202, SKU-0206, SKU-0213, SKU-0217, SKU-0224, SKU-0228, SKU-0235, SKU-0239, SKU-0246, SKU-0250, SKU-0257, SKU-0261, SKU-0268, SKU-0272, SKU-0279, SKU-0283, SKU-0290, SKU-0294, SKU-0301, SKU-0305, SKU-0312, SKU-0316, SKU-0323, SKU-0327, SKU-0334, SKU-0338, SKU-0345, SKU-0349, SKU-0356, SKU-0360, SKU-0367, SKU-0371, SKU-0378, SKU-0382, SKU-0389, SKU-0393, SKU-0400",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 1144,
+      "inputTokens": 4,
+      "cacheCreationTokens": 3641,
+      "cacheReadTokens": 6881,
+      "outputTokens": 768,
+      "costUsd": 0.045880199999999996,
+      "durationMs": 9658,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 56128 -u bench shop -e \"SHOW CREATE TABLE products\\G; SELECT sku, stock FROM products WHERE stock = 0 ORDER BY sku;\"",
+          "outputChars": 1144,
+          "isError": false,
+          "preview": "*************************** 1. row ***************************\n       Table: products\nCreate Table: CREATE TABLE `products` (\n  `id` int NOT NULL,\n  `sku` varchar(12) DEFAULT NULL,\n  `name` varchar(40"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "all out-of-stock SKUs",
+      "correct": true,
+      "answer": "SKU-0004,SKU-0008,SKU-0015,SKU-0019,SKU-0026,SKU-0030,SKU-0037,SKU-0041,SKU-0048,SKU-0052,SKU-0059,SKU-0063,SKU-0070,SKU-0074,SKU-0081,SKU-0085,SKU-0092,SKU-0096,SKU-0103,SKU-0107,SKU-0114,SKU-0118,SKU-0125,SKU-0129,SKU-0136,SKU-0140,SKU-0147,SKU-0151,SKU-0158,SKU-0162,SKU-0169,SKU-0173,SKU-0180,SKU-0184,SKU-0191,SKU-0195,SKU-0202,SKU-0206,SKU-0213,SKU-0217,SKU-0224,SKU-0228,SKU-0235,SKU-0239,SKU-0246,SKU-0250,SKU-0257,SKU-0261,SKU-0268,SKU-0272,SKU-0279,SKU-0283,SKU-0290,SKU-0294,SKU-0301,SKU-0305,SKU-0312,SKU-0316,SKU-0323,SKU-0327,SKU-0334,SKU-0338,SKU-0345,SKU-0349,SKU-0356,SKU-0360,SKU-0367,SKU-0371,SKU-0378,SKU-0382,SKU-0389,SKU-0393,SKU-0400",
+      "turns": 5,
+      "toolCalls": 4,
+      "toolOutputChars": 2722,
+      "inputTokens": 10,
+      "cacheCreationTokens": 4934,
+      "cacheReadTokens": 24580,
+      "outputTokens": 1356,
+      "costUsd": 0.071548,
+      "durationMs": 18345,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -30; mysql-axi query \"SELECT sku FROM products WHERE stock = 0 ORDER BY sku\" 2>&1 | head -50",
+          "outputChars": 1039,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi query \"SELECT COUNT(*) AS n FROM products WHERE stock = 0\"; mysql-axi query \"SET SESSION group_concat_max_len=1000000; SELECT GROUP_CONCAT(sku ORDER BY sku SEPARATOR ',') AS skus FROM products WHERE stock = 0\" 2>&1",
+          "outputChars": 214,
+          "isError": true,
+          "preview": "Exit code 2\nresult[1]{n}:\n  73\nerror: refused by the read-only guard - one statement per call (got 2)\ncode: READ_ONLY\nhelp[1]:\n  Read-only accepts one SELECT, WITH ... SELECT, SHOW, DESC, EXPLAIN or T"
+        },
+        {
+          "command": "mysql-axi query --help 2>&1 | head -30",
+          "outputChars": 813,
+          "isError": false,
+          "preview": "usage: mysql-axi query \"<sql>\" [flags]\nRuns ONE read statement: SELECT, WITH ... SELECT, SHOW, DESC, EXPLAIN or TABLE.\nIt runs in a read-only session and transaction; INTO, FOR UPDATE/SHARE, LOCK, SLE"
+        },
+        {
+          "command": "mysql-axi query \"SELECT sku FROM products WHERE stock = 0 ORDER BY sku\" --limit 1000 | tail -n +2 | tr -d ' ' | paste -sd, -",
+          "outputChars": 656,
+          "isError": false,
+          "preview": "SKU-0004,SKU-0008,SKU-0015,SKU-0019,SKU-0026,SKU-0030,SKU-0037,SKU-0041,SKU-0048,SKU-0052,SKU-0059,SKU-0063,SKU-0070,SKU-0074,SKU-0081,SKU-0085,SKU-0092,SKU-0096,SKU-0103,SKU-0107,SKU-0114,SKU-0118,SK"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "all out-of-stock SKUs",
+      "correct": true,
+      "answer": "SKU-0004,SKU-0008,SKU-0015,SKU-0019,SKU-0026,SKU-0030,SKU-0037,SKU-0041,SKU-0048,SKU-0052,SKU-0059,SKU-0063,SKU-0070,SKU-0074,SKU-0081,SKU-0085,SKU-0092,SKU-0096,SKU-0103,SKU-0107,SKU-0114,SKU-0118,SKU-0125,SKU-0129,SKU-0136,SKU-0140,SKU-0147,SKU-0151,SKU-0158,SKU-0162,SKU-0169,SKU-0173,SKU-0180,SKU-0184,SKU-0191,SKU-0195,SKU-0202,SKU-0206,SKU-0213,SKU-0217,SKU-0224,SKU-0228,SKU-0235,SKU-0239,SKU-0246,SKU-0250,SKU-0257,SKU-0261,SKU-0268,SKU-0272,SKU-0279,SKU-0283,SKU-0290,SKU-0294,SKU-0301,SKU-0305,SKU-0312,SKU-0316,SKU-0323,SKU-0327,SKU-0334,SKU-0338,SKU-0345,SKU-0349,SKU-0356,SKU-0360,SKU-0367,SKU-0371,SKU-0378,SKU-0382,SKU-0389,SKU-0393,SKU-0400",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 1254,
+      "inputTokens": 8,
+      "cacheCreationTokens": 4484,
+      "cacheReadTokens": 18497,
+      "outputTokens": 1299,
+      "costUsd": 0.0655834,
+      "durationMs": 18101,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "B=<bin>/mysql-axi; $B describe products; $B query \"SELECT COUNT(*) FROM products WHERE stock = 0\"",
+          "outputChars": 325,
+          "isError": false,
+          "preview": "table:\n  name: shop.products\n  rows_est: 400\n  size: 48 KB\ncolumns[4]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  sku,varchar(12),true,null,null,null\n  name,varchar(40),true,"
+        },
+        {
+          "command": "B=<bin>/mysql-axi; $B query \"SELECT COUNT(*) n, SUM(sku IS NULL) nulls, GROUP_CONCAT(sku ORDER BY id SEPARATOR ',') s FROM products WHERE stock = 0\"",
+          "outputChars": 255,
+          "isError": false,
+          "preview": "result[1]{n,nulls,s}:\n  73,0,\"SKU-0004,SKU-0008,SKU-0015,SKU-0019,SKU-0026,SKU-0030,SKU-0037,SKU-0041,SKU-0048,SKU-0052,SKU-0059,SKU-0063,SKU-0070,SKU-0074,SKU-0081,SKU-0085,SKU-0092,SKU-0096,SKU-0103"
+        },
+        {
+          "command": "B=<bin>/mysql-axi; $B query --full \"SELECT GROUP_CONCAT(sku ORDER BY id SEPARATOR ',') s FROM products WHERE stock = 0\"",
+          "outputChars": 674,
+          "isError": false,
+          "preview": "result[1]{s}:\n  \"SKU-0004,SKU-0008,SKU-0015,SKU-0019,SKU-0026,SKU-0030,SKU-0037,SKU-0041,SKU-0048,SKU-0052,SKU-0059,SKU-0063,SKU-0070,SKU-0074,SKU-0081,SKU-0085,SKU-0092,SKU-0096,SKU-0103,SKU-0107,SKU"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "root cause at the end of a report",
+      "correct": true,
+      "answer": "An expired TLS certificate on the internal message broker",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 3174,
+      "inputTokens": 8,
+      "cacheCreationTokens": 4495,
+      "cacheReadTokens": 18311,
+      "outputTokens": 701,
+      "costUsd": 0.053674200000000005,
+      "durationMs": 11579,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 56128 -u bench shop -e \"SHOW TABLES; \" ; mysql -h 127.0.0.1 -P 56128 -u bench shop -e \"SELECT table_name, column_name, data_type FROM information_schema.columns WHERE table_schema='shop' AND table_name LIKE '%incident%' OR (table_schema='shop' AND table_name LIKE '%finding%')\"",
+          "outputChars": 169,
+          "isError": false,
+          "preview": "Tables_in_shop\ncontacts\ncustomers\ndigits\nevents\nincidents\norders\nproducts\nTABLE_NAME\tCOLUMN_NAME\tDATA_TYPE\nincidents\tid\tint\nincidents\ttitle\tvarchar\nincidents\treport\ttext"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 56128 -u bench shop -e \"SELECT id,title,LENGTH(report) FROM incidents WHERE id=1; SELECT report FROM incidents WHERE id=1\\G\" | tail -c 3000",
+          "outputChars": 2999,
+          "isError": false,
+          "preview": "triaged. Timeline entry: metrics were reviewed and alerts were triaged. Timeline entry: metrics were reviewed and alerts were triaged. Timeline entry: metrics were reviewed and alerts were triaged. Ti"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 56128 -u bench shop -N -e \"SELECT (LENGTH(report)-LENGTH(REPLACE(LOWER(report),'finding','')))/7 FROM incidents WHERE id=1\"",
+          "outputChars": 6,
+          "isError": false,
+          "preview": "1.0000"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "root cause at the end of a report",
+      "correct": true,
+      "answer": "An expired TLS certificate on the internal message broker",
+      "turns": 5,
+      "toolCalls": 4,
+      "toolOutputChars": 2016,
+      "inputTokens": 10,
+      "cacheCreationTokens": 4046,
+      "cacheReadTokens": 23294,
+      "outputTokens": 674,
+      "costUsd": 0.0505468,
+      "durationMs": 15793,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -40; mysql-axi \"SHOW TABLES\" 2>&1",
+          "outputChars": 678,
+          "isError": true,
+          "preview": "Exit code 2\nusage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n"
+        },
+        {
+          "command": "mysql-axi tables; mysql-axi query \"SELECT table_name, column_name FROM information_schema.columns WHERE table_schema='shop' AND table_name LIKE '%incident%' OR (table_schema='shop' AND table_name LIKE '%finding%')\"",
+          "outputChars": 436,
+          "isError": false,
+          "preview": "database: shop\ntotal: 7 tables; 0 views; 2.2 MB\ntables[7]{name,kind,rows_est,size}:\n  contacts,table,120,16 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  events,table,3,16 KB\n  incidents,"
+        },
+        {
+          "command": "mysql-axi query \"SELECT id, title, LENGTH(report) len, report FROM incidents WHERE id=1\"",
+          "outputChars": 284,
+          "isError": false,
+          "preview": "result[1]{id,title,len,report}:\n  1,Checkout outage,3917,\"First responders suspected a cache stampede. Timeline entry: metrics were reviewed and alerts were triaged. Timeline entry: metrics were revie"
+        },
+        {
+          "command": "mysql-axi query \"SELECT RIGHT(report, 600) r FROM incidents WHERE id=1\" --full",
+          "outputChars": 618,
+          "isError": false,
+          "preview": "result[1]{r}:\n  \"ed. Timeline entry: metrics were reviewed and alerts were triaged. Timeline entry: metrics were reviewed and alerts were triaged. Timeline entry: metrics were reviewed and alerts were"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "root cause at the end of a report",
+      "correct": true,
+      "answer": "An expired TLS certificate on the internal message broker",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 1558,
+      "inputTokens": 8,
+      "cacheCreationTokens": 4148,
+      "cacheReadTokens": 18458,
+      "outputTokens": 611,
+      "costUsd": 0.04912760000000001,
+      "durationMs": 10647,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "B=<bin>/mysql-axi; $B tables; $B query \"SHOW TABLES LIKE '%incident%'\"",
+          "outputChars": 403,
+          "isError": false,
+          "preview": "database: shop\ntotal: 7 tables; 0 views; 2.2 MB\ntables[7]{name,kind,rows_est,size}:\n  contacts,table,120,16 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  events,table,3,16 KB\n  incidents,"
+        },
+        {
+          "command": "B=<bin>/mysql-axi; $B describe incidents; $B query \"SELECT * FROM incidents WHERE id=1\"",
+          "outputChars": 537,
+          "isError": false,
+          "preview": "table:\n  name: shop.incidents\n  rows_est: 2\n  size: 16 KB\ncolumns[3]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  title,varchar(60),true,null,null,null\n  report,text,true,null"
+        },
+        {
+          "command": "B=<bin>/mysql-axi; $B query \"SELECT RIGHT(report, 600) r FROM incidents WHERE id=1\" --full",
+          "outputChars": 618,
+          "isError": false,
+          "preview": "result[1]{r}:\n  \"ed. Timeline entry: metrics were reviewed and alerts were triaged. Timeline entry: metrics were reviewed and alerts were triaged. Timeline entry: metrics were reviewed and alerts were"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "root cause at the end of a report",
+      "correct": true,
+      "answer": "An expired TLS certificate on the internal message broker",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 3308,
+      "inputTokens": 8,
+      "cacheCreationTokens": 4461,
+      "cacheReadTokens": 18258,
+      "outputTokens": 646,
+      "costUsd": 0.0522916,
+      "durationMs": 22565,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 56128 -u bench shop -e \"SHOW TABLES; \" ; mysql -h 127.0.0.1 -P 56128 -u bench shop -e \"SELECT table_name, column_name, data_type FROM information_schema.columns WHERE table_schema='shop' AND (table_name LIKE '%incident%' OR table_name LIKE '%finding%')\"",
+          "outputChars": 169,
+          "isError": false,
+          "preview": "Tables_in_shop\ncontacts\ncustomers\ndigits\nevents\nincidents\norders\nproducts\nTABLE_NAME\tCOLUMN_NAME\tDATA_TYPE\nincidents\tid\tint\nincidents\ttitle\tvarchar\nincidents\treport\ttext"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 56128 -u bench shop -e \"SELECT id,title,LENGTH(report) FROM incidents WHERE id=1\"; mysql -h 127.0.0.1 -P 56128 -u bench shop --raw -N -e \"SELECT report FROM incidents WHERE id=1\" | tail -c 3000",
+          "outputChars": 3046,
+          "isError": false,
+          "preview": "id\ttitle\tLENGTH(report)\n1\tCheckout outage\t3917\ntriaged. Timeline entry: metrics were reviewed and alerts were triaged. Timeline entry: metrics were reviewed and alerts were triaged. Timeline entry: me"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 56128 -u bench shop --raw -N -e \"SELECT report FROM incidents WHERE id=1\" | grep -oiE \"[^.]*(finding|root cause|note|update|correction)[^.]*\\.\"",
+          "outputChars": 93,
+          "isError": false,
+          "preview": " Final finding: the root cause was an expired TLS certificate on the internal message broker."
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "root cause at the end of a report",
+      "correct": true,
+      "answer": "An expired TLS certificate on the internal message broker",
+      "turns": 6,
+      "toolCalls": 5,
+      "toolOutputChars": 2202,
+      "inputTokens": 12,
+      "cacheCreationTokens": 4334,
+      "cacheReadTokens": 29366,
+      "outputTokens": 772,
+      "costUsd": 0.0560332,
+      "durationMs": 17710,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -30; mysql-axi \"SHOW TABLES\" 2>&1",
+          "outputChars": 678,
+          "isError": true,
+          "preview": "Exit code 2\nusage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n"
+        },
+        {
+          "command": "mysql-axi tables 2>&1",
+          "outputChars": 349,
+          "isError": false,
+          "preview": "database: shop\ntotal: 7 tables; 0 views; 2.2 MB\ntables[7]{name,kind,rows_est,size}:\n  contacts,table,120,16 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  events,table,3,16 KB\n  incidents,"
+        },
+        {
+          "command": "mysql-axi describe incidents 2>&1; mysql-axi query \"SELECT * FROM incidents WHERE id=1\" 2>&1",
+          "outputChars": 537,
+          "isError": false,
+          "preview": "table:\n  name: shop.incidents\n  rows_est: 2\n  size: 16 KB\ncolumns[3]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  title,varchar(60),true,null,null,null\n  report,text,true,null"
+        },
+        {
+          "command": "mysql-axi query \"SELECT RIGHT(report, 600) AS tail FROM incidents WHERE id=1\" --full 2>&1",
+          "outputChars": 621,
+          "isError": false,
+          "preview": "result[1]{tail}:\n  \"ed. Timeline entry: metrics were reviewed and alerts were triaged. Timeline entry: metrics were reviewed and alerts were triaged. Timeline entry: metrics were reviewed and alerts w"
+        },
+        {
+          "command": "mysql-axi query \"SELECT (LENGTH(report)-LENGTH(REPLACE(LOWER(report),'finding','')))/7 AS n FROM incidents WHERE id=1\" 2>&1",
+          "outputChars": 17,
+          "isError": false,
+          "preview": "result[1]{n}:\n  1"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "root cause at the end of a report",
+      "correct": true,
+      "answer": "An expired TLS certificate on the internal message broker",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 1504,
+      "inputTokens": 8,
+      "cacheCreationTokens": 4096,
+      "cacheReadTokens": 18358,
+      "outputTokens": 596,
+      "costUsd": 0.0483916,
+      "durationMs": 10748,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "M=<bin>/mysql-axi; $M tables",
+          "outputChars": 349,
+          "isError": false,
+          "preview": "database: shop\ntotal: 7 tables; 0 views; 2.2 MB\ntables[7]{name,kind,rows_est,size}:\n  contacts,table,120,16 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  events,table,3,16 KB\n  incidents,"
+        },
+        {
+          "command": "M=<bin>/mysql-axi; $M describe incidents; $M query \"SELECT * FROM incidents WHERE id=1\"",
+          "outputChars": 537,
+          "isError": false,
+          "preview": "table:\n  name: shop.incidents\n  rows_est: 2\n  size: 16 KB\ncolumns[3]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  title,varchar(60),true,null,null,null\n  report,text,true,null"
+        },
+        {
+          "command": "M=<bin>/mysql-axi; $M query \"SELECT RIGHT(report,600) r FROM incidents WHERE id=1\" --full",
+          "outputChars": 618,
+          "isError": false,
+          "preview": "result[1]{r}:\n  \"ed. Timeline entry: metrics were reviewed and alerts were triaged. Timeline entry: metrics were reviewed and alerts were triaged. Timeline entry: metrics were reviewed and alerts were"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "root cause at the end of a report",
+      "correct": true,
+      "answer": "An expired TLS certificate on the internal message broker",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 3352,
+      "inputTokens": 8,
+      "cacheCreationTokens": 4470,
+      "cacheReadTokens": 18277,
+      "outputTokens": 634,
+      "costUsd": 0.05212740000000001,
+      "durationMs": 11886,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 56128 -u bench shop -e \"SHOW TABLES; \" ; mysql -h 127.0.0.1 -P 56128 -u bench shop -e \"SELECT table_name, column_name, data_type FROM information_schema.columns WHERE table_schema='shop' AND table_name LIKE '%incident%' OR (table_schema='shop' AND table_name LIKE '%finding%')\"",
+          "outputChars": 169,
+          "isError": false,
+          "preview": "Tables_in_shop\ncontacts\ncustomers\ndigits\nevents\nincidents\norders\nproducts\nTABLE_NAME\tCOLUMN_NAME\tDATA_TYPE\nincidents\tid\tint\nincidents\ttitle\tvarchar\nincidents\treport\ttext"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 56128 -u bench shop -e \"SELECT id,title,LENGTH(report) FROM incidents WHERE id=1\"; mysql -h 127.0.0.1 -P 56128 -u bench shop -N -r -e \"SELECT report FROM incidents WHERE id=1\" | tail -c 3000",
+          "outputChars": 3046,
+          "isError": false,
+          "preview": "id\ttitle\tLENGTH(report)\n1\tCheckout outage\t3917\ntriaged. Timeline entry: metrics were reviewed and alerts were triaged. Timeline entry: metrics were reviewed and alerts were triaged. Timeline entry: me"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 56128 -u bench shop -N -r -e \"SELECT REPLACE(report,'Timeline entry: metrics were reviewed and alerts were triaged. ','') FROM incidents WHERE id=1\"",
+          "outputChars": 137,
+          "isError": false,
+          "preview": "First responders suspected a cache stampede. Final finding: the root cause was an expired TLS certificate on the internal message broker."
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "root cause at the end of a report",
+      "correct": true,
+      "answer": "An expired TLS certificate on the internal message broker",
+      "turns": 5,
+      "toolCalls": 4,
+      "toolOutputChars": 1864,
+      "inputTokens": 10,
+      "cacheCreationTokens": 4007,
+      "cacheReadTokens": 23344,
+      "outputTokens": 627,
+      "costUsd": 0.049304799999999996,
+      "durationMs": 11594,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -30; mysql-axi \"SHOW TABLES\" 2>&1",
+          "outputChars": 678,
+          "isError": true,
+          "preview": "Exit code 2\nusage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n"
+        },
+        {
+          "command": "mysql-axi tables; mysql-axi query \"SELECT table_name, column_name, data_type FROM information_schema.columns WHERE table_schema='shop' AND table_name LIKE '%incident%' OR (table_schema='shop' AND table_name LIKE '%finding%')\"",
+          "outputChars": 463,
+          "isError": false,
+          "preview": "database: shop\ntotal: 7 tables; 0 views; 2.2 MB\ntables[7]{name,kind,rows_est,size}:\n  contacts,table,120,16 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  events,table,3,16 KB\n  incidents,"
+        },
+        {
+          "command": "mysql-axi query \"SELECT id, title, LENGTH(report) len, report FROM incidents WHERE id=1\"",
+          "outputChars": 284,
+          "isError": false,
+          "preview": "result[1]{id,title,len,report}:\n  1,Checkout outage,3917,\"First responders suspected a cache stampede. Timeline entry: metrics were reviewed and alerts were triaged. Timeline entry: metrics were revie"
+        },
+        {
+          "command": "mysql-axi query \"SELECT SUBSTRING(report, 3500) tail FROM incidents WHERE id=1\" --full",
+          "outputChars": 439,
+          "isError": false,
+          "preview": "result[1]{tail}:\n  \"e triaged. Timeline entry: metrics were reviewed and alerts were triaged. Timeline entry: metrics were reviewed and alerts were triaged. Timeline entry: metrics were reviewed and a"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "root cause at the end of a report",
+      "correct": true,
+      "answer": "An expired TLS certificate on the internal message broker",
+      "turns": 5,
+      "toolCalls": 4,
+      "toolOutputChars": 1611,
+      "inputTokens": 10,
+      "cacheCreationTokens": 3985,
+      "cacheReadTokens": 23829,
+      "outputTokens": 408,
+      "costUsd": 0.0448458,
+      "durationMs": 16414,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi tables",
+          "outputChars": 349,
+          "isError": false,
+          "preview": "database: shop\ntotal: 7 tables; 0 views; 2.2 MB\ntables[7]{name,kind,rows_est,size}:\n  contacts,table,120,16 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  events,table,3,16 KB\n  incidents,"
+        },
+        {
+          "command": "mysql-axi describe incidents; mysql-axi query \"select id, length(body) from incidents\"",
+          "outputChars": 347,
+          "isError": true,
+          "preview": "Exit code 1\ntable:\n  name: shop.incidents\n  rows_est: 2\n  size: 16 KB\ncolumns[3]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  title,varchar(60),true,null,null,null\n  report,te"
+        },
+        {
+          "command": "mysql-axi query \"select id, title, length(report), report from incidents where id=1\"",
+          "outputChars": 297,
+          "isError": false,
+          "preview": "result[1]{id,title,\"length(report)\",report}:\n  1,Checkout outage,3917,\"First responders suspected a cache stampede. Timeline entry: metrics were reviewed and alerts were triaged. Timeline entry: metri"
+        },
+        {
+          "command": "mysql-axi query \"select right(report, 600) r from incidents where id=1\" --full",
+          "outputChars": 618,
+          "isError": false,
+          "preview": "result[1]{r}:\n  \"ed. Timeline entry: metrics were reviewed and alerts were triaged. Timeline entry: metrics were reviewed and alerts were triaged. Timeline entry: metrics were reviewed and alerts were"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "literal 'NULL' text vs SQL NULL",
+      "correct": true,
+      "answer": "13",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 241,
+      "inputTokens": 4,
+      "cacheCreationTokens": 3067,
+      "cacheReadTokens": 6904,
+      "outputTokens": 378,
+      "costUsd": 0.0334928,
+      "durationMs": 6649,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 56128 -u bench shop -e \"SHOW COLUMNS FROM contacts; SELECT phone, HEX(phone), COUNT(*) FROM contacts WHERE UPPER(TRIM(phone))='NULL' GROUP BY phone, HEX(phone); SELECT SUM(phone IS NULL), SUM(phone=''), SUM(phone='NULL'), SUM(BINARY phone='NULL') FROM contacts;\"",
+          "outputChars": 241,
+          "isError": false,
+          "preview": "Field\tType\tNull\tKey\tDefault\tExtra\nid\tint\tNO\tPRI\tNULL\t\nname\tvarchar(30)\tYES\t\tNULL\t\nphone\tvarchar(20)\tYES\t\tNULL\t\nphone\tHEX(phone)\tCOUNT(*)\nNULL\t4E554C4C\t13\nSUM(phone IS NULL)\tSUM(phone='')\tSUM(phone='NU"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "literal 'NULL' text vs SQL NULL",
+      "correct": true,
+      "answer": "13",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 518,
+      "inputTokens": 6,
+      "cacheCreationTokens": 3265,
+      "cacheReadTokens": 11984,
+      "outputTokens": 488,
+      "costUsd": 0.038300799999999996,
+      "durationMs": 10853,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -30; mysql-axi query \"SELECT COUNT(*) FROM contacts WHERE phone = 'NULL'\" 2>&1",
+          "outputChars": 478,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi query \"SELECT CONCAT('[',phone,']') p, HEX(phone) h, COUNT(*) c FROM contacts WHERE UPPER(TRIM(phone)) = 'NULL' GROUP BY phone, HEX(phone)\" 2>&1",
+          "outputChars": 40,
+          "isError": false,
+          "preview": "result[1]{p,h,c}:\n  \"[NULL]\",4E554C4C,13"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "literal 'NULL' text vs SQL NULL",
+      "correct": true,
+      "answer": "13",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 385,
+      "inputTokens": 6,
+      "cacheCreationTokens": 3614,
+      "cacheReadTokens": 12722,
+      "outputTokens": 604,
+      "costUsd": 0.0435604,
+      "durationMs": 14174,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "M=<bin>/mysql-axi; $M describe contacts; $M query \"SELECT phone IS NULL n, phone='' e, phone='NULL' lit, UPPER(TRIM(phone))='NULL' fuzzy, COUNT(*) c FROM contacts GROUP BY 1,2,3,4\"",
+          "outputChars": 356,
+          "isError": false,
+          "preview": "table:\n  name: shop.contacts\n  rows_est: 120\n  size: 16 KB\ncolumns[3]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  name,varchar(30),true,null,null,null\n  phone,varchar(20),tru"
+        },
+        {
+          "command": "M=<bin>/mysql-axi; $M query \"SELECT HEX(phone) h, COUNT(*) c FROM contacts WHERE phone='NULL' OR phone LIKE '%null%' GROUP BY 1\"",
+          "outputChars": 29,
+          "isError": false,
+          "preview": "result[1]{h,c}:\n  4E554C4C,13"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "literal 'NULL' text vs SQL NULL",
+      "correct": true,
+      "answer": "13",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 407,
+      "inputTokens": 6,
+      "cacheCreationTokens": 3343,
+      "cacheReadTokens": 12069,
+      "outputTokens": 658,
+      "costUsd": 0.0423418,
+      "durationMs": 9297,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 56128 -u bench shop -e \"SHOW TABLES; SELECT COUNT(*) total, SUM(phone='NULL') lit, SUM(phone IS NULL) sqlnull, SUM(phone='') empty, SUM(UPPER(TRIM(phone))='NULL') lit_ci FROM contacts; SELECT phone, HEX(phone), COUNT(*) FROM contacts WHERE phone LIKE '%null%' GROUP BY phone;\"",
+          "outputChars": 320,
+          "isError": true,
+          "preview": "Exit code 1\nERROR 1064 (42000) at line 1: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'empty, SUM(UPPER(TRIM(p"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 56128 -u bench shop -e \"SELECT COUNT(*) total, SUM(phone='NULL') lit, SUM(phone IS NULL) sqlnull, SUM(phone='') emp, SUM(UPPER(TRIM(phone))='NULL') lit_ci FROM contacts; SELECT phone, HEX(phone), COUNT(*) FROM contacts WHERE phone LIKE '%null%' GROUP BY phone, HEX(phone);\"",
+          "outputChars": 87,
+          "isError": false,
+          "preview": "total\tlit\tsqlnull\temp\tlit_ci\n120\t13\t14\t13\t13\nphone\tHEX(phone)\tCOUNT(*)\nNULL\t4E554C4C\t13"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "literal 'NULL' text vs SQL NULL",
+      "correct": true,
+      "answer": "13",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 515,
+      "inputTokens": 6,
+      "cacheCreationTokens": 3251,
+      "cacheReadTokens": 11988,
+      "outputTokens": 491,
+      "costUsd": 0.0382496,
+      "durationMs": 8734,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -30; mysql-axi query \"SELECT COUNT(*) FROM contacts WHERE phone = 'NULL'\" 2>&1",
+          "outputChars": 478,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi query \"SELECT CONCAT('[',phone,']') p, BINARY phone = 'NULL' exact, COUNT(*) c FROM contacts WHERE TRIM(LOWER(phone))='null' GROUP BY phone, exact\" 2>&1",
+          "outputChars": 37,
+          "isError": false,
+          "preview": "result[1]{p,exact,c}:\n  \"[NULL]\",1,13"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "literal 'NULL' text vs SQL NULL",
+      "correct": true,
+      "answer": "13",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 37,
+      "inputTokens": 4,
+      "cacheCreationTokens": 3177,
+      "cacheReadTokens": 7218,
+      "outputTokens": 338,
+      "costUsd": 0.0336356,
+      "durationMs": 5866,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi query \"SELECT phone, BINARY phone = 'NULL' AS exact, COUNT(*) c FROM contacts WHERE phone IS NOT NULL AND UPPER(TRIM(phone))='NULL' GROUP BY phone\"",
+          "outputChars": 37,
+          "isError": false,
+          "preview": "result[1]{phone,exact,c}:\n  NULL,1,13"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "literal 'NULL' text vs SQL NULL",
+      "correct": true,
+      "answer": "13",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 604,
+      "inputTokens": 6,
+      "cacheCreationTokens": 3449,
+      "cacheReadTokens": 12184,
+      "outputTokens": 601,
+      "costUsd": 0.0420728,
+      "durationMs": 11280,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 56128 -u bench shop -e \"SHOW CREATE TABLE contacts\\G; SELECT COUNT(*) exact, SUM(UPPER(TRIM(phone))='NULL') loose, SUM(phone IS NULL) sqlnull, SUM(phone='') empty FROM contacts; SELECT phone, HEX(phone), COUNT(*) FROM contacts WHERE UPPER(TRIM(phone)) LIKE '%NULL%' GROUP BY phone;\"",
+          "outputChars": 513,
+          "isError": true,
+          "preview": "Exit code 1\nERROR 1064 (42000) at line 1: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'empty FROM contacts' at"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 56128 -u bench shop -e \"SELECT COUNT(*) total, SUM(phone='NULL') exact, SUM(BINARY phone='NULL') exactbin, SUM(phone IS NULL) sqlnull, SUM(phone='') emp FROM contacts; SELECT phone, HEX(phone), COUNT(*) FROM contacts WHERE phone LIKE '%null%' GROUP BY phone, HEX(phone);\"",
+          "outputChars": 91,
+          "isError": false,
+          "preview": "total\texact\texactbin\tsqlnull\temp\n120\t13\t13\t14\t13\nphone\tHEX(phone)\tCOUNT(*)\nNULL\t4E554C4C\t13"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "literal 'NULL' text vs SQL NULL",
+      "correct": true,
+      "answer": "13",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 825,
+      "inputTokens": 6,
+      "cacheCreationTokens": 3453,
+      "cacheReadTokens": 12156,
+      "outputTokens": 642,
+      "costUsd": 0.042919200000000005,
+      "durationMs": 9990,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -30; mysql-axi query \"SELECT COUNT(*) AS literal_null, SUM(phone IS NULL) AS sql_null, SUM(phone='') AS empty, SUM(UPPER(TRIM(phone))='NULL' AND phone<>'NULL') AS variants FROM contacts WHERE 1\" 2>&1",
+          "outputChars": 727,
+          "isError": true,
+          "preview": "Exit code 1\nusage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n"
+        },
+        {
+          "command": "mysql-axi query \"SELECT SUM(phone='NULL') AS literal_null, SUM(BINARY phone='NULL') AS exact_case, SUM(phone IS NULL) AS sql_null, SUM(phone='') AS empty_str, SUM(UPPER(TRIM(phone))='NULL') AS trimmed_any_case, COUNT(*) AS total FROM contacts\" 2>&1",
+          "outputChars": 98,
+          "isError": false,
+          "preview": "result[1]{literal_null,exact_case,sql_null,empty_str,trimmed_any_case,total}:\n  13,13,14,13,13,120"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "literal 'NULL' text vs SQL NULL",
+      "correct": true,
+      "answer": "13",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 308,
+      "inputTokens": 4,
+      "cacheCreationTokens": 3308,
+      "cacheReadTokens": 7218,
+      "outputTokens": 366,
+      "costUsd": 0.0352436,
+      "durationMs": 9173,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "B=<bin>/mysql-axi; $B describe contacts; $B query \"SELECT phone, COUNT(*) c, HEX(phone) h FROM contacts WHERE UPPER(TRIM(phone))='NULL' GROUP BY phone, HEX(phone)\"",
+          "outputChars": 308,
+          "isError": false,
+          "preview": "table:\n  name: shop.contacts\n  rows_est: 120\n  size: 16 KB\ncolumns[3]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  name,varchar(30),true,null,null,null\n  phone,varchar(20),tru"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "exact BIGINT id",
+      "correct": true,
+      "answer": "18446744073709551558",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 713,
+      "inputTokens": 6,
+      "cacheCreationTokens": 3288,
+      "cacheReadTokens": 11901,
+      "outputTokens": 483,
+      "costUsd": 0.038368200000000005,
+      "durationMs": 13193,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 56128 -u bench shop -e \"SHOW TABLES; SHOW CREATE TABLE events\\G\"",
+          "outputChars": 381,
+          "isError": false,
+          "preview": "Tables_in_shop\ncontacts\ncustomers\ndigits\nevents\nincidents\norders\nproducts\n*************************** 1. row ***************************\n       Table: events\nCreate Table: CREATE TABLE `events` (\n  `i"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 56128 -u bench shop -e \"SELECT id, kind, at FROM events ORDER BY at DESC LIMIT 5; SELECT COUNT(*), SUM(at IS NULL), MAX(id) FROM events; SELECT id,at FROM events ORDER BY id DESC LIMIT 3;\"",
+          "outputChars": 332,
+          "isError": false,
+          "preview": "id\tkind\tat\n18446744073709551558\tlogout\t2026-09-30 23:59:59\n18446744073709551557\tlogin\t2026-09-01 10:00:00\n9007199254740993\tsignup\t2026-08-01 08:00:00\nCOUNT(*)\tSUM(at IS NULL)\tMAX(id)\n3\t0\t1844674407370"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "exact BIGINT id",
+      "correct": true,
+      "answer": "18446744073709551558",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 1540,
+      "inputTokens": 8,
+      "cacheCreationTokens": 3706,
+      "cacheReadTokens": 17486,
+      "outputTokens": 527,
+      "costUsd": 0.0437172,
+      "durationMs": 12691,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -30; mysql-axi \"DESCRIBE events\" 2>&1 | head -30",
+          "outputChars": 670,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi tables; mysql-axi describe events",
+          "outputChars": 619,
+          "isError": false,
+          "preview": "database: shop\ntotal: 7 tables; 0 views; 2.2 MB\ntables[7]{name,kind,rows_est,size}:\n  contacts,table,120,16 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  events,table,3,16 KB\n  incidents,"
+        },
+        {
+          "command": "mysql-axi query \"SELECT CAST(id AS CHAR) AS id_str, id, kind, at FROM events ORDER BY at DESC\"",
+          "outputChars": 251,
+          "isError": false,
+          "preview": "result[3]{id_str,id,kind,at}:\n  \"18446744073709551558\",\"18446744073709551558\",logout,\"2026-09-30 23:59:59\"\n  \"18446744073709551557\",\"18446744073709551557\",login,\"2026-09-01 10:00:00\"\n  \"90071992547409"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "exact BIGINT id",
+      "correct": true,
+      "answer": "18446744073709551558",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 868,
+      "inputTokens": 6,
+      "cacheCreationTokens": 3585,
+      "cacheReadTokens": 12632,
+      "outputTokens": 321,
+      "costUsd": 0.0376504,
+      "durationMs": 8208,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi tables; mysql-axi describe events",
+          "outputChars": 619,
+          "isError": false,
+          "preview": "database: shop\ntotal: 7 tables; 0 views; 2.2 MB\ntables[7]{name,kind,rows_est,size}:\n  contacts,table,120,16 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  events,table,3,16 KB\n  incidents,"
+        },
+        {
+          "command": "mysql-axi query \"SELECT CAST(id AS CHAR) id_s, id, kind, at FROM events ORDER BY at DESC\"",
+          "outputChars": 249,
+          "isError": false,
+          "preview": "result[3]{id_s,id,kind,at}:\n  \"18446744073709551558\",\"18446744073709551558\",logout,\"2026-09-30 23:59:59\"\n  \"18446744073709551557\",\"18446744073709551557\",login,\"2026-09-01 10:00:00\"\n  \"9007199254740993"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "exact BIGINT id",
+      "correct": true,
+      "answer": "18446744073709551558",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 713,
+      "inputTokens": 6,
+      "cacheCreationTokens": 3346,
+      "cacheReadTokens": 11928,
+      "outputTokens": 542,
+      "costUsd": 0.0400176,
+      "durationMs": 8654,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 56128 -u bench shop -e \"SHOW TABLES; SHOW CREATE TABLE events\\G\"",
+          "outputChars": 381,
+          "isError": false,
+          "preview": "Tables_in_shop\ncontacts\ncustomers\ndigits\nevents\nincidents\norders\nproducts\n*************************** 1. row ***************************\n       Table: events\nCreate Table: CREATE TABLE `events` (\n  `i"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 56128 -u bench shop -e \"SELECT id, kind, at FROM events ORDER BY at DESC LIMIT 5; SELECT COUNT(*), SUM(at IS NULL), MAX(id) FROM events; SELECT id,at FROM events ORDER BY id DESC LIMIT 3;\"",
+          "outputChars": 332,
+          "isError": false,
+          "preview": "id\tkind\tat\n18446744073709551558\tlogout\t2026-09-30 23:59:59\n18446744073709551557\tlogin\t2026-09-01 10:00:00\n9007199254740993\tsignup\t2026-08-01 08:00:00\nCOUNT(*)\tSUM(at IS NULL)\tMAX(id)\n3\t0\t1844674407370"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "exact BIGINT id",
+      "correct": true,
+      "answer": "18446744073709551558",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 1164,
+      "inputTokens": 8,
+      "cacheCreationTokens": 3558,
+      "cacheReadTokens": 17304,
+      "outputTokens": 548,
+      "costUsd": 0.0429168,
+      "durationMs": 10832,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -30; mysql-axi query \"SHOW TABLES\" 2>&1",
+          "outputChars": 550,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi describe events 2>&1; mysql-axi query \"SELECT * FROM events ORDER BY created_at DESC LIMIT 5\" 2>&1",
+          "outputChars": 363,
+          "isError": true,
+          "preview": "Exit code 1\ntable:\n  name: shop.events\n  rows_est: 3\n  size: 16 KB\ncolumns[3]{name,type,nullable,key,default,extra}:\n  id,bigint unsigned,false,PRI,null,null\n  kind,varchar(20),true,null,null,null\n  a"
+        },
+        {
+          "command": "mysql-axi query \"SELECT CAST(id AS CHAR) id_str, id, kind, at FROM events ORDER BY at DESC\" 2>&1",
+          "outputChars": 251,
+          "isError": false,
+          "preview": "result[3]{id_str,id,kind,at}:\n  \"18446744073709551558\",\"18446744073709551558\",logout,\"2026-09-30 23:59:59\"\n  \"18446744073709551557\",\"18446744073709551557\",login,\"2026-09-01 10:00:00\"\n  \"90071992547409"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "exact BIGINT id",
+      "correct": true,
+      "answer": "18446744073709551558",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 448,
+      "inputTokens": 6,
+      "cacheCreationTokens": 3365,
+      "cacheReadTokens": 12444,
+      "outputTokens": 375,
+      "costUsd": 0.0369328,
+      "durationMs": 18556,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi describe events",
+          "outputChars": 269,
+          "isError": false,
+          "preview": "table:\n  name: shop.events\n  rows_est: 3\n  size: 16 KB\ncolumns[3]{name,type,nullable,key,default,extra}:\n  id,bigint unsigned,false,PRI,null,null\n  kind,varchar(20),true,null,null,null\n  at,datetime,t"
+        },
+        {
+          "command": "mysql-axi query \"SELECT CAST(id AS CHAR) id, kind, at FROM events ORDER BY at DESC\"",
+          "outputChars": 179,
+          "isError": false,
+          "preview": "result[3]{id,kind,at}:\n  \"18446744073709551558\",logout,\"2026-09-30 23:59:59\"\n  \"18446744073709551557\",login,\"2026-09-01 10:00:00\"\n  \"9007199254740993\",signup,\"2026-08-01 08:00:00\""
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "exact BIGINT id",
+      "correct": true,
+      "answer": "18446744073709551558",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 626,
+      "inputTokens": 6,
+      "cacheCreationTokens": 3317,
+      "cacheReadTokens": 11942,
+      "outputTokens": 481,
+      "costUsd": 0.0385684,
+      "durationMs": 12414,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 56128 -u bench shop -e \"SHOW TABLES; SHOW CREATE TABLE events\\G\" 2>&1 | head -50",
+          "outputChars": 381,
+          "isError": false,
+          "preview": "Tables_in_shop\ncontacts\ncustomers\ndigits\nevents\nincidents\norders\nproducts\n*************************** 1. row ***************************\n       Table: events\nCreate Table: CREATE TABLE `events` (\n  `i"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 56128 -u bench shop -e \"SELECT id, kind, at FROM events ORDER BY at DESC LIMIT 5; SELECT COUNT(*), SUM(at IS NULL), MAX(id) FROM events; SELECT CAST(id AS CHAR) FROM events ORDER BY at DESC LIMIT 1;\"",
+          "outputChars": 245,
+          "isError": false,
+          "preview": "id\tkind\tat\n18446744073709551558\tlogout\t2026-09-30 23:59:59\n18446744073709551557\tlogin\t2026-09-01 10:00:00\n9007199254740993\tsignup\t2026-08-01 08:00:00\nCOUNT(*)\tSUM(at IS NULL)\tMAX(id)\n3\t0\t1844674407370"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "exact BIGINT id",
+      "correct": true,
+      "answer": "18446744073709551558",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 1700,
+      "inputTokens": 8,
+      "cacheCreationTokens": 3805,
+      "cacheReadTokens": 17734,
+      "outputTokens": 499,
+      "costUsd": 0.043998800000000005,
+      "durationMs": 9452,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -30; mysql-axi \"SHOW TABLES\" 2>&1; mysql-axi \"DESCRIBE events\" 2>&1",
+          "outputChars": 898,
+          "isError": true,
+          "preview": "Exit code 2\nusage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n"
+        },
+        {
+          "command": "mysql-axi tables; mysql-axi describe events",
+          "outputChars": 619,
+          "isError": false,
+          "preview": "database: shop\ntotal: 7 tables; 0 views; 2.2 MB\ntables[7]{name,kind,rows_est,size}:\n  contacts,table,120,16 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  events,table,3,16 KB\n  incidents,"
+        },
+        {
+          "command": "mysql-axi query \"SELECT CAST(id AS CHAR) AS id_str, kind, at FROM events ORDER BY at DESC\"",
+          "outputChars": 183,
+          "isError": false,
+          "preview": "result[3]{id_str,kind,at}:\n  \"18446744073709551558\",logout,\"2026-09-30 23:59:59\"\n  \"18446744073709551557\",login,\"2026-09-01 10:00:00\"\n  \"9007199254740993\",signup,\"2026-08-01 08:00:00\""
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "exact BIGINT id",
+      "correct": true,
+      "answer": "18446744073709551558",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 870,
+      "inputTokens": 6,
+      "cacheCreationTokens": 3582,
+      "cacheReadTokens": 12628,
+      "outputTokens": 338,
+      "costUsd": 0.0379656,
+      "durationMs": 8532,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi tables; mysql-axi describe events",
+          "outputChars": 619,
+          "isError": false,
+          "preview": "database: shop\ntotal: 7 tables; 0 views; 2.2 MB\ntables[7]{name,kind,rows_est,size}:\n  contacts,table,120,16 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  events,table,3,16 KB\n  incidents,"
+        },
+        {
+          "command": "mysql-axi query \"SELECT CAST(id AS CHAR) id_str, id, kind, at FROM events ORDER BY at DESC\"",
+          "outputChars": 251,
+          "isError": false,
+          "preview": "result[3]{id_str,id,kind,at}:\n  \"18446744073709551558\",\"18446744073709551558\",logout,\"2026-09-30 23:59:59\"\n  \"18446744073709551557\",\"18446744073709551557\",login,\"2026-09-01 10:00:00\"\n  \"90071992547409"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "top spender in March",
+      "correct": true,
+      "answer": "User 904 (customer id 500) — 999.99",
+      "turns": 5,
+      "toolCalls": 4,
+      "toolOutputChars": 1507,
+      "inputTokens": 10,
+      "cacheCreationTokens": 4295,
+      "cacheReadTokens": 23325,
+      "outputTokens": 1137,
+      "costUsd": 0.061805,
+      "durationMs": 133630,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "cd /tmp; mysql -h 127.0.0.1 -P 56128 -u bench shop -e \"SHOW TABLES; SELECT table_name, column_name, column_type FROM information_schema.columns WHERE table_schema='shop' ORDER BY table_name, ordinal_position;\"",
+          "outputChars": 228,
+          "isError": true,
+          "preview": "cd in '/private/tmp' was blocked. For security, Claude Code may only change directories to the allowed working directories for this session: '/private$TMPDIR/m"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 56128 -u bench shop -e \"SELECT table_name, column_name, column_type FROM information_schema.columns WHERE table_schema='shop' ORDER BY table_name, ordinal_position;\"",
+          "outputChars": 645,
+          "isError": false,
+          "preview": "TABLE_NAME\tCOLUMN_NAME\tCOLUMN_TYPE\ncontacts\tid\tint\ncontacts\tname\tvarchar(30)\ncontacts\tphone\tvarchar(20)\ncustomers\tid\tbigint unsigned\ncustomers\temail\tvarchar(191)\ncustomers\tname\tvarchar(80)\ncustomers\tc"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 56128 -u bench shop -e \"SELECT status, COUNT(*) FROM orders GROUP BY status; SELECT meta FROM orders LIMIT 5; SELECT MIN(created_at), MAX(created_at) FROM orders;\"",
+          "outputChars": 269,
+          "isError": false,
+          "preview": "status\tCOUNT(*)\npaid\t3338\nrefunded\t3334\npending\t3333\nmeta\n{\"ship\": {\"country\": \"NL\"}}\n{\"ship\": {\"country\": \"NL\"}}\n{\"ship\": {\"country\": \"NL\"}}\n{\"ship\": {\"country\": \"NL\"}}\n{\"ship\": {\"country\": \"NL\"}}\nMI"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 56128 -u bench shop -e \"SELECT DISTINCT HEX(status), status FROM orders; SELECT o.customer_id, c.name, c.email, c.deleted_at, SUM(o.total) t, COUNT(*) FROM orders o LEFT JOIN customers c ON c.id=o.customer_id WHERE o.status='paid' AND o.created_at>='2026-03-01' AND o.created_at<'2026-04-01' GROUP BY o.customer_id, c.name, c.email, c.deleted_at ORDER BY t DESC LIMIT 5;\"",
+          "outputChars": 365,
+          "isError": false,
+          "preview": "HEX(status)\tstatus\n70616964\tpaid\n726566756E646564\trefunded\n70656E64696E67\tpending\ncustomer_id\tname\temail\tdeleted_at\tt\tCOUNT(*)\n500\tUser 904\tuser904@example.test\tNULL\t999.99\t2\n77\tUser 620\tuser620@examp"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "top spender in March",
+      "correct": true,
+      "answer": "User 904 (customer id 500) — 999.99",
+      "turns": 5,
+      "toolCalls": 4,
+      "toolOutputChars": 2900,
+      "inputTokens": 10,
+      "cacheCreationTokens": 4932,
+      "cacheReadTokens": 24553,
+      "outputTokens": 1186,
+      "costUsd": 0.0681266,
+      "durationMs": 17108,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -40; mysql-axi \"SHOW TABLES\" 2>&1",
+          "outputChars": 678,
+          "isError": true,
+          "preview": "Exit code 2\nusage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n"
+        },
+        {
+          "command": "mysql-axi tables; mysql-axi describe orders; mysql-axi describe customers; mysql-axi query \"SELECT status, COUNT(*) FROM orders GROUP BY status\"",
+          "outputChars": 1479,
+          "isError": false,
+          "preview": "database: shop\ntotal: 7 tables; 0 views; 2.2 MB\ntables[7]{name,kind,rows_est,size}:\n  contacts,table,120,16 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  events,table,3,16 KB\n  incidents,"
+        },
+        {
+          "command": "mysql-axi query \"SELECT HEX(status), COUNT(*) FROM orders GROUP BY HEX(status)\"; mysql-axi query \"SELECT o.customer_id, c.name, c.email, c.deleted_at, SUM(o.total) s, COUNT(*) n FROM orders o JOIN customers c ON c.id=o.customer_id WHERE o.status='paid' AND o.created_at>='2026-03-01' AND o.created_at<'2026-04-01' GROUP BY o.customer_id ORDER BY s DESC LIMIT 5\"",
+          "outputChars": 389,
+          "isError": false,
+          "preview": "result[3]{\"HEX(status)\",\"COUNT(*)\"}:\n  \"70616964\",3338\n  \"726566756E646564\",3334\n  70656E64696E67,3333\nresult[5]{customer_id,name,email,deleted_at,s,n}:\n  500,User 904,user904@example.test,null,999.99"
+        },
+        {
+          "command": "mysql-axi query \"SELECT * FROM orders WHERE customer_id IN (500,77) AND status='paid' AND created_at>='2026-02-28' AND created_at<'2026-04-02'\"; mysql-axi query \"SELECT email, COUNT(*) FROM customers GROUP BY email HAVING COUNT(*)>1 LIMIT 5\"; mysql-axi query \"SELECT @@session.time_zone, @@global.time_zone\"",
+          "outputChars": 354,
+          "isError": false,
+          "preview": "result[4]{id,customer_id,status,total,meta,created_at}:\n  16387,77,paid,990,null,\"2026-03-20 15:00:00\"\n  16388,77,paid,500,null,\"2026-04-01 00:00:00\"\n  16384,500,paid,612.4,null,\"2026-03-03 09:00:00\"\n"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "top spender in March",
+      "correct": true,
+      "answer": "User 904 (customer id 500, user904@example.test) — 999.99",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 2471,
+      "inputTokens": 8,
+      "cacheCreationTokens": 5151,
+      "cacheReadTokens": 19569,
+      "outputTokens": 1203,
+      "costUsd": 0.06921379999999999,
+      "durationMs": 16932,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "B=<bin>/mysql-axi; $B tables; $B describe orders; $B describe customers",
+          "outputChars": 1406,
+          "isError": false,
+          "preview": "database: shop\ntotal: 7 tables; 0 views; 2.2 MB\ntables[7]{name,kind,rows_est,size}:\n  contacts,table,120,16 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  events,table,3,16 KB\n  incidents,"
+        },
+        {
+          "command": "B=<bin>/mysql-axi; $B query \"SELECT status, HEX(status) h, COUNT(*) FROM orders GROUP BY status, h\"; $B query \"SELECT o.customer_id, c.name, c.email, c.deleted_at, SUM(o.total) s, COUNT(*) n FROM orders o JOIN customers c ON c.id=o.customer_id WHERE LOWER(TRIM(o.status))='paid' AND o.created_at >= '2026-03-01' AND o.created_at < '2026-04-01' GROUP BY o.customer_id ORDER BY s DESC LIMIT 5\"",
+          "outputChars": 406,
+          "isError": false,
+          "preview": "result[3]{status,h,\"COUNT(*)\"}:\n  paid,\"70616964\",3338\n  refunded,\"726566756E646564\",3334\n  pending,70656E64696E67,3333\nresult[5]{customer_id,name,email,deleted_at,s,n}:\n  500,User 904,user904@example"
+        },
+        {
+          "command": "B=<bin>/mysql-axi; $B query \"SELECT id,status,total,meta,created_at FROM orders WHERE customer_id IN (500,77) AND created_at >= '2026-02-28' AND created_at < '2026-04-02'\"; $B query \"SELECT JSON_KEYS(meta) k, COUNT(*) FROM orders GROUP BY k\"; $B query \"SELECT COUNT(*) FROM customers WHERE name='User 904'\"",
+          "outputChars": 659,
+          "isError": false,
+          "preview": "result[9]{id,status,total,meta,created_at}:\n  6201,pending,76.5,\"{\\\"ship\\\":{\\\"country\\\":\\\"DE\\\"}}\",\"2026-03-18 00:00:00\"\n  6204,pending,76.5,\"{\\\"ship\\\":{\\\"country\\\":\\\"DE\\\"}}\",\"2026-03-18 00:00:00\"\n  62"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "top spender in March",
+      "correct": true,
+      "answer": "Customer 500 (User 904) — $999.99",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 1609,
+      "inputTokens": 8,
+      "cacheCreationTokens": 4296,
+      "cacheReadTokens": 17943,
+      "outputTokens": 1160,
+      "costUsd": 0.061188599999999996,
+      "durationMs": 18269,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 56128 -u bench shop -e \"SHOW TABLES; SELECT table_name, column_name, column_type FROM information_schema.columns WHERE table_schema='shop' ORDER BY table_name, ordinal_position;\"",
+          "outputChars": 719,
+          "isError": false,
+          "preview": "Tables_in_shop\ncontacts\ncustomers\ndigits\nevents\nincidents\norders\nproducts\nTABLE_NAME\tCOLUMN_NAME\tCOLUMN_TYPE\ncontacts\tid\tint\ncontacts\tname\tvarchar(30)\ncontacts\tphone\tvarchar(20)\ncustomers\tid\tbigint un"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 56128 -u bench shop -e \"SELECT status, COUNT(*) FROM orders GROUP BY status; SELECT o.customer_id, c.name, c.deleted_at, SUM(o.total) s, COUNT(*) FROM orders o LEFT JOIN customers c ON c.id=o.customer_id WHERE o.status='paid' AND o.created_at>='2026-03-01' AND o.created_at<'2026-04-01' GROUP BY o.customer_id, c.name, c.deleted_at ORDER BY s DESC LIMIT 5; SELECT meta FROM orde",
+          "outputChars": 370,
+          "isError": false,
+          "preview": "status\tCOUNT(*)\npaid\t3338\nrefunded\t3334\npending\t3333\ncustomer_id\tname\tdeleted_at\ts\tCOUNT(*)\n500\tUser 904\tNULL\t999.99\t2\n77\tUser 620\tNULL\t990.00\t1\n388\tUser 713\tNULL\t750.00\t4\n988\tUser 719\tNULL\t750.00\t4\n9"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 56128 -u bench shop -e \"SELECT BINARY status b, HEX(status), COUNT(*) FROM orders GROUP BY b, HEX(status); SELECT id,status,total,created_at FROM orders WHERE customer_id IN (500,77) AND created_at>='2026-02-28' AND created_at<'2026-04-02'; SELECT @@time_zone, @@system_time_zone;\"",
+          "outputChars": 520,
+          "isError": false,
+          "preview": "b\tHEX(status)\tCOUNT(*)\npaid\t70616964\t3338\nrefunded\t726566756E646564\t3334\npending\t70656E64696E67\t3333\nid\tstatus\ttotal\tcreated_at\n6201\tpending\t76.50\t2026-03-18 00:00:00\n6204\tpending\t76.50\t2026-03-18 00:"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "top spender in March",
+      "correct": true,
+      "answer": "User 904 (customer id 500) — 999.99",
+      "turns": 5,
+      "toolCalls": 4,
+      "toolOutputChars": 2716,
+      "inputTokens": 10,
+      "cacheCreationTokens": 4871,
+      "cacheReadTokens": 24497,
+      "outputTokens": 1219,
+      "costUsd": 0.0682874,
+      "durationMs": 19895,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help; mysql-axi \"SHOW TABLES\" 2>&1 | head -50",
+          "outputChars": 666,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi tables; mysql-axi describe orders; mysql-axi describe customers; mysql-axi query \"SELECT status, COUNT(*) FROM orders GROUP BY status\"",
+          "outputChars": 1479,
+          "isError": false,
+          "preview": "database: shop\ntotal: 7 tables; 0 views; 2.2 MB\ntables[7]{name,kind,rows_est,size}:\n  contacts,table,120,16 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  events,table,3,16 KB\n  incidents,"
+        },
+        {
+          "command": "mysql-axi query \"SELECT HEX(status), COUNT(*) FROM orders GROUP BY HEX(status)\"; mysql-axi query \"SELECT c.id, c.name, c.email, c.deleted_at, SUM(o.total) t, COUNT(*) n FROM orders o JOIN customers c ON c.id=o.customer_id WHERE o.status='paid' AND o.created_at >= '2026-03-01' AND o.created_at < '2026-04-01' GROUP BY c.id ORDER BY t DESC LIMIT 5\"",
+          "outputChars": 380,
+          "isError": false,
+          "preview": "result[3]{\"HEX(status)\",\"COUNT(*)\"}:\n  \"70616964\",3338\n  \"726566756E646564\",3334\n  70656E64696E67,3333\nresult[5]{id,name,email,deleted_at,t,n}:\n  500,User 904,user904@example.test,null,999.99,2\n  77,U"
+        },
+        {
+          "command": "mysql-axi query \"SELECT id,total,meta,created_at FROM orders WHERE customer_id IN (500,77) AND status='paid' AND created_at >= '2026-03-01' AND created_at < '2026-04-01'\"; mysql-axi query \"SELECT email, COUNT(*) FROM customers GROUP BY email HAVING COUNT(*)>1 LIMIT 5\"",
+          "outputChars": 191,
+          "isError": false,
+          "preview": "result[3]{id,total,meta,created_at}:\n  16387,990,null,\"2026-03-20 15:00:00\"\n  16384,612.4,null,\"2026-03-03 09:00:00\"\n  16385,387.59,null,\"2026-03-31 23:30:00\"\nrows: 0\ncolumns: email; COUNT(*)"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "top spender in March",
+      "correct": true,
+      "answer": "User 904 (customer id 500) — 999.99",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 2167,
+      "inputTokens": 8,
+      "cacheCreationTokens": 4840,
+      "cacheReadTokens": 19512,
+      "outputTokens": 1114,
+      "costUsd": 0.0649344,
+      "durationMs": 15288,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "M=<bin>/mysql-axi; $M tables; $M describe orders; $M describe customers",
+          "outputChars": 1406,
+          "isError": false,
+          "preview": "database: shop\ntotal: 7 tables; 0 views; 2.2 MB\ntables[7]{name,kind,rows_est,size}:\n  contacts,table,120,16 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  events,table,3,16 KB\n  incidents,"
+        },
+        {
+          "command": "M=<bin>/mysql-axi; $M query \"select status, hex(status), count(*) from orders group by status\"; $M query \"select o.customer_id, c.name, c.email, c.deleted_at, sum(o.total) s, count(*) n from orders o join customers c on c.id=o.customer_id where lower(trim(o.status))='paid' and o.created_at>='2026-03-01' and o.created_at<'2026-04-01' group by o.customer_id order by s desc limit 5\"",
+          "outputChars": 418,
+          "isError": false,
+          "preview": "result[3]{status,\"hex(status)\",\"count(*)\"}:\n  paid,\"70616964\",3338\n  refunded,\"726566756E646564\",3334\n  pending,70656E64696E67,3333\nresult[5]{customer_id,name,email,deleted_at,s,n}:\n  500,User 904,use"
+        },
+        {
+          "command": "M=<bin>/mysql-axi; $M query \"select id,name,email,deleted_at from customers where name in ('User 904','User 620') or email in ('user904@example.test','user620@example.test')\"; $M query \"select id,customer_id,status,total,created_at from orders where customer_id in (500,77) and status='paid' and created_at between '2026-02-28' and '2026-04-02'\"",
+          "outputChars": 343,
+          "isError": false,
+          "preview": "result[2]{id,name,email,deleted_at}:\n  77,User 620,user620@example.test,null\n  500,User 904,user904@example.test,null\nresult[4]{id,customer_id,status,total,created_at}:\n  16387,77,paid,990,\"2026-03-20"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "top spender in March",
+      "correct": true,
+      "answer": "Customer 500 (User 904, user904@example.test): 999.99",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 1785,
+      "inputTokens": 8,
+      "cacheCreationTokens": 4383,
+      "cacheReadTokens": 17886,
+      "outputTokens": 1096,
+      "costUsd": 0.0605932,
+      "durationMs": 19097,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 56128 -u bench shop -e \"SHOW TABLES; SELECT table_name, column_name, column_type FROM information_schema.columns WHERE table_schema='shop' ORDER BY table_name, ordinal_position;\"",
+          "outputChars": 719,
+          "isError": false,
+          "preview": "Tables_in_shop\ncontacts\ncustomers\ndigits\nevents\nincidents\norders\nproducts\nTABLE_NAME\tCOLUMN_NAME\tCOLUMN_TYPE\ncontacts\tid\tint\ncontacts\tname\tvarchar(30)\ncontacts\tphone\tvarchar(20)\ncustomers\tid\tbigint un"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 56128 -u bench shop -e \"SELECT status, COUNT(*) FROM orders GROUP BY status; SELECT o.customer_id, c.name, c.email, c.deleted_at, SUM(o.total) s, COUNT(*) FROM orders o LEFT JOIN customers c ON c.id=o.customer_id WHERE o.status='paid' AND o.created_at>='2026-03-01' AND o.created_at<'2026-04-01' GROUP BY o.customer_id, c.name, c.email, c.deleted_at ORDER BY s DESC LIMIT 5;\"",
+          "outputChars": 336,
+          "isError": false,
+          "preview": "status\tCOUNT(*)\npaid\t3338\nrefunded\t3334\npending\t3333\ncustomer_id\tname\temail\tdeleted_at\ts\tCOUNT(*)\n500\tUser 904\tuser904@example.test\tNULL\t999.99\t2\n77\tUser 620\tuser620@example.test\tNULL\t990.00\t1\n388\tUse"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 56128 -u bench shop -e \"SELECT BINARY status b, HEX(status), COUNT(*) FROM orders GROUP BY b, HEX(status); SELECT id,total,meta,created_at,status FROM orders WHERE customer_id IN (500,77) AND created_at>='2026-03-01' AND created_at<'2026-04-01'; SELECT * FROM customers WHERE name IN ('User 904','User 620') OR id IN (500,77);\"",
+          "outputChars": 730,
+          "isError": false,
+          "preview": "b\tHEX(status)\tCOUNT(*)\npaid\t70616964\t3338\nrefunded\t726566756E646564\t3334\npending\t70656E64696E67\t3333\nid\ttotal\tmeta\tcreated_at\tstatus\n6201\t76.50\t{\"ship\": {\"country\": \"DE\"}}\t2026-03-18 00:00:00\tpending\n"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "top spender in March",
+      "correct": true,
+      "answer": "User 904 (customer id 500, user904@example.test) — 999.99",
+      "turns": 6,
+      "toolCalls": 5,
+      "toolOutputChars": 2771,
+      "inputTokens": 12,
+      "cacheCreationTokens": 4971,
+      "cacheReadTokens": 30137,
+      "outputTokens": 1240,
+      "costUsd": 0.0706434,
+      "durationMs": 136580,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help; mysql-axi schema 2>&1 | head -50",
+          "outputChars": 661,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi tables; for t in orders customers; do mysql-axi describe $t; done; mysql-axi query \"SELECT status, COUNT(*) FROM orders GROUP BY status\"",
+          "outputChars": 58,
+          "isError": true,
+          "preview": "A variable in this command can't be checked before it runs"
+        },
+        {
+          "command": "mysql-axi tables; mysql-axi describe orders; mysql-axi describe customers; mysql-axi query \"SELECT status, COUNT(*) FROM orders GROUP BY status\"",
+          "outputChars": 1479,
+          "isError": false,
+          "preview": "database: shop\ntotal: 7 tables; 0 views; 2.2 MB\ntables[7]{name,kind,rows_est,size}:\n  contacts,table,120,16 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  events,table,3,16 KB\n  incidents,"
+        },
+        {
+          "command": "mysql-axi query \"SELECT HEX(status) h, status, COUNT(*) FROM orders GROUP BY h, status\"; mysql-axi query \"SELECT o.customer_id, c.name, c.email, c.deleted_at, SUM(o.total) s, COUNT(*) n FROM orders o JOIN customers c ON c.id=o.customer_id WHERE LOWER(TRIM(o.status))='paid' AND o.created_at>='2026-03-01' AND o.created_at<'2026-04-01' GROUP BY o.customer_id ORDER BY s DESC LIMIT 5\"",
+          "outputChars": 406,
+          "isError": false,
+          "preview": "result[3]{h,status,\"COUNT(*)\"}:\n  \"70616964\",paid,3338\n  \"726566756E646564\",refunded,3334\n  70656E64696E67,pending,3333\nresult[5]{customer_id,name,email,deleted_at,s,n}:\n  500,User 904,user904@example"
+        },
+        {
+          "command": "mysql-axi query \"SELECT id,total,created_at,meta FROM orders WHERE customer_id=500 AND status='paid' AND created_at>='2026-02-28' AND created_at<'2026-04-02'\"; mysql-axi query \"SELECT id,email FROM customers WHERE name='User 904'\"",
+          "outputChars": 167,
+          "isError": false,
+          "preview": "result[2]{id,total,created_at,meta}:\n  16384,612.4,\"2026-03-03 09:00:00\",null\n  16385,387.59,\"2026-03-31 23:30:00\",null\nresult[1]{id,email}:\n  500,user904@example.test"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "top spender in March",
+      "correct": true,
+      "answer": "User 904 (customer id 500) — 999.99",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 1990,
+      "inputTokens": 8,
+      "cacheCreationTokens": 4687,
+      "cacheReadTokens": 19482,
+      "outputTokens": 1073,
+      "costUsd": 0.06288440000000001,
+      "durationMs": 16034,
+      "model": "claude-opus-5-5",
+      "calls": [
+        {
+          "command": "B=<bin>/mysql-axi; $B tables; $B describe orders; $B describe customers",
+          "outputChars": 1406,
+          "isError": false,
+          "preview": "database: shop\ntotal: 7 tables; 0 views; 2.2 MB\ntables[7]{name,kind,rows_est,size}:\n  contacts,table,120,16 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  events,table,3,16 KB\n  incidents,"
+        },
+        {
+          "command": "B=<bin>/mysql-axi; $B query \"select status, hex(status) h, count(*) from orders group by status, h\"; $B query \"select o.customer_id, c.name, c.email, c.deleted_at, sum(o.total) s from orders o join customers c on c.id=o.customer_id where lower(trim(o.status))='paid' and o.created_at>='2026-03-01' and o.created_at<'2026-04-01' group by o.customer_id order by s desc limit 5\"",
+          "outputChars": 394,
+          "isError": false,
+          "preview": "result[3]{status,h,\"count(*)\"}:\n  paid,\"70616964\",3338\n  refunded,\"726566756E646564\",3334\n  pending,70656E64696E67,3333\nresult[5]{customer_id,name,email,deleted_at,s}:\n  500,User 904,user904@example.t"
+        },
+        {
+          "command": "B=<bin>/mysql-axi; $B query \"select name, count(*) n from customers group by name having n>1 limit 5\"; $B query \"select id,total,created_at,status from orders where customer_id=500 and created_at>='2026-02-28' and created_at<'2026-04-02'\"",
+          "outputChars": 190,
+          "isError": false,
+          "preview": "rows: 0\ncolumns: name; n\nresult[3]{id,total,created_at,status}:\n  16384,612.4,\"2026-03-03 09:00:00\",paid\n  16385,387.59,\"2026-03-31 23:30:00\",paid\n  16386,1500,\"2026-03-10 12:00:00\",refunded"
+        }
+      ]
+    }
+  ]
+}

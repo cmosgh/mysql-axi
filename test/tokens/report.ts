@@ -1,10 +1,12 @@
-// Shared by the token suite (writes results.json) and scripts/tokens-readme.ts (writes the README).
+// Shared by the token suite (writes results/<suite>/<model>.json) and scripts/tokens-readme.ts (writes the README).
 import { readFileSync, writeFileSync } from "node:fs";
 
 export type Arm = "plain" | "axi" | "axi_home";
+export type Suite = "efficiency" | "accuracy";
 
-/** One results file per model: test/tokens/results/<model>.json. */
+/** One results file per suite and model: test/tokens/results/<suite>/<model>.json. */
 export interface Results {
+  suite: Suite;
   model: string;
   runs: number;
   date: string;
@@ -101,8 +103,29 @@ export function renderTable(results: Results): string {
   return [`\`${modelName(results)}\`, ${results.runs} runs per task and arm, ${results.date.slice(0, 10)}. Cells: ${arms.map((a) => ARM_LABELS[a]).join(" / ")}.`, "", ...lines].join("\n");
 }
 
-/** README section: one summary row per model and arm, then per-task tables. */
-export function renderReadme(all: Results[]): string {
+const ARMS_TEXT = [
+  "- **plain**: the `mysql` command-line client, which the model already knows.",
+  "- **axi**: `mysql-axi` with no prior context, so the agent first discovers it (`--help`).",
+  "- **axi+home**: `mysql-axi` with its home view in the system prompt, as `mysql-axi setup hooks` does at session start.",
+];
+
+const INTRO: Record<Suite, string[]> = {
+  efficiency: [
+    "Headless Claude Code (Bash only, no MCP servers or user settings), each model in its own run against its own throwaway MySQL with the same seeded data (about 1k customers, 10k orders, long-text articles) and the same account. Totals sum the per-task medians over all tasks; percentages compare with plain for the same model.",
+    "",
+    ...ARMS_TEXT,
+    "",
+    "Total tokens include the cached system prompt that every turn re-reads, so a saved turn matters as much as smaller output. Every run (commands, output sizes, answers, versions, prompts) is in `test/tokens/results/efficiency/`. Reproduce with `TOKENS_MODEL=<model> pnpm run test:tokens`, then `pnpm run tokens:readme`.",
+  ],
+  accuracy: [
+    "Same setup as above, with tasks built as traps where a tool's output can lead to a wrong answer: more matching rows than the 50-row cap, the deciding sentence at the end of a long text, the text 'NULL' next to SQL NULL, ids above 2^53 that lose precision as doubles, and an exact money total. Answers are checked strictly against values computed from the database.",
+    "",
+    "Runs are in `test/tokens/results/accuracy/`. Reproduce with `TOKENS_SUITE=accuracy TOKENS_MODEL=<model> pnpm run test:tokens`, then `pnpm run tokens:readme`.",
+  ],
+};
+
+/** README section for one suite: one summary row per model and arm, then per-task tables. */
+export function renderReadme(suite: Suite, all: Results[]): string {
   const summary = ["| Model | Arm | Correct | Turns | Tool output tokens ≈ | Total tokens | Cost USD |", "|---|---|---|---|---|---|---|"];
   for (const results of all) {
     const arms = armsIn(results.results);
@@ -116,24 +139,20 @@ export function renderReadme(all: Results[]): string {
     }
   }
   return [
-    "Headless Claude Code (Bash only, no MCP servers or user settings), each model in its own run against its own throwaway MySQL with the same seeded data (about 1k customers, 10k orders, long-text articles) and the same account. Totals sum the per-task medians over all tasks; percentages compare with plain for the same model.",
-    "",
-    "- **plain**: the `mysql` command-line client, which the model already knows.",
-    "- **axi**: `mysql-axi` with no prior context, so the agent first discovers it (`--help`).",
-    "- **axi+home**: `mysql-axi` with its home view in the system prompt, as `mysql-axi setup hooks` does at session start.",
-    "",
-    "Total tokens include the cached system prompt that every turn re-reads, so a saved turn matters as much as smaller output. Every run (commands, output sizes, answers, versions, prompts) is in `test/tokens/results/`. Reproduce with `TOKENS_MODEL=<model> pnpm run test:tokens`, then `pnpm run tokens:readme`.",
+    ...INTRO[suite],
     "",
     ...summary,
     ...all.flatMap((results) => ["", `<details><summary>Per task: ${modelName(results)}</summary>`, "", renderTable(results), "", "</details>"]),
   ].join("\n");
 }
 
-/** Replaces the text between the token-usage markers. */
-export function updateReadme(file: string, content: string): void {
+const MARKER: Record<Suite, string> = { efficiency: "token-usage", accuracy: "accuracy" };
+
+/** Replaces the text between the suite's README markers. */
+export function updateReadme(file: string, suite: Suite, content: string): void {
   const text = readFileSync(file, "utf-8");
-  const start = "<!-- token-usage:start -->";
-  const end = "<!-- token-usage:end -->";
+  const start = `<!-- ${MARKER[suite]}:start -->`;
+  const end = `<!-- ${MARKER[suite]}:end -->`;
   const from = text.indexOf(start);
   const to = text.indexOf(end);
   if (from === -1 || to === -1) throw new Error(`${file} has no ${start} ... ${end} markers`);

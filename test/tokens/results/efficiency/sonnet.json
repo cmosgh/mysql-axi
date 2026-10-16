@@ -1,4 +1,5 @@
 {
+  "suite": "efficiency",
   "model": "sonnet",
   "runs": 3,
   "date": "2026-10-16T06:00:06.883Z",
