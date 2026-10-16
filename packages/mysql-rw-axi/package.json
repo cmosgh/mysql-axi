@@ -1,6 +1,6 @@
 {
   "name": "mysql-rw-axi",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "WRITE ACCESS - loopback hosts only. MySQL CLI for agents that CAN MODIFY AND DROP DATA on local databases - exec, import, create/drop databases, plus every read-only mysql-axi command. Use mysql-axi for anything that is not a local dev database.",
   "type": "module",
   "keywords": [

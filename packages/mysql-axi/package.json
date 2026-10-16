@@ -1,6 +1,6 @@
 {
   "name": "mysql-axi",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Read-only MySQL CLI for agents - schemas, sample rows, capped SELECT/SHOW/DESC/EXPLAIN queries in token-efficient TOON. Writes are refused by a client-side guard plus a read-only session; not a grant check.",
   "type": "module",
   "keywords": [
