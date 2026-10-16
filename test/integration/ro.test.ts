@@ -9,6 +9,7 @@ import { rootUrl, scalar, scratchDatabase, serverPort, spawnCli, sql } from "./d
 const DB = "axi_it_ro";
 const RO_USER = "axi_it_reader";
 const NOPW_USER = "axi_it_nopw";
+const FIND_DB = "axi_it_find";
 
 /** Everything the deny tests could damage, as one comparable value. */
 const snapshot = async () => ({
@@ -18,6 +19,8 @@ const snapshot = async () => ({
 });
 
 beforeAll(async () => {
+  // Created first: scratchDatabase points the default connection at the last database it makes.
+  await scratchDatabase(FIND_DB, ["CREATE TABLE voucherProviderReasonGatings (id INT PRIMARY KEY, Gating_Rule VARCHAR(10), `pct%x` INT)"]);
   await scratchDatabase(DB, [
     "CREATE TABLE customers (id INT PRIMARY KEY, name VARCHAR(40) NOT NULL COMMENT 'display name', KEY by_name (name))",
     "CREATE TABLE orders (id INT PRIMARY KEY AUTO_INCREMENT, customer_id INT NOT NULL, total DECIMAL(10,2), FOREIGN KEY (customer_id) REFERENCES customers(id))",
@@ -44,6 +47,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   for (const user of [RO_USER, NOPW_USER]) await sql(`DROP USER IF EXISTS ${user}`);
+  await sql(`DROP DATABASE IF EXISTS ${FIND_DB}`);
 });
 
 describe("listing and schema", () => {
@@ -86,6 +90,25 @@ describe("listing and schema", () => {
     const { stdout, exitCode } = await ro("describe", "order");
     expect(exitCode).toBe(1);
     expect(stdout).toContain("did you mean: orders");
+  });
+
+  it("describe takes several tables and reports a missing one inline", async () => {
+    const { stdout, exitCode } = await ro("describe", "orders", `${DB}.customers`, "order");
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain(`name: ${DB}.orders`);
+    expect(stdout).toContain(`name: ${DB}.customers`);
+    expect(stdout).toContain(`table:\n  name: ${DB}.order\n  status: not found\n  hint: "did you mean: orders"`);
+  });
+
+  it("find matches table and column names case-insensitively and literally", async () => {
+    const found = await ro("find", "GATING");
+    expect(found.stdout).toContain(`tables[1]{database,name,kind,rows_est}:\n  ${FIND_DB},voucherProviderReasonGatings,table,0`);
+    expect(found.stdout).toContain(`columns[1]{table,name,type}:\n  ${FIND_DB}.voucherProviderReasonGatings,Gating_Rule,varchar(10)`);
+    expect((await ro("find", "%")).stdout).toContain(`columns[1]{table,name,type}:\n  ${FIND_DB}.voucherProviderReasonGatings,pct%x,int`);
+    expect((await ro("find", "name", "-d", DB)).stdout).toContain(`columns[1]{table,name,type}:\n  ${DB}.customers,name,varchar(40)`);
+    const none = await ro("find", "gating", "-d", DB);
+    expect(none.exitCode).toBe(0);
+    expect(none.stdout).toContain("matches: none - no table or column name contains 'gating' in");
   });
 });
 
@@ -232,6 +255,7 @@ describe("rows and values", () => {
     const { stdout, exitCode } = await ro("query", "SELECT SUM(a.n + b.n + c.n) FROM seq a, seq b, seq c", "--timeout", "1");
     expect(exitCode).toBe(1);
     expect(stdout).toContain("code: TIMEOUT");
+    expect(stdout).toContain("Check the plan with `explain");
     expect(Date.now() - started).toBeLessThan(10_000);
   });
 
@@ -368,6 +392,8 @@ describe("accounts and connections", () => {
       expect(login.stdout).toContain(`target: "${NOPW_USER}@127.0.0.1:${port}/${DB}"`);
       expect((await ro("auth", "status")).stdout).toContain("it,");
       expect((await ro("query", "SELECT CURRENT_USER() AS u")).stdout).toContain(`${NOPW_USER}@%`);
+      expect((await ro("--profile", "it", "tables")).stdout).toContain("customers,table");
+      expect((await ro("-p", "it", "-d", DB, "SELECT COUNT(*) AS n FROM orders")).stdout).toContain("result[1]{n}:\n  3");
       const failed = await ro("auth", "login", "--profile", "broken", "--user", "axi_it_nobody", "--port", port, "--no-password");
       expect(failed.stdout).toContain("code: AUTH_REQUIRED");
       expect((await ro("auth", "status")).stdout).not.toContain("broken");

@@ -5,9 +5,10 @@ import { resolveTarget, type Target } from "../target.js";
 import { tool } from "../tool.js";
 
 /** Accepted by every command that connects. */
-export const CONNECTION_FLAGS: readonly FlagSpec[] = [{ name: "--profile" }, { name: "--database", alias: "-d" }];
+export const PROFILE_FLAG: FlagSpec = { name: "--profile", alias: "-p" };
+export const CONNECTION_FLAGS: readonly FlagSpec[] = [PROFILE_FLAG, { name: "--database", alias: "-d" }];
 export const TIMEOUT_FLAG: FlagSpec = { name: "--timeout" };
-export const CONNECTION_FLAGS_HELP = "--profile <name>, -d/--database <name>";
+export const CONNECTION_FLAGS_HELP = "-p/--profile <name>, -d/--database <name>";
 
 export const DEFAULT_TIMEOUT_S = 30;
 export const MAX_ROWS = 1000;

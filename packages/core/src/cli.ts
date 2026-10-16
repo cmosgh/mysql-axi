@@ -9,6 +9,8 @@ import {
   describeHelp,
   explainCommand,
   explainHelp,
+  findCommand,
+  findHelp,
   queryCommand,
   queryHelp,
   sampleCommand,
@@ -28,6 +30,7 @@ export interface Command {
 
 /** Commands both CLIs share; all of them read through a read-only session. */
 export const READ_COMMANDS: Record<string, Command> = {
+  find: { run: findCommand, help: findHelp },
   databases: { run: databasesCommand, help: databasesHelp },
   tables: { run: tablesCommand, help: tablesHelp },
   describe: { run: describeCommand, help: describeHelp },
@@ -50,8 +53,19 @@ const SQL_VERBS =
  */
 export function routeBareSql(argv: string[], commands: Record<string, Command>): string[] {
   const [first] = argv;
-  if (first === undefined || commands[first] || !/\s/.test(first.trim()) || !SQL_VERBS.test(first)) return argv;
-  return ["query", ...argv];
+  return first !== undefined && isBareSql(first, commands) ? ["query", ...argv] : argv;
+}
+
+const isBareSql = (token: string, commands: Record<string, Command>): boolean => !commands[token] && /\s/.test(token.trim()) && SQL_VERBS.test(token);
+
+const FRONT_ONLY = new Set(["--help", "-h", "--version", "-V", "-v"]);
+
+/** `tool --profile x tables` runs as `tool tables --profile x`: agents often put connection flags first. */
+export function hoistLeadingFlags(argv: string[], commands: Record<string, Command>): string[] {
+  if (!argv[0]?.startsWith("-") || argv[0] === "-") return argv;
+  const at = argv.findIndex((token) => commands[token] !== undefined || isBareSql(token, commands));
+  if (at <= 0 || argv.slice(0, at).some((token) => FRONT_ONLY.has(token))) return argv;
+  return [argv[at]!, ...argv.slice(0, at), ...argv.slice(at + 1)];
 }
 
 export interface CliSpec {
@@ -77,7 +91,7 @@ export async function runCli(spec: CliSpec, options: MainOptions = {}): Promise<
   const commands: Record<string, Command> = { ...spec.commands };
   for (const [alias, target] of Object.entries(ALIASES)) if (commands[target]) commands[alias] = commands[target]!;
   await runAxiCli({
-    argv: routeBareSql(options.argv ?? process.argv.slice(2), commands),
+    argv: routeBareSql(hoistLeadingFlags(options.argv ?? process.argv.slice(2), commands), commands),
     ...(options.stdout ? { stdout: options.stdout } : {}),
     description: spec.description,
     version: spec.version,

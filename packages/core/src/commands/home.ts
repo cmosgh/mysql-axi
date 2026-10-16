@@ -35,8 +35,8 @@ export async function homeCommand(): Promise<string> {
     Object.keys(status).length > 0 && block(status),
     profiles.length > 0 && block({ profiles }),
     helpBlock([
-      `Run \`${name} tables\`, \`${name} describe <table>\` or \`${name} sample <table>\` to explore`,
-      `Run \`${name} query "<sql>"\` or \`${name} explain "<select>"\`; \`${name} <command> --help\` for flags`,
+      `Run \`${name} find <name>\`, \`${name} tables\`, \`${name} describe <table>...\` or \`${name} sample <table>\` to explore`,
+      `Run \`${name} query "<sql>" -p <profile> -d <database>\` or \`${name} explain "<select>"\`; \`${name} <command> --help\` for flags`,
       ...(tool().writeHint ? [tool().writeHint!] : []),
     ]),
   );

@@ -7,7 +7,7 @@ import { redactSecrets } from "../secrets.js";
 import { assertReadOnly, mainVerb, quoteIdent, statements, tokenize, type Token } from "../sql.js";
 import type { Target } from "../target.js";
 import { tool } from "../tool.js";
-import { CONNECTION_FLAGS, CONNECTION_FLAGS_HELP, MAX_ROWS, requireDatabase, sqlInput, tableRef, targetFrom, TIMEOUT_FLAG, timeoutMs } from "./common.js";
+import { CONNECTION_FLAGS, CONNECTION_FLAGS_HELP, MAX_ROWS, PROFILE_FLAG, requireDatabase, sqlInput, tableRef, targetFrom, TIMEOUT_FLAG, timeoutMs } from "./common.js";
 
 const SYSTEM_SCHEMAS = new Set(["mysql", "sys", "information_schema", "performance_schema"]);
 
@@ -28,7 +28,7 @@ function closeNames(input: string, names: readonly string[]): string[] {
 export const databasesHelp = (): string => `usage: ${tool().name} databases [--all] [--profile <name>]
 Databases with table counts and sizes (sizes are InnoDB estimates).
 flags:
-  --all (include mysql, sys, information_schema, performance_schema), --limit <n> (default 100), --profile <name>, --timeout <seconds> (default 30)
+  --all (include mysql, sys, information_schema, performance_schema), --limit <n> (default 100), -p/--profile <name>, --timeout <seconds> (default 30)
 examples:
   ${tool().name} databases
   ${tool().name} databases --all
@@ -36,7 +36,7 @@ examples:
 
 export async function databasesCommand(args: string[]): Promise<string> {
   const command = `${tool().name} databases`;
-  const parsed = parseArgs(args, [{ name: "--profile" }, { name: "--all", boolean: true }, { name: "--limit" }, TIMEOUT_FLAG], command);
+  const parsed = parseArgs(args, [PROFILE_FLAG, { name: "--all", boolean: true }, { name: "--limit" }, TIMEOUT_FLAG], command);
   expectPositionals(parsed, 0, command);
   const limit = intFlag(parsed, "--limit", 100, { min: 1, max: 10_000 });
   const target = await targetFrom(parsed);
@@ -138,86 +138,154 @@ export async function tablesCommand(args: string[]): Promise<string> {
   );
 }
 
+// --- find ---
+
+export const findHelp = (): string => `usage: ${tool().name} find <text> [flags]
+Tables and columns whose name contains <text>, case-insensitive, in every database (or one with -d).
+flags:
+  ${CONNECTION_FLAGS_HELP}, --limit <n> (per list; default 50; max ${MAX_ROWS}), --all (include mysql, sys, information_schema, performance_schema), --timeout <seconds>
+examples:
+  ${tool().name} find gating
+  ${tool().name} find vin -d shop
+`;
+
+/** LIKE pattern for a literal substring: the user's % and _ are matched as characters. */
+const containsPattern = (text: string): string => `%${text.toLowerCase().replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+
+export async function findCommand(args: string[]): Promise<string> {
+  const command = `${tool().name} find`;
+  const parsed = parseArgs(args, [...CONNECTION_FLAGS, TIMEOUT_FLAG, { name: "--limit" }, { name: "--all", boolean: true }], command);
+  const [text] = expectPositionals(parsed, 1, `${command} <text>`);
+  if (text!.trim() === "") throw usageError("the search text is empty", [`usage: ${command} <text>`]);
+  const limit = intFlag(parsed, "--limit", 50, { min: 1, max: MAX_ROWS });
+  const target = await targetFrom(parsed);
+  // An explicit -d searches that database; the profile's default database does not narrow the search.
+  const only = flag(parsed, "--database");
+  const scope = only ? "TABLE_SCHEMA = ?" : bool(parsed, "--all") ? "1 = 1" : `TABLE_SCHEMA NOT IN (${[...SYSTEM_SCHEMAS].map(() => "?").join(", ")})`;
+  const params = [containsPattern(text!), ...(only ? [only] : bool(parsed, "--all") ? [] : [...SYSTEM_SCHEMAS])];
+  const { tables, columns } = await read(target, parsed, async (s) => ({
+    tables: await s.all<Obj>(
+      `SELECT TABLE_SCHEMA AS db, TABLE_NAME AS name, TABLE_TYPE AS type, TABLE_ROWS AS rows_est FROM information_schema.TABLES
+       WHERE LOWER(TABLE_NAME) LIKE ? AND ${scope} ORDER BY TABLE_SCHEMA, TABLE_NAME LIMIT ${limit + 1}`,
+      params,
+    ),
+    columns: await s.all<Obj>(
+      `SELECT TABLE_SCHEMA AS db, TABLE_NAME AS tbl, COLUMN_NAME AS name, COLUMN_TYPE AS type FROM information_schema.COLUMNS
+       WHERE LOWER(COLUMN_NAME) LIKE ? AND ${scope} ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION LIMIT ${limit + 1}`,
+      params,
+    ),
+  }));
+  if (tables.length === 0 && columns.length === 0) {
+    return out(
+      block({ matches: `none - no table or column name contains '${text}'${only ? ` in ${only}` : ""}` }),
+      helpBlock([only ? `Drop -d to search every database` : `Try a shorter or different part of the name`]),
+    );
+  }
+  const view = (r: Obj) => r["type"] === "VIEW";
+  const more = (rows: Obj[], what: string) => (rows.length > limit ? [`More than ${limit} ${what} match - use a longer text, -d <database> or raise --limit`] : []);
+  return out(
+    tables.length > 0 &&
+      block({ tables: tables.slice(0, limit).map((r) => ({ database: r["db"], name: r["name"], kind: view(r) ? "view" : "table", rows_est: view(r) ? null : n(r["rows_est"]) })) }),
+    columns.length > 0 && block({ columns: columns.slice(0, limit).map((r) => ({ table: `${String(r["db"])}.${String(r["tbl"])}`, name: r["name"], type: r["type"] })) }),
+    helpBlock([...more(tables, "tables"), ...more(columns, "columns"), `Run \`${tool().name} describe <database>.<table>\` for its columns and indexes`]),
+  );
+}
+
 // --- describe ---
 
-export const describeHelp = (): string => `usage: ${tool().name} describe <table|database.table> [flags]
+const MAX_DESCRIBE = 20;
+
+export const describeHelp = (): string => `usage: ${tool().name} describe <table|database.table>... [flags]
 Columns, indexes, foreign keys (with ON DELETE/UPDATE), CHECK constraints, triggers and the tables that reference this one.
+Several tables (up to ${MAX_DESCRIBE}) are described in one call.
 flags:
   ${CONNECTION_FLAGS_HELP}, --timeout <seconds>
 examples:
   ${tool().name} describe orders
-  ${tool().name} describe shop.orders
+  ${tool().name} describe shop.orders shop.customers
 `;
 
 export async function describeCommand(args: string[]): Promise<string> {
   const command = `${tool().name} describe`;
   const parsed = parseArgs(args, [...CONNECTION_FLAGS, TIMEOUT_FLAG], command);
-  const [raw] = expectPositionals(parsed, 1, `${command} <table>`);
+  if (parsed.positionals.length === 0) throw usageError("missing argument", [`usage: ${command} <table>...`]);
+  if (parsed.positionals.length > MAX_DESCRIBE) throw usageError(`describe takes at most ${MAX_DESCRIBE} tables per call`);
   const target = await targetFrom(parsed);
-  const { database, table } = tableRef(raw!, target, `${command} <table>`);
-  const name = `${database}.${table}`;
-
-  const result = await read(target, parsed, async (s) => {
-    const [info] = await s.all<Obj>(
-      `SELECT TABLE_TYPE AS type, ENGINE AS engine, TABLE_ROWS AS rows_est, DATA_LENGTH + INDEX_LENGTH AS bytes, TABLE_COMMENT AS comment,
-              TABLE_COLLATION AS collation
-       FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?`,
-      [database, table],
-    );
-    if (!info) {
-      const names = await s.all<{ name: string }>("SELECT TABLE_NAME AS name FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME", [database]);
-      return { found: false as const, names: names.map((r) => r.name) };
-    }
-    const columns = await s.all<Obj>(
-      `SELECT COLUMN_NAME AS name, COLUMN_TYPE AS type, IS_NULLABLE AS nullable, COLUMN_KEY AS k, COLUMN_DEFAULT AS def, EXTRA AS extra, COLUMN_COMMENT AS comment,
-              COLLATION_NAME AS coll, GENERATION_EXPRESSION AS gen
-       FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION`,
-      [database, table],
-    );
-    const indexes = await s.all<Obj>(
-      `SELECT INDEX_NAME AS name, GROUP_CONCAT(COALESCE(COLUMN_NAME, CONCAT('(', EXPRESSION, ')')) ORDER BY SEQ_IN_INDEX SEPARATOR ';') AS cols, MAX(NON_UNIQUE) AS non_unique
-       FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
-       GROUP BY INDEX_NAME ORDER BY INDEX_NAME = 'PRIMARY' DESC, INDEX_NAME`,
-      [database, table],
-    );
-    const outgoing = await s.all<Obj>(
-      `SELECT k.CONSTRAINT_NAME AS name, GROUP_CONCAT(k.COLUMN_NAME ORDER BY k.ORDINAL_POSITION SEPARATOR ';') AS cols,
-              k.REFERENCED_TABLE_SCHEMA AS ref_db, k.REFERENCED_TABLE_NAME AS ref_table,
-              GROUP_CONCAT(k.REFERENCED_COLUMN_NAME ORDER BY k.ORDINAL_POSITION SEPARATOR ';') AS ref_cols,
-              MAX(r.DELETE_RULE) AS on_delete, MAX(r.UPDATE_RULE) AS on_update
-       FROM information_schema.KEY_COLUMN_USAGE k
-       JOIN information_schema.REFERENTIAL_CONSTRAINTS r ON r.CONSTRAINT_SCHEMA = k.TABLE_SCHEMA AND r.CONSTRAINT_NAME = k.CONSTRAINT_NAME AND r.TABLE_NAME = k.TABLE_NAME
-       WHERE k.TABLE_SCHEMA = ? AND k.TABLE_NAME = ? AND k.REFERENCED_TABLE_NAME IS NOT NULL
-       GROUP BY k.CONSTRAINT_NAME, k.REFERENCED_TABLE_SCHEMA, k.REFERENCED_TABLE_NAME ORDER BY k.CONSTRAINT_NAME`,
-      [database, table],
-    );
-    const checks = await s.all<Obj>(
-      `SELECT c.CONSTRAINT_NAME AS name, c.CHECK_CLAUSE AS clause
-       FROM information_schema.TABLE_CONSTRAINTS t
-       JOIN information_schema.CHECK_CONSTRAINTS c ON c.CONSTRAINT_SCHEMA = t.CONSTRAINT_SCHEMA AND c.CONSTRAINT_NAME = t.CONSTRAINT_NAME
-       WHERE t.TABLE_SCHEMA = ? AND t.TABLE_NAME = ? AND t.CONSTRAINT_TYPE = 'CHECK' ORDER BY c.CONSTRAINT_NAME`,
-      [database, table],
-    );
-    const triggers = await s.all<Obj>(
-      `SELECT TRIGGER_NAME AS name, ACTION_TIMING AS timing, EVENT_MANIPULATION AS event
-       FROM information_schema.TRIGGERS WHERE EVENT_OBJECT_SCHEMA = ? AND EVENT_OBJECT_TABLE = ? ORDER BY TRIGGER_NAME`,
-      [database, table],
-    );
-    const incoming = await s.all<Obj>(
-      `SELECT TABLE_SCHEMA AS db, TABLE_NAME AS tbl, GROUP_CONCAT(COLUMN_NAME ORDER BY ORDINAL_POSITION SEPARATOR ';') AS cols
-       FROM information_schema.KEY_COLUMN_USAGE WHERE REFERENCED_TABLE_SCHEMA = ? AND REFERENCED_TABLE_NAME = ?
-       GROUP BY TABLE_SCHEMA, TABLE_NAME, CONSTRAINT_NAME ORDER BY TABLE_NAME`,
-      [database, table],
-    );
-    return { found: true as const, info, columns, indexes, outgoing, incoming, checks, triggers };
+  const refs = parsed.positionals.map((raw) => tableRef(raw, target, `${command} <table>`));
+  const results = await read(target, parsed, async (s) => {
+    const all = [];
+    for (const ref of refs) all.push(await describeIn(s, ref.database, ref.table));
+    return all;
   });
+  if (refs.length === 1) return renderDescribe(refs[0]!.database, refs[0]!.table, results[0]!, true);
+  return out(...results.map((result, i) => renderDescribe(refs[i]!.database, refs[i]!.table, result, false)));
+}
 
+type DescribeResult = Awaited<ReturnType<typeof describeIn>>;
+
+async function describeIn(s: Session, database: string, table: string) {
+  const [info] = await s.all<Obj>(
+    `SELECT TABLE_TYPE AS type, ENGINE AS engine, TABLE_ROWS AS rows_est, DATA_LENGTH + INDEX_LENGTH AS bytes, TABLE_COMMENT AS comment,
+            TABLE_COLLATION AS collation
+     FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?`,
+    [database, table],
+  );
+  if (!info) {
+    const names = await s.all<{ name: string }>("SELECT TABLE_NAME AS name FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME", [database]);
+    return { found: false as const, names: names.map((r) => r.name) };
+  }
+  const columns = await s.all<Obj>(
+    `SELECT COLUMN_NAME AS name, COLUMN_TYPE AS type, IS_NULLABLE AS nullable, COLUMN_KEY AS k, COLUMN_DEFAULT AS def, EXTRA AS extra, COLUMN_COMMENT AS comment,
+            COLLATION_NAME AS coll, GENERATION_EXPRESSION AS gen
+     FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION`,
+    [database, table],
+  );
+  const indexes = await s.all<Obj>(
+    `SELECT INDEX_NAME AS name, GROUP_CONCAT(COALESCE(COLUMN_NAME, CONCAT('(', EXPRESSION, ')')) ORDER BY SEQ_IN_INDEX SEPARATOR ';') AS cols, MAX(NON_UNIQUE) AS non_unique
+     FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
+     GROUP BY INDEX_NAME ORDER BY INDEX_NAME = 'PRIMARY' DESC, INDEX_NAME`,
+    [database, table],
+  );
+  const outgoing = await s.all<Obj>(
+    `SELECT k.CONSTRAINT_NAME AS name, GROUP_CONCAT(k.COLUMN_NAME ORDER BY k.ORDINAL_POSITION SEPARATOR ';') AS cols,
+            k.REFERENCED_TABLE_SCHEMA AS ref_db, k.REFERENCED_TABLE_NAME AS ref_table,
+            GROUP_CONCAT(k.REFERENCED_COLUMN_NAME ORDER BY k.ORDINAL_POSITION SEPARATOR ';') AS ref_cols,
+            MAX(r.DELETE_RULE) AS on_delete, MAX(r.UPDATE_RULE) AS on_update
+     FROM information_schema.KEY_COLUMN_USAGE k
+     JOIN information_schema.REFERENTIAL_CONSTRAINTS r ON r.CONSTRAINT_SCHEMA = k.TABLE_SCHEMA AND r.CONSTRAINT_NAME = k.CONSTRAINT_NAME AND r.TABLE_NAME = k.TABLE_NAME
+     WHERE k.TABLE_SCHEMA = ? AND k.TABLE_NAME = ? AND k.REFERENCED_TABLE_NAME IS NOT NULL
+     GROUP BY k.CONSTRAINT_NAME, k.REFERENCED_TABLE_SCHEMA, k.REFERENCED_TABLE_NAME ORDER BY k.CONSTRAINT_NAME`,
+    [database, table],
+  );
+  const checks = await s.all<Obj>(
+    `SELECT c.CONSTRAINT_NAME AS name, c.CHECK_CLAUSE AS clause
+     FROM information_schema.TABLE_CONSTRAINTS t
+     JOIN information_schema.CHECK_CONSTRAINTS c ON c.CONSTRAINT_SCHEMA = t.CONSTRAINT_SCHEMA AND c.CONSTRAINT_NAME = t.CONSTRAINT_NAME
+     WHERE t.TABLE_SCHEMA = ? AND t.TABLE_NAME = ? AND t.CONSTRAINT_TYPE = 'CHECK' ORDER BY c.CONSTRAINT_NAME`,
+    [database, table],
+  );
+  const triggers = await s.all<Obj>(
+    `SELECT TRIGGER_NAME AS name, ACTION_TIMING AS timing, EVENT_MANIPULATION AS event
+     FROM information_schema.TRIGGERS WHERE EVENT_OBJECT_SCHEMA = ? AND EVENT_OBJECT_TABLE = ? ORDER BY TRIGGER_NAME`,
+    [database, table],
+  );
+  const incoming = await s.all<Obj>(
+    `SELECT TABLE_SCHEMA AS db, TABLE_NAME AS tbl, GROUP_CONCAT(COLUMN_NAME ORDER BY ORDINAL_POSITION SEPARATOR ';') AS cols
+     FROM information_schema.KEY_COLUMN_USAGE WHERE REFERENCED_TABLE_SCHEMA = ? AND REFERENCED_TABLE_NAME = ?
+     GROUP BY TABLE_SCHEMA, TABLE_NAME, CONSTRAINT_NAME ORDER BY TABLE_NAME`,
+    [database, table],
+  );
+  return { found: true as const, info, columns, indexes, outgoing, incoming, checks, triggers };
+}
+
+/** One table's sections; a missing table fails a single describe and is reported inline among several. */
+function renderDescribe(database: string, table: string, result: DescribeResult, single: boolean): string {
+  const name = `${database}.${table}`;
   if (!result.found) {
     const close = closeNames(table, result.names);
-    throw axiError(`table '${name}' not found`, "NOT_FOUND", [
-      ...(close.length > 0 ? [`did you mean: ${close.join(", ")}`] : []),
-      `Run \`${tool().name} tables -d ${database}\``,
-    ]);
+    const hints = [...(close.length > 0 ? [`did you mean: ${close.join(", ")}`] : []), `Run \`${tool().name} find ${table}\``];
+    if (single) throw axiError(`table '${name}' not found`, "NOT_FOUND", hints);
+    return block({ table: { name, status: "not found", hint: hints[0]! } });
   }
   const { info, columns, indexes, outgoing, incoming, checks, triggers } = result;
   const view = info["type"] === "VIEW";

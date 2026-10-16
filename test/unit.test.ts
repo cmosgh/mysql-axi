@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { cell, uniqueNames } from "../packages/core/src/cells.js";
+import { hoistLeadingFlags, READ_COMMANDS } from "../packages/core/src/cli.js";
 import { summarizeGrants } from "../packages/core/src/grants.js";
 import { parseUrl } from "../packages/core/src/target.js";
 import { setTool } from "../packages/core/src/tool.js";
@@ -191,5 +192,21 @@ describe("connection URLs", () => {
     } catch (error) {
       expect(String(error)).not.toContain("hunter2");
     }
+  });
+});
+
+describe("hoistLeadingFlags", () => {
+  const hoist = (...argv: string[]) => hoistLeadingFlags(argv, READ_COMMANDS);
+  it("moves flags written before the command or bare SQL behind it", () => {
+    expect(hoist("--profile", "staging", "databases")).toEqual(["databases", "--profile", "staging"]);
+    expect(hoist("-p", "dev", "-d", "shop", "query", "SELECT 1")).toEqual(["query", "-p", "dev", "-d", "shop", "SELECT 1"]);
+    expect(hoist("--full", "SELECT * FROM orders")).toEqual(["SELECT * FROM orders", "--full"]);
+  });
+  it("leaves help, version, stdin and flag-only lines alone", () => {
+    expect(hoist("--help", "query")).toEqual(["--help", "query"]);
+    expect(hoist("-v")).toEqual(["-v"]);
+    expect(hoist("-", "query")).toEqual(["-", "query"]);
+    expect(hoist("--profile", "dev")).toEqual(["--profile", "dev"]);
+    expect(hoist("tables", "-p", "dev")).toEqual(["tables", "-p", "dev"]);
   });
 });

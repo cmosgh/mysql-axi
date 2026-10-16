@@ -1,5 +1,5 @@
 import { bool, expectPositionals, flag, parseArgs } from "../../../core/src/args.js";
-import { targetFrom } from "../../../core/src/commands/common.js";
+import { PROFILE_FLAG, targetFrom } from "../../../core/src/commands/common.js";
 import { withSession } from "../../../core/src/connection.js";
 import { usageError } from "../../../core/src/errors.js";
 import { block, helpBlock, humanBytes, out } from "../../../core/src/render.js";
@@ -9,9 +9,9 @@ import { describeTarget } from "../../../core/src/target.js";
 export const DB_HELP = `usage: mysql-rw-axi db <create|drop> <name> [flags]
 WRITES. Create or drop a database on a loopback server. Both are idempotent; drop previews until --confirm.
 flags{create}:
-  --charset <name>, --collation <name>, --profile <name>
+  --charset <name>, --collation <name>, -p/--profile <name>
 flags{drop}:
-  --confirm, --profile <name>
+  --confirm, -p/--profile <name>
 examples:
   mysql-rw-axi db create shop_test --charset utf8mb4
   mysql-rw-axi db drop shop_test --confirm
@@ -33,7 +33,7 @@ export async function dbCommand(args: string[]): Promise<string> {
 
 async function dbCreate(args: string[]): Promise<string> {
   const command = "mysql-rw-axi db create";
-  const parsed = parseArgs(args, [{ name: "--profile" }, { name: "--charset" }, { name: "--collation" }], command);
+  const parsed = parseArgs(args, [PROFILE_FLAG, { name: "--charset" }, { name: "--collation" }], command);
   const [raw] = expectPositionals(parsed, 1, `${command} <name>`);
   const name = databaseName(raw);
   const charset = flag(parsed, "--charset");
@@ -56,7 +56,7 @@ async function dbCreate(args: string[]): Promise<string> {
 
 async function dbDrop(args: string[]): Promise<string> {
   const command = "mysql-rw-axi db drop";
-  const parsed = parseArgs(args, [{ name: "--profile" }, { name: "--confirm", boolean: true }], command);
+  const parsed = parseArgs(args, [PROFILE_FLAG, { name: "--confirm", boolean: true }], command);
   const [raw] = expectPositionals(parsed, 1, `${command} <name>`);
   const name = databaseName(raw);
   if (SYSTEM_SCHEMAS.has(name.toLowerCase())) throw usageError(`refusing to drop the system schema '${name}'`);

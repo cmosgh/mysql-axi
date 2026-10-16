@@ -134,6 +134,22 @@ describe("bare SQL", () => {
   });
 });
 
+describe("flag placement", () => {
+  it("accepts connection flags before the command or the bare SQL", async () => {
+    fake.responder = answer({ "SHOW TABLES": { columns: ["Tables_in_shop"], rows: [["orders"]] } });
+    expect((await ro("--limit", "5", "query", "SHOW TABLES")).stdout).toContain("orders");
+    expect((await ro("-d", "shop", "SHOW TABLES")).stdout).toContain("orders");
+  });
+
+  it("takes -p for --profile", async () => {
+    delete process.env["MYSQL_AXI_URL"];
+    const { stdout, exitCode } = await ro("query", "SELECT 1", "-p", "nope");
+    expect(exitCode).not.toBe(0);
+    expect(stdout).not.toContain("unknown flag");
+    expect(stdout).toContain("nope");
+  });
+});
+
 describe("schema commands", () => {
   it("requires a database before connecting", async () => {
     process.env["MYSQL_AXI_URL"] = "mysql://agent@127.0.0.1:3306";

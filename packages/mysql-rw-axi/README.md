@@ -80,8 +80,8 @@ reads: query; sample; describe and the other read commands still run read-only
 profiles[1]{name,target,active}:
   local,"root@127.0.0.1:3306/shop_dev",true
 help[3]:
-  Run `mysql-rw-axi tables`, `mysql-rw-axi describe <table>` or `mysql-rw-axi sample <table>` to explore
-  Run `mysql-rw-axi query "<sql>"` or `mysql-rw-axi explain "<select>"`; `mysql-rw-axi <command> --help` for flags
+  Run `mysql-rw-axi find <name>`, `mysql-rw-axi tables`, `mysql-rw-axi describe <table>...` or `mysql-rw-axi sample <table>` to explore
+  Run `mysql-rw-axi query "<sql>" -p <profile> -d <database>` or `mysql-rw-axi explain "<select>"`; `mysql-rw-axi <command> --help` for flags
   Writes go through `mysql-rw-axi exec "<sql>"`
 ```
 
