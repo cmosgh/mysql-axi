@@ -7,7 +7,7 @@ Two [AXI](https://axi.md) MySQL CLIs for agents, built from one shared core:
 | [`mysql-axi`](packages/mysql-axi) | **No.** Client-side guard plus read-only session | any | reading any database |
 | [`mysql-rw-axi`](packages/mysql-rw-axi) | **Yes.** `exec`, `import`, `db` | loopback and unix sockets only | changing a local dev database |
 
-The [token usage table](packages/mysql-axi#token-usage) compares the same agent tasks run with the plain `mysql` client and with `mysql-axi`.
+The [safety table](packages/mysql-axi#safe-to-auto-approve) shows what the same agent statements do through the plain `mysql` client, a read-only MCP server and `mysql-axi`. The [token usage](packages/mysql-axi#token-usage) and [accuracy](packages/mysql-axi#accuracy) tables compare the same agent tasks run with the plain `mysql` client, with `mysql-axi` and with a read-only MySQL MCP server.
 
 These are two separate packages, so installing or allowing only `mysql-axi` means an agent has no write command available. See [packages/mysql-axi](packages/mysql-axi#how-writes-are-blocked) for how writes are blocked and what the guard does **not** cover.
 

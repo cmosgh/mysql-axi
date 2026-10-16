@@ -13,7 +13,9 @@
     "prompts": {
       "plain": "You have a local MySQL 8 database named shop. Use the `mysql` command-line client through Bash: `mysql -h 127.0.0.1 -P 54798 -u bench shop` (the password is already in MYSQL_PWD).\nTask: <task prompt>\nEnd your reply with one line: ANSWER: <short answer>",
       "axi": "You have a local MySQL 8 database named shop. Use the `mysql-axi` CLI through Bash; the connection is already configured.\nTask: <task prompt>\nEnd your reply with one line: ANSWER: <short answer>",
-      "axi_home": "You have a local MySQL 8 database named shop. Use the `mysql-axi` CLI through Bash; the connection is already configured.\nTask: <task prompt>\nEnd your reply with one line: ANSWER: <short answer>"
+      "axi_home": "You have a local MySQL 8 database named shop. Use the `mysql-axi` CLI through Bash; the connection is already configured.\nTask: <task prompt>\nEnd your reply with one line: ANSWER: <short answer>",
+      "mcp": "You have a local MySQL 8 database named shop. Use the tools of the `mysql` MCP server; the connection is already configured.\nTask: <task prompt>\nEnd your reply with one line: ANSWER: <short answer>",
+      "axi_skill": "You have a local MySQL 8 database named shop. Use the `mysql-axi` CLI through Bash; the connection is already configured.\nTask: <task prompt>\nEnd your reply with one line: ANSWER: <short answer>"
     },
     "homeView": "bin: <bin>/mysql-axi\ndescription: \"READ-ONLY MySQL CLI for agents - explore schemas and run capped read queries, with TOON output. Writes are refused by a client-side guard plus a read-only session (not a grant check).\"\nmode: READ-ONLY - one SELECT/WITH/SHOW/DESC/EXPLAIN/TABLE statement per call; results capped at 50 rows\nconnection: \"bench@127.0.0.1:54798/shop (MYSQL_AXI_URL)\"\nhelp[2]:\n  Run `mysql-axi tables`, `mysql-axi describe <table>` or `mysql-axi sample <table>` to explore\n  Run `mysql-axi query \"<sql>\"` or `mysql-axi explain \"<select>\"`; `mysql-axi <command> --help` for flags\n",
     "tasks": {
@@ -22,6 +24,21 @@
       "literal 'NULL' text vs SQL NULL": "Some contacts have the text 'NULL' stored as their phone (a data-entry bug), which is different from a missing phone (SQL NULL) or an empty string. How many contacts have that literal text?",
       "exact BIGINT id": "What is the id of the most recent event? Give the exact id.",
       "top spender in March": "Which customer spent the most on paid orders created in March 2026, and what is that exact total?"
+    },
+    "mcpServer": "mysql-mcp-server@0.1.4",
+    "laterArms": {
+      "mcp": {
+        "date": "2026-10-16T06:41:04.998Z",
+        "claude": "2.1.301 (Claude Code)",
+        "mysqlServer": "8.0.46",
+        "mysqlAxi": "0.1.0 (46a182a + local changes)"
+      },
+      "axi_skill": {
+        "date": "2026-10-16T07:25:20.442Z",
+        "claude": "2.1.301 (Claude Code)",
+        "mysqlServer": "8.0.46",
+        "mysqlAxi": "0.1.0 (46a182a + local changes)"
+      }
     }
   },
   "results": [
@@ -705,7 +722,7 @@
           "command": "$TMPDIR/mysql-axi-bin-MOBNSZ/mysql-axi tables 2>/dev/null || <bin>/mysql-axi tables",
           "outputChars": 275,
           "isError": true,
-          "preview": "This Bash command contains multiple operations. The following parts require approval: $TMPDIR/mysql-axi-bin-MOBNSZ/mysql-axi tables, /private/var/folders/94/cp"
+          "preview": "This Bash command contains multiple operations. The following parts require approval: $TMPDIR/mysql-axi-bin-MOBNSZ/mysql-axi tables, <bin>/m"
         },
         {
           "command": "<bin>/mysql-axi tables",
@@ -1726,6 +1743,1398 @@
           "outputChars": 293,
           "isError": false,
           "preview": "result[5]{id,name,email,deleted_at,paid_total,n_orders}:\n  500,User 904,user904@example.test,null,999.99,2\n  77,User 620,user620@example.test,null,990,1\n  388,User 713,user713@example.test,null,750,4\n"
+        }
+      ]
+    },
+    {
+      "arm": "mcp",
+      "task": "all out-of-stock SKUs",
+      "correct": true,
+      "answer": "73 SKUs with stock = 0: SKU-0004, SKU-0008, SKU-0015, SKU-0019, SKU-0026, SKU-0030, SKU-0037, SKU-0041, SKU-0048, SKU-0052, SKU-0059, SKU-0063, SKU-0070, SKU-0074, SKU-0081, SKU-0085, SKU-0092, SKU-0096, SKU-0103, SKU-0107, SKU-0114, SKU-0118, SKU-0125, SKU-0129, SKU-0136, SKU-0140, SKU-0147, SKU-0151, SKU-0158, SKU-0162, SKU-0169, SKU-0173, SKU-0180, SKU-0184, SKU-0191, SKU-0195, SKU-0202, SKU-0206, SKU-0213, SKU-0217, SKU-0224, SKU-0228, SKU-0235, SKU-0239, SKU-0246, SKU-0250, SKU-0257, SKU-0261, SKU-0268, SKU-0272, SKU-0279, SKU-0283, SKU-0290, SKU-0294, SKU-0301, SKU-0305, SKU-0312, SKU-0316, SKU-0323, SKU-0327, SKU-0334, SKU-0338, SKU-0345, SKU-0349, SKU-0356, SKU-0360, SKU-0367, SKU-0371, SKU-0378, SKU-0382, SKU-0389, SKU-0393, SKU-0400",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 7473,
+      "inputTokens": 6,
+      "cacheCreationTokens": 7481,
+      "cacheReadTokens": 11257,
+      "outputTokens": 1644,
+      "costUsd": 0.00243137,
+      "durationMs": 7517,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "describe_table {\"table\":\"products\",\"database\":\"shop\"}",
+          "outputChars": 498,
+          "isError": false,
+          "preview": "[\n  {\n    \"Field\": \"id\",\n    \"Type\": \"int\",\n    \"Null\": \"NO\",\n    \"Key\": \"PRI\",\n    \"Default\": null,\n    \"Extra\": \"\"\n  },\n  {\n    \"Field\": \"sku\",\n    \"Type\": \"varchar(12)\",\n    \"Null\": \"YES\",\n    \"Key"
+        },
+        {
+          "command": "list_tables {\"database\":\"shop\"}",
+          "outputChars": 516,
+          "isError": false,
+          "preview": "[\n  {\n    \"Tables_in_shop\": \"contacts\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"customers\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"digits\",\n    \"Table_ty"
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT id, sku, name, stock FROM products WHERE stock = 0 ORDER BY id\"}",
+          "outputChars": 6459,
+          "isError": false,
+          "preview": "[\n  {\n    \"id\": 4,\n    \"sku\": \"SKU-0004\",\n    \"name\": \"Product 4\",\n    \"stock\": 0\n  },\n  {\n    \"id\": 8,\n    \"sku\": \"SKU-0008\",\n    \"name\": \"Product 8\",\n    \"stock\": 0\n  },\n  {\n    \"id\": 15,\n    \"sku\":"
+        }
+      ]
+    },
+    {
+      "arm": "mcp",
+      "task": "all out-of-stock SKUs",
+      "correct": true,
+      "answer": "SKU-0004, SKU-0008, SKU-0015, SKU-0019, SKU-0026, SKU-0030, SKU-0037, SKU-0041, SKU-0048, SKU-0052, SKU-0059, SKU-0063, SKU-0070, SKU-0074, SKU-0081, SKU-0085, SKU-0092, SKU-0096, SKU-0103, SKU-0107, SKU-0114, SKU-0118, SKU-0125, SKU-0129, SKU-0136, SKU-0140, SKU-0147, SKU-0151, SKU-0158, SKU-0162, SKU-0169, SKU-0173, SKU-0180, SKU-0184, SKU-0191, SKU-0195, SKU-0202, SKU-0206, SKU-0213, SKU-0217, SKU-0224, SKU-0228, SKU-0235, SKU-0239, SKU-0246, SKU-0250, SKU-0257, SKU-0261, SKU-0268, SKU-0272, SKU-0279, SKU-0283, SKU-0290, SKU-0294, SKU-0301, SKU-0305, SKU-0312, SKU-0316, SKU-0323, SKU-0327, SKU-0334, SKU-0338, SKU-0345, SKU-0349, SKU-0356, SKU-0360, SKU-0367, SKU-0371, SKU-0378, SKU-0382, SKU-0389, SKU-0393, SKU-0400",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 7473,
+      "inputTokens": 8,
+      "cacheCreationTokens": 7444,
+      "cacheReadTokens": 16130,
+      "outputTokens": 1106,
+      "costUsd": 0.0022039,
+      "durationMs": 7879,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "list_tables {\"database\":\"shop\"}",
+          "outputChars": 516,
+          "isError": false,
+          "preview": "[\n  {\n    \"Tables_in_shop\": \"contacts\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"customers\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"digits\",\n    \"Table_ty"
+        },
+        {
+          "command": "describe_table {\"database\":\"shop\",\"table\":\"products\"}",
+          "outputChars": 498,
+          "isError": false,
+          "preview": "[\n  {\n    \"Field\": \"id\",\n    \"Type\": \"int\",\n    \"Null\": \"NO\",\n    \"Key\": \"PRI\",\n    \"Default\": null,\n    \"Extra\": \"\"\n  },\n  {\n    \"Field\": \"sku\",\n    \"Type\": \"varchar(12)\",\n    \"Null\": \"YES\",\n    \"Key"
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT id, sku, name, stock FROM products WHERE stock = 0 ORDER BY id\"}",
+          "outputChars": 6459,
+          "isError": false,
+          "preview": "[\n  {\n    \"id\": 4,\n    \"sku\": \"SKU-0004\",\n    \"name\": \"Product 4\",\n    \"stock\": 0\n  },\n  {\n    \"id\": 8,\n    \"sku\": \"SKU-0008\",\n    \"name\": \"Product 8\",\n    \"stock\": 0\n  },\n  {\n    \"id\": 15,\n    \"sku\":"
+        }
+      ]
+    },
+    {
+      "arm": "mcp",
+      "task": "all out-of-stock SKUs",
+      "correct": true,
+      "answer": "73 SKUs with stock = 0: SKU-0004, SKU-0008, SKU-0015, SKU-0019, SKU-0026, SKU-0030, SKU-0037, SKU-0041, SKU-0048, SKU-0052, SKU-0059, SKU-0063, SKU-0070, SKU-0074, SKU-0081, SKU-0085, SKU-0092, SKU-0096, SKU-0103, SKU-0107, SKU-0114, SKU-0118, SKU-0125, SKU-0129, SKU-0136, SKU-0140, SKU-0147, SKU-0151, SKU-0158, SKU-0162, SKU-0169, SKU-0173, SKU-0180, SKU-0184, SKU-0191, SKU-0195, SKU-0202, SKU-0206, SKU-0213, SKU-0217, SKU-0224, SKU-0228, SKU-0235, SKU-0239, SKU-0246, SKU-0250, SKU-0257, SKU-0261, SKU-0268, SKU-0272, SKU-0279, SKU-0283, SKU-0290, SKU-0294, SKU-0301, SKU-0305, SKU-0312, SKU-0316, SKU-0323, SKU-0327, SKU-0334, SKU-0338, SKU-0345, SKU-0349, SKU-0356, SKU-0360, SKU-0367, SKU-0371, SKU-0378, SKU-0382, SKU-0389, SKU-0393, SKU-0400",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 7473,
+      "inputTokens": 8,
+      "cacheCreationTokens": 7446,
+      "cacheReadTokens": 16136,
+      "outputTokens": 1864,
+      "costUsd": 0.0025833600000000003,
+      "durationMs": 8598,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "list_tables {\"database\":\"shop\"}",
+          "outputChars": 516,
+          "isError": false,
+          "preview": "[\n  {\n    \"Tables_in_shop\": \"contacts\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"customers\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"digits\",\n    \"Table_ty"
+        },
+        {
+          "command": "describe_table {\"table\":\"products\",\"database\":\"shop\"}",
+          "outputChars": 498,
+          "isError": false,
+          "preview": "[\n  {\n    \"Field\": \"id\",\n    \"Type\": \"int\",\n    \"Null\": \"NO\",\n    \"Key\": \"PRI\",\n    \"Default\": null,\n    \"Extra\": \"\"\n  },\n  {\n    \"Field\": \"sku\",\n    \"Type\": \"varchar(12)\",\n    \"Null\": \"YES\",\n    \"Key"
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT id, sku, name, stock FROM products WHERE stock = 0 ORDER BY id\"}",
+          "outputChars": 6459,
+          "isError": false,
+          "preview": "[\n  {\n    \"id\": 4,\n    \"sku\": \"SKU-0004\",\n    \"name\": \"Product 4\",\n    \"stock\": 0\n  },\n  {\n    \"id\": 8,\n    \"sku\": \"SKU-0008\",\n    \"name\": \"Product 8\",\n    \"stock\": 0\n  },\n  {\n    \"id\": 15,\n    \"sku\":"
+        }
+      ]
+    },
+    {
+      "arm": "mcp",
+      "task": "root cause at the end of a report",
+      "correct": true,
+      "answer": "Expired TLS certificate on the internal message broker",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 6080,
+      "inputTokens": 6,
+      "cacheCreationTokens": 5870,
+      "cacheReadTokens": 10817,
+      "outputTokens": 399,
+      "costUsd": 0.0014822700000000002,
+      "durationMs": 4278,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "list_tables {\"database\":\"shop\"}",
+          "outputChars": 516,
+          "isError": false,
+          "preview": "[\n  {\n    \"Tables_in_shop\": \"contacts\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"customers\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"digits\",\n    \"Table_ty"
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT * FROM incidents LIMIT 50\"}",
+          "outputChars": 5190,
+          "isError": false,
+          "preview": "[\n  {\n    \"id\": 1,\n    \"title\": \"Checkout outage\",\n    \"report\": \"First responders suspected a cache stampede. Timeline entry: metrics were reviewed and alerts were triaged. Timeline entry: metrics we"
+        },
+        {
+          "command": "describe_table {\"database\":\"shop\",\"table\":\"incidents\"}",
+          "outputChars": 374,
+          "isError": false,
+          "preview": "[\n  {\n    \"Field\": \"id\",\n    \"Type\": \"int\",\n    \"Null\": \"NO\",\n    \"Key\": \"PRI\",\n    \"Default\": null,\n    \"Extra\": \"\"\n  },\n  {\n    \"Field\": \"title\",\n    \"Type\": \"varchar(60)\",\n    \"Null\": \"YES\",\n    \"K"
+        }
+      ]
+    },
+    {
+      "arm": "mcp",
+      "task": "root cause at the end of a report",
+      "correct": true,
+      "answer": "Expired TLS certificate on the internal message broker",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 6080,
+      "inputTokens": 6,
+      "cacheCreationTokens": 5879,
+      "cacheReadTokens": 10817,
+      "outputTokens": 414,
+      "costUsd": 0.0014915700000000002,
+      "durationMs": 6395,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "list_tables {\"database\":\"shop\"}",
+          "outputChars": 516,
+          "isError": false,
+          "preview": "[\n  {\n    \"Tables_in_shop\": \"contacts\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"customers\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"digits\",\n    \"Table_ty"
+        },
+        {
+          "command": "describe_table {\"database\":\"shop\",\"table\":\"incidents\"}",
+          "outputChars": 374,
+          "isError": false,
+          "preview": "[\n  {\n    \"Field\": \"id\",\n    \"Type\": \"int\",\n    \"Null\": \"NO\",\n    \"Key\": \"PRI\",\n    \"Default\": null,\n    \"Extra\": \"\"\n  },\n  {\n    \"Field\": \"title\",\n    \"Type\": \"varchar(60)\",\n    \"Null\": \"YES\",\n    \"K"
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT * FROM incidents ORDER BY 1 LIMIT 200\"}",
+          "outputChars": 5190,
+          "isError": false,
+          "preview": "[\n  {\n    \"id\": 1,\n    \"title\": \"Checkout outage\",\n    \"report\": \"First responders suspected a cache stampede. Timeline entry: metrics were reviewed and alerts were triaged. Timeline entry: metrics we"
+        }
+      ]
+    },
+    {
+      "arm": "mcp",
+      "task": "root cause at the end of a report",
+      "correct": true,
+      "answer": "Expired TLS certificate on the internal message broker",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 6080,
+      "inputTokens": 6,
+      "cacheCreationTokens": 5887,
+      "cacheReadTokens": 10832,
+      "outputTokens": 420,
+      "costUsd": 0.00149632,
+      "durationMs": 4711,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "list_tables {\"database\":\"shop\"}",
+          "outputChars": 516,
+          "isError": false,
+          "preview": "[\n  {\n    \"Tables_in_shop\": \"contacts\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"customers\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"digits\",\n    \"Table_ty"
+        },
+        {
+          "command": "describe_table {\"table\":\"incidents\",\"database\":\"shop\"}",
+          "outputChars": 374,
+          "isError": false,
+          "preview": "[\n  {\n    \"Field\": \"id\",\n    \"Type\": \"int\",\n    \"Null\": \"NO\",\n    \"Key\": \"PRI\",\n    \"Default\": null,\n    \"Extra\": \"\"\n  },\n  {\n    \"Field\": \"title\",\n    \"Type\": \"varchar(60)\",\n    \"Null\": \"YES\",\n    \"K"
+        },
+        {
+          "command": "execute_query {\"query\":\"SELECT * FROM incidents LIMIT 100\",\"database\":\"shop\"}",
+          "outputChars": 5190,
+          "isError": false,
+          "preview": "[\n  {\n    \"id\": 1,\n    \"title\": \"Checkout outage\",\n    \"report\": \"First responders suspected a cache stampede. Timeline entry: metrics were reviewed and alerts were triaged. Timeline entry: metrics we"
+        }
+      ]
+    },
+    {
+      "arm": "mcp",
+      "task": "literal 'NULL' text vs SQL NULL",
+      "correct": true,
+      "answer": "13",
+      "turns": 5,
+      "toolCalls": 4,
+      "toolOutputChars": 5919,
+      "inputTokens": 10,
+      "cacheCreationTokens": 7132,
+      "cacheReadTokens": 21849,
+      "outputTokens": 1089,
+      "costUsd": 0.00219039,
+      "durationMs": 8282,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "list_tables {\"database\":\"shop\"}",
+          "outputChars": 516,
+          "isError": false,
+          "preview": "[\n  {\n    \"Tables_in_shop\": \"contacts\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"customers\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"digits\",\n    \"Table_ty"
+        },
+        {
+          "command": "describe_table {\"database\":\"shop\",\"table\":\"contacts\"}",
+          "outputChars": 379,
+          "isError": false,
+          "preview": "[\n  {\n    \"Field\": \"id\",\n    \"Type\": \"int\",\n    \"Null\": \"NO\",\n    \"Key\": \"PRI\",\n    \"Default\": null,\n    \"Extra\": \"\"\n  },\n  {\n    \"Field\": \"name\",\n    \"Type\": \"varchar(30)\",\n    \"Null\": \"YES\",\n    \"Ke"
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT SUM(phone = BINARY 'NULL') AS exact_null_text, SUM(UPPER(TRIM(phone)) = 'NULL') AS loose_null_text, SUM(phone IS NULL) AS sql_null, SUM(phone = '') AS empty_string, COUNT(*) AS total FROM contacts\"}",
+          "outputChars": 136,
+          "isError": false,
+          "preview": "[\n  {\n    \"exact_null_text\": \"13\",\n    \"loose_null_text\": \"13\",\n    \"sql_null\": \"14\",\n    \"empty_string\": \"13\",\n    \"total\": \"120\"\n  }\n]"
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT id, name, CONCAT('[', phone, ']') AS phone_raw, HEX(phone) AS phone_hex, phone = BINARY 'NULL' AS is_null_text FROM contacts WHERE phone IS NULL OR phone = '' OR UPPER(TRIM(phone)) = 'NULL' ORDER BY id\"}",
+          "outputChars": 4888,
+          "isError": false,
+          "preview": "[\n  {\n    \"id\": 1,\n    \"name\": \"Contact 1\",\n    \"phone_raw\": null,\n    \"phone_hex\": null,\n    \"is_null_text\": null\n  },\n  {\n    \"id\": 5,\n    \"name\": \"Contact 5\",\n    \"phone_raw\": \"[NULL]\",\n    \"phone_"
+        }
+      ]
+    },
+    {
+      "arm": "mcp",
+      "task": "literal 'NULL' text vs SQL NULL",
+      "correct": true,
+      "answer": "13",
+      "turns": 6,
+      "toolCalls": 5,
+      "toolOutputChars": 1274,
+      "inputTokens": 10,
+      "cacheCreationTokens": 4841,
+      "cacheReadTokens": 22441,
+      "outputTokens": 989,
+      "costUsd": 0.0016881100000000003,
+      "durationMs": 7639,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "list_tables {\"database\":\"shop\"}",
+          "outputChars": 516,
+          "isError": false,
+          "preview": "[\n  {\n    \"Tables_in_shop\": \"contacts\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"customers\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"digits\",\n    \"Table_ty"
+        },
+        {
+          "command": "describe_table {\"table\":\"contacts\",\"database\":\"shop\"}",
+          "outputChars": 379,
+          "isError": false,
+          "preview": "[\n  {\n    \"Field\": \"id\",\n    \"Type\": \"int\",\n    \"Null\": \"NO\",\n    \"Key\": \"PRI\",\n    \"Default\": null,\n    \"Extra\": \"\"\n  },\n  {\n    \"Field\": \"name\",\n    \"Type\": \"varchar(30)\",\n    \"Null\": \"YES\",\n    \"Ke"
+        },
+        {
+          "command": "execute_query {\"query\":\"SELECT COUNT(*) AS total, SUM(phone = 'NULL') AS exact_null_text, SUM(UPPER(TRIM(phone)) = 'NULL') AS loose_null_text, SUM(phone IS NULL) AS sql_null, SUM(phone = '') AS empty FROM contacts\",\"database\":\"shop\"}",
+          "outputChars": 172,
+          "isError": true,
+          "preview": "Error: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'empty FROM contacts' at line 1"
+        },
+        {
+          "command": "execute_query {\"query\":\"SELECT COUNT(*) AS total, SUM(phone = 'NULL') AS exact_null_text, SUM(UPPER(TRIM(phone)) = 'NULL') AS loose_null_text, SUM(phone IS NULL) AS sql_null, SUM(phone = '') AS empty_str FROM contacts\",\"database\":\"shop\"}",
+          "outputChars": 133,
+          "isError": false,
+          "preview": "[\n  {\n    \"total\": \"120\",\n    \"exact_null_text\": \"13\",\n    \"loose_null_text\": \"13\",\n    \"sql_null\": \"14\",\n    \"empty_str\": \"13\"\n  }\n]"
+        },
+        {
+          "command": "execute_query {\"query\":\"SELECT SUM(BINARY phone = 'NULL') AS case_sensitive_null_text, SUM(phone = 'NULL') AS ci_null_text FROM contacts\",\"database\":\"shop\"}",
+          "outputChars": 74,
+          "isError": false,
+          "preview": "[\n  {\n    \"case_sensitive_null_text\": \"13\",\n    \"ci_null_text\": \"13\"\n  }\n]"
+        }
+      ]
+    },
+    {
+      "arm": "mcp",
+      "task": "literal 'NULL' text vs SQL NULL",
+      "correct": true,
+      "answer": "13",
+      "turns": 6,
+      "toolCalls": 5,
+      "toolOutputChars": 1411,
+      "inputTokens": 12,
+      "cacheCreationTokens": 4983,
+      "cacheReadTokens": 27863,
+      "outputTokens": 1118,
+      "costUsd": 0.0018354300000000003,
+      "durationMs": 9099,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "list_tables {\"database\":\"shop\"}",
+          "outputChars": 516,
+          "isError": false,
+          "preview": "[\n  {\n    \"Tables_in_shop\": \"contacts\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"customers\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"digits\",\n    \"Table_ty"
+        },
+        {
+          "command": "describe_table {\"table\":\"contacts\",\"database\":\"shop\"}",
+          "outputChars": 379,
+          "isError": false,
+          "preview": "[\n  {\n    \"Field\": \"id\",\n    \"Type\": \"int\",\n    \"Null\": \"NO\",\n    \"Key\": \"PRI\",\n    \"Default\": null,\n    \"Extra\": \"\"\n  },\n  {\n    \"Field\": \"name\",\n    \"Type\": \"varchar(30)\",\n    \"Null\": \"YES\",\n    \"Ke"
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT SUM(phone = 'NULL') AS exact_null_ci, SUM(BINARY phone = 'NULL') AS exact_null_cs, SUM(UPPER(TRIM(phone)) = 'NULL') AS trimmed_ci, SUM(phone IS NULL) AS sql_null, SUM(phone = '') AS empty, COUNT(*) AS total FROM contacts\"}",
+          "outputChars": 191,
+          "isError": true,
+          "preview": "Error: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'empty, COUNT(*) AS total FROM contacts' at line 1"
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT SUM(phone = 'NULL') AS exact_null_ci, SUM(BINARY phone = 'NULL') AS exact_null_cs, SUM(UPPER(TRIM(phone)) = 'NULL') AS trimmed_ci, SUM(phone IS NULL) AS sql_null, SUM(phone = '') AS empty_str, COUNT(*) AS total FROM contacts\"}",
+          "outputChars": 153,
+          "isError": false,
+          "preview": "[\n  {\n    \"exact_null_ci\": \"13\",\n    \"exact_null_cs\": \"13\",\n    \"trimmed_ci\": \"13\",\n    \"sql_null\": \"14\",\n    \"empty_str\": \"13\",\n    \"total\": \"120\"\n  }\n]"
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT CONCAT('[', phone, ']') AS v, HEX(phone) AS hx, COUNT(*) AS n FROM contacts WHERE phone IS NULL OR phone = '' OR UPPER(TRIM(phone)) = 'NULL' GROUP BY phone\"}",
+          "outputChars": 172,
+          "isError": false,
+          "preview": "[\n  {\n    \"v\": null,\n    \"hx\": null,\n    \"n\": \"14\"\n  },\n  {\n    \"v\": \"[NULL]\",\n    \"hx\": \"4E554C4C\",\n    \"n\": \"13\"\n  },\n  {\n    \"v\": \"[]\",\n    \"hx\": \"\",\n    \"n\": \"13\"\n  }\n]"
+        }
+      ]
+    },
+    {
+      "arm": "mcp",
+      "task": "exact BIGINT id",
+      "correct": true,
+      "answer": "18446744073709551558",
+      "turns": 5,
+      "toolCalls": 4,
+      "toolOutputChars": 1290,
+      "inputTokens": 8,
+      "cacheCreationTokens": 4418,
+      "cacheReadTokens": 16007,
+      "outputTokens": 654,
+      "costUsd": 0.0013714700000000003,
+      "durationMs": 5681,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "list_tables {\"database\":\"shop\"}",
+          "outputChars": 516,
+          "isError": false,
+          "preview": "[\n  {\n    \"Tables_in_shop\": \"contacts\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"customers\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"digits\",\n    \"Table_ty"
+        },
+        {
+          "command": "describe_table {\"database\":\"shop\",\"table\":\"events\"}",
+          "outputChars": 385,
+          "isError": false,
+          "preview": "[\n  {\n    \"Field\": \"id\",\n    \"Type\": \"bigint unsigned\",\n    \"Null\": \"NO\",\n    \"Key\": \"PRI\",\n    \"Default\": null,\n    \"Extra\": \"\"\n  },\n  {\n    \"Field\": \"kind\",\n    \"Type\": \"varchar(20)\",\n    \"Null\": \"Y"
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT id, kind, at FROM events ORDER BY at DESC, id DESC LIMIT 5\"}",
+          "outputChars": 303,
+          "isError": false,
+          "preview": "[\n  {\n    \"id\": \"18446744073709551558\",\n    \"kind\": \"logout\",\n    \"at\": \"2026-09-30T20:59:59.000Z\"\n  },\n  {\n    \"id\": \"18446744073709551557\",\n    \"kind\": \"login\",\n    \"at\": \"2026-09-01T07:00:00.000Z\"\n"
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT COUNT(*) AS total, SUM(at IS NULL) AS null_at, MAX(id) AS max_id FROM events\"}",
+          "outputChars": 86,
+          "isError": false,
+          "preview": "[\n  {\n    \"total\": \"3\",\n    \"null_at\": \"0\",\n    \"max_id\": \"18446744073709551558\"\n  }\n]"
+        }
+      ]
+    },
+    {
+      "arm": "mcp",
+      "task": "exact BIGINT id",
+      "correct": true,
+      "answer": "18446744073709551558",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 1204,
+      "inputTokens": 8,
+      "cacheCreationTokens": 4151,
+      "cacheReadTokens": 16001,
+      "outputTokens": 559,
+      "costUsd": 0.00127051,
+      "durationMs": 5956,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "list_tables {\"database\":\"shop\"}",
+          "outputChars": 516,
+          "isError": false,
+          "preview": "[\n  {\n    \"Tables_in_shop\": \"contacts\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"customers\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"digits\",\n    \"Table_ty"
+        },
+        {
+          "command": "describe_table {\"table\":\"events\",\"database\":\"shop\"}",
+          "outputChars": 385,
+          "isError": false,
+          "preview": "[\n  {\n    \"Field\": \"id\",\n    \"Type\": \"bigint unsigned\",\n    \"Null\": \"NO\",\n    \"Key\": \"PRI\",\n    \"Default\": null,\n    \"Extra\": \"\"\n  },\n  {\n    \"Field\": \"kind\",\n    \"Type\": \"varchar(20)\",\n    \"Null\": \"Y"
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT id, kind, at FROM events ORDER BY at IS NULL, at DESC, id DESC LIMIT 5\"}",
+          "outputChars": 303,
+          "isError": false,
+          "preview": "[\n  {\n    \"id\": \"18446744073709551558\",\n    \"kind\": \"logout\",\n    \"at\": \"2026-09-30T20:59:59.000Z\"\n  },\n  {\n    \"id\": \"18446744073709551557\",\n    \"kind\": \"login\",\n    \"at\": \"2026-09-01T07:00:00.000Z\"\n"
+        }
+      ]
+    },
+    {
+      "arm": "mcp",
+      "task": "exact BIGINT id",
+      "correct": true,
+      "answer": "18446744073709551558",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 1204,
+      "inputTokens": 8,
+      "cacheCreationTokens": 4159,
+      "cacheReadTokens": 16053,
+      "outputTokens": 681,
+      "costUsd": 0.0013336300000000001,
+      "durationMs": 7408,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "list_tables {\"database\":\"shop\"}",
+          "outputChars": 516,
+          "isError": false,
+          "preview": "[\n  {\n    \"Tables_in_shop\": \"contacts\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"customers\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"digits\",\n    \"Table_ty"
+        },
+        {
+          "command": "describe_table {\"database\":\"shop\",\"table\":\"events\"}",
+          "outputChars": 385,
+          "isError": false,
+          "preview": "[\n  {\n    \"Field\": \"id\",\n    \"Type\": \"bigint unsigned\",\n    \"Null\": \"NO\",\n    \"Key\": \"PRI\",\n    \"Default\": null,\n    \"Extra\": \"\"\n  },\n  {\n    \"Field\": \"kind\",\n    \"Type\": \"varchar(20)\",\n    \"Null\": \"Y"
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT id, kind, at FROM events ORDER BY at DESC, id DESC LIMIT 5\"}",
+          "outputChars": 303,
+          "isError": false,
+          "preview": "[\n  {\n    \"id\": \"18446744073709551558\",\n    \"kind\": \"logout\",\n    \"at\": \"2026-09-30T20:59:59.000Z\"\n  },\n  {\n    \"id\": \"18446744073709551557\",\n    \"kind\": \"login\",\n    \"at\": \"2026-09-01T07:00:00.000Z\"\n"
+        }
+      ]
+    },
+    {
+      "arm": "mcp",
+      "task": "top spender in March",
+      "correct": true,
+      "answer": "User 904 (customer_id 500) spent 999.99 on paid orders in March 2026.",
+      "turns": 8,
+      "toolCalls": 7,
+      "toolOutputChars": 3573,
+      "inputTokens": 12,
+      "cacheCreationTokens": 6737,
+      "cacheReadTokens": 30831,
+      "outputTokens": 1813,
+      "costUsd": 0.00256341,
+      "durationMs": 12675,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "list_tables {\"database\":\"shop\"}",
+          "outputChars": 516,
+          "isError": false,
+          "preview": "[\n  {\n    \"Tables_in_shop\": \"contacts\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"customers\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"digits\",\n    \"Table_ty"
+        },
+        {
+          "command": "describe_table {\"table\":\"orders\",\"database\":\"shop\"}",
+          "outputChars": 799,
+          "isError": false,
+          "preview": "[\n  {\n    \"Field\": \"id\",\n    \"Type\": \"bigint unsigned\",\n    \"Null\": \"NO\",\n    \"Key\": \"PRI\",\n    \"Default\": null,\n    \"Extra\": \"auto_increment\"\n  },\n  {\n    \"Field\": \"customer_id\",\n    \"Type\": \"bigint "
+        },
+        {
+          "command": "describe_table {\"table\":\"customers\",\"database\":\"shop\"}",
+          "outputChars": 668,
+          "isError": false,
+          "preview": "[\n  {\n    \"Field\": \"id\",\n    \"Type\": \"bigint unsigned\",\n    \"Null\": \"NO\",\n    \"Key\": \"PRI\",\n    \"Default\": null,\n    \"Extra\": \"auto_increment\"\n  },\n  {\n    \"Field\": \"email\",\n    \"Type\": \"varchar(191)\""
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT status, COUNT(*) AS n, MIN(created_at), MAX(created_at), SUM(JSON_TYPE(meta) IS NOT NULL) AS meta_nonnull FROM orders GROUP BY status\"}",
+          "outputChars": 540,
+          "isError": false,
+          "preview": "[\n  {\n    \"status\": \"paid\",\n    \"n\": \"3338\",\n    \"MIN(created_at)\": \"2025-12-31T22:00:00.000Z\",\n    \"MAX(created_at)\": \"2026-10-24T21:00:00.000Z\",\n    \"meta_nonnull\": \"3334\"\n  },\n  {\n    \"status\": \"re"
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT DISTINCT JSON_KEYS(meta) AS keys_, JSON_UNQUOTE(JSON_EXTRACT(meta,'$.payment_status')) AS pay FROM orders WHERE meta IS NOT NULL LIMIT 50\"}",
+          "outputChars": 62,
+          "isError": false,
+          "preview": "[\n  {\n    \"keys_\": [\n      \"ship\"\n    ],\n    \"pay\": null\n  }\n]"
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT @@session.time_zone AS tz, @@global.time_zone AS gtz, MIN(DATE_FORMAT(created_at,'%Y-%m-%d %H:%i:%s')) AS min_raw, MAX(DATE_FORMAT(created_at,'%Y-%m-%d %H:%i:%s')) AS max_raw FROM orders WHERE status='paid'\"}",
+          "outputChars": 127,
+          "isError": false,
+          "preview": "[\n  {\n    \"tz\": \"SYSTEM\",\n    \"gtz\": \"SYSTEM\",\n    \"min_raw\": \"2026-01-01 00:00:00\",\n    \"max_raw\": \"2026-10-25 00:00:00\"\n  }\n]"
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT o.customer_id, c.name, c.email, c.deleted_at, COUNT(*) AS paid_orders, SUM(o.total) AS total_spent FROM orders o LEFT JOIN customers c ON c.id = o.customer_id WHERE o.status = 'paid' AND o.created_at >= '2026-03-01 00:00:00' AND o.created_at < '2026-04-01 00:00:00' GROUP BY o.customer_id, c.name, c.email, c.deleted_at ORDER BY total_spent DESC LIMIT",
+          "outputChars": 861,
+          "isError": false,
+          "preview": "[\n  {\n    \"customer_id\": \"500\",\n    \"name\": \"User 904\",\n    \"email\": \"user904@example.test\",\n    \"deleted_at\": null,\n    \"paid_orders\": \"2\",\n    \"total_spent\": \"999.99\"\n  },\n  {\n    \"customer_id\": \"77"
+        }
+      ]
+    },
+    {
+      "arm": "mcp",
+      "task": "top spender in March",
+      "correct": true,
+      "answer": "Customer 500 (User 904, user904@example.test), with a paid total of 999.99 in March 2026",
+      "turns": 8,
+      "toolCalls": 7,
+      "toolOutputChars": 11650,
+      "inputTokens": 12,
+      "cacheCreationTokens": 10787,
+      "cacheReadTokens": 37327,
+      "outputTokens": 2223,
+      "costUsd": 0.0036433700000000004,
+      "durationMs": 14108,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "list_tables {\"database\":\"shop\"}",
+          "outputChars": 516,
+          "isError": false,
+          "preview": "[\n  {\n    \"Tables_in_shop\": \"contacts\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"customers\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"digits\",\n    \"Table_ty"
+        },
+        {
+          "command": "describe_table {\"database\":\"shop\",\"table\":\"orders\"}",
+          "outputChars": 799,
+          "isError": false,
+          "preview": "[\n  {\n    \"Field\": \"id\",\n    \"Type\": \"bigint unsigned\",\n    \"Null\": \"NO\",\n    \"Key\": \"PRI\",\n    \"Default\": null,\n    \"Extra\": \"auto_increment\"\n  },\n  {\n    \"Field\": \"customer_id\",\n    \"Type\": \"bigint "
+        },
+        {
+          "command": "describe_table {\"database\":\"shop\",\"table\":\"customers\"}",
+          "outputChars": 668,
+          "isError": false,
+          "preview": "[\n  {\n    \"Field\": \"id\",\n    \"Type\": \"bigint unsigned\",\n    \"Null\": \"NO\",\n    \"Key\": \"PRI\",\n    \"Default\": null,\n    \"Extra\": \"auto_increment\"\n  },\n  {\n    \"Field\": \"email\",\n    \"Type\": \"varchar(191)\""
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT status, COUNT(*) AS n, MIN(created_at), MAX(created_at), SUM(JSON_VALID(meta)) AS valid_meta FROM orders GROUP BY status\"}",
+          "outputChars": 534,
+          "isError": false,
+          "preview": "[\n  {\n    \"status\": \"paid\",\n    \"n\": \"3338\",\n    \"MIN(created_at)\": \"2025-12-31T22:00:00.000Z\",\n    \"MAX(created_at)\": \"2026-10-24T21:00:00.000Z\",\n    \"valid_meta\": \"3334\"\n  },\n  {\n    \"status\": \"refu"
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT id, customer_id, status, total, meta, created_at FROM orders WHERE created_at >= '2026-03-01' AND created_at < '2026-04-01' ORDER BY id LIMIT 30\"}",
+          "outputChars": 6431,
+          "isError": false,
+          "preview": "[\n  {\n    \"id\": \"101\",\n    \"customer_id\": \"81\",\n    \"status\": \"refunded\",\n    \"total\": \"80.50\",\n    \"meta\": {\n      \"ship\": {\n        \"country\": \"DE\"\n      }\n    },\n    \"created_at\": \"2026-03-21T22:00"
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT @@session.time_zone AS tz, @@global.time_zone AS gtz, NOW() AS now_local, UTC_TIMESTAMP() AS utc, DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') AS raw_created, status FROM orders WHERE id IN (101) OR created_at IN (SELECT MIN(created_at) FROM orders WHERE status='paid') LIMIT 5\"}",
+          "outputChars": 991,
+          "isError": false,
+          "preview": "[\n  {\n    \"tz\": \"SYSTEM\",\n    \"gtz\": \"SYSTEM\",\n    \"now_local\": \"2026-10-16T03:40:51.000Z\",\n    \"utc\": \"2026-10-16T03:40:51.000Z\",\n    \"raw_created\": \"2026-03-22 00:00:00\",\n    \"status\": \"refunded\"\n  "
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT o.customer_id, c.name, c.email, c.deleted_at, COUNT(*) AS paid_orders, SUM(o.total) AS paid_total FROM orders o LEFT JOIN customers c ON c.id = o.customer_id WHERE o.status = 'paid' AND o.created_at >= '2026-03-01' AND o.created_at < '2026-04-01' GROUP BY o.customer_id, c.name, c.email, c.deleted_at ORDER BY paid_total DESC LIMIT 10\"}",
+          "outputChars": 1711,
+          "isError": false,
+          "preview": "[\n  {\n    \"customer_id\": \"500\",\n    \"name\": \"User 904\",\n    \"email\": \"user904@example.test\",\n    \"deleted_at\": null,\n    \"paid_orders\": \"2\",\n    \"paid_total\": \"999.99\"\n  },\n  {\n    \"customer_id\": \"77\""
+        }
+      ]
+    },
+    {
+      "arm": "mcp",
+      "task": "top spender in March",
+      "correct": true,
+      "answer": "User 904 (customer_id 500), 999.99 total from paid March 2026 orders",
+      "turns": 9,
+      "toolCalls": 8,
+      "toolOutputChars": 14624,
+      "inputTokens": 14,
+      "cacheCreationTokens": 12479,
+      "cacheReadTokens": 52443,
+      "outputTokens": 2619,
+      "costUsd": 0.004331130000000001,
+      "durationMs": 17838,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "list_tables {\"database\":\"shop\"}",
+          "outputChars": 516,
+          "isError": false,
+          "preview": "[\n  {\n    \"Tables_in_shop\": \"contacts\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"customers\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"digits\",\n    \"Table_ty"
+        },
+        {
+          "command": "describe_table {\"table\":\"orders\",\"database\":\"shop\"}",
+          "outputChars": 799,
+          "isError": false,
+          "preview": "[\n  {\n    \"Field\": \"id\",\n    \"Type\": \"bigint unsigned\",\n    \"Null\": \"NO\",\n    \"Key\": \"PRI\",\n    \"Default\": null,\n    \"Extra\": \"auto_increment\"\n  },\n  {\n    \"Field\": \"customer_id\",\n    \"Type\": \"bigint "
+        },
+        {
+          "command": "describe_table {\"table\":\"customers\",\"database\":\"shop\"}",
+          "outputChars": 668,
+          "isError": false,
+          "preview": "[\n  {\n    \"Field\": \"id\",\n    \"Type\": \"bigint unsigned\",\n    \"Null\": \"NO\",\n    \"Key\": \"PRI\",\n    \"Default\": null,\n    \"Extra\": \"auto_increment\"\n  },\n  {\n    \"Field\": \"email\",\n    \"Type\": \"varchar(191)\""
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT status, COUNT(*) AS n, MIN(created_at), MAX(created_at) FROM orders GROUP BY status;\"}",
+          "outputChars": 456,
+          "isError": false,
+          "preview": "[\n  {\n    \"status\": \"paid\",\n    \"n\": \"3338\",\n    \"MIN(created_at)\": \"2025-12-31T22:00:00.000Z\",\n    \"MAX(created_at)\": \"2026-10-24T21:00:00.000Z\"\n  },\n  {\n    \"status\": \"refunded\",\n    \"n\": \"3334\",\n  "
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT id, status, total, meta, created_at FROM orders WHERE created_at >= '2026-03-01' AND created_at < '2026-04-01' ORDER BY created_at LIMIT 50;\"}",
+          "outputChars": 9395,
+          "isError": false,
+          "preview": "[\n  {\n    \"id\": \"9401\",\n    \"status\": \"refunded\",\n    \"total\": \"59.50\",\n    \"meta\": {\n      \"ship\": {\n        \"country\": \"AT\"\n      }\n    },\n    \"created_at\": \"2026-02-28T22:00:00.000Z\"\n  },\n  {\n    \""
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT @@session.time_zone AS session_tz, @@global.time_zone AS global_tz, @@system_time_zone AS system_tz, DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') AS raw_created FROM orders WHERE id IN (348, 9401) ;\"}",
+          "outputChars": 260,
+          "isError": false,
+          "preview": "[\n  {\n    \"session_tz\": \"SYSTEM\",\n    \"global_tz\": \"SYSTEM\",\n    \"system_tz\": \"UTC\",\n    \"raw_created\": \"2026-03-02 00:00:00\"\n  },\n  {\n    \"session_tz\": \"SYSTEM\",\n    \"global_tz\": \"SYSTEM\",\n    \"syste"
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT o.customer_id, c.email, c.name, c.deleted_at, COUNT(*) AS paid_orders, SUM(o.total) AS total_spent FROM orders o LEFT JOIN customers c ON c.id = o.customer_id WHERE o.status = 'paid' AND o.created_at >= '2026-03-01' AND o.created_at < '2026-04-01' GROUP BY o.customer_id, c.email, c.name, c.deleted_at ORDER BY total_spent DESC LIMIT 10;\"}",
+          "outputChars": 1721,
+          "isError": false,
+          "preview": "[\n  {\n    \"customer_id\": \"500\",\n    \"email\": \"user904@example.test\",\n    \"name\": \"User 904\",\n    \"deleted_at\": null,\n    \"paid_orders\": \"2\",\n    \"total_spent\": \"999.99\"\n  },\n  {\n    \"customer_id\": \"77"
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT id, status, total, DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') AS raw_created, meta FROM orders WHERE customer_id = 500 AND status = 'paid' ORDER BY created_at;\"}",
+          "outputChars": 809,
+          "isError": false,
+          "preview": "[\n  {\n    \"id\": \"16384\",\n    \"status\": \"paid\",\n    \"total\": \"612.40\",\n    \"raw_created\": \"2026-03-03 09:00:00\",\n    \"meta\": null\n  },\n  {\n    \"id\": \"16385\",\n    \"status\": \"paid\",\n    \"total\": \"387.59\""
+        }
+      ]
+    },
+    {
+      "arm": "axi_skill",
+      "task": "all out-of-stock SKUs",
+      "correct": true,
+      "answer": "SKU-0004, SKU-0008, SKU-0015, SKU-0019, SKU-0026, SKU-0030, SKU-0037, SKU-0041, SKU-0048, SKU-0052, SKU-0059, SKU-0063, SKU-0070, SKU-0074, SKU-0081, SKU-0085, SKU-0092, SKU-0096, SKU-0103, SKU-0107, SKU-0114, SKU-0118, SKU-0125, SKU-0129, SKU-0136, SKU-0140, SKU-0147, SKU-0151, SKU-0158, SKU-0162, SKU-0169, SKU-0173, SKU-0180, SKU-0184, SKU-0191, SKU-0195, SKU-0202, SKU-0206, SKU-0213, SKU-0217, SKU-0224, SKU-0228, SKU-0235, SKU-0239, SKU-0246, SKU-0250, SKU-0257, SKU-0261, SKU-0268, SKU-0272, SKU-0279, SKU-0283, SKU-0290, SKU-0294, SKU-0301, SKU-0305, SKU-0312, SKU-0316, SKU-0323, SKU-0327, SKU-0334, SKU-0338, SKU-0345, SKU-0349, SKU-0356, SKU-0360, SKU-0367, SKU-0371, SKU-0378, SKU-0382, SKU-0389, SKU-0393, SKU-0400",
+      "turns": 7,
+      "toolCalls": 5,
+      "toolOutputChars": 4457,
+      "inputTokens": 12,
+      "cacheCreationTokens": 9351,
+      "cacheReadTokens": 51002,
+      "outputTokens": 1520,
+      "costUsd": 0.0031414200000000007,
+      "durationMs": 14765,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "Skill {\"skill\":\"mysql-axi\"}",
+          "outputChars": 26,
+          "isError": false,
+          "preview": "Launching skill: mysql-axi"
+        },
+        {
+          "command": "npx -y mysql-axi --help",
+          "outputChars": 503,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' --help\nusage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\n"
+        },
+        {
+          "command": "npx -y mysql-axi query --help; echo ---; npx -y mysql-axi tables",
+          "outputChars": 1318,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' query --help\nusage: mysql-axi query \"<sql>\" [flags]\nRuns ONE read statement: SELECT, WITH ... SELECT, SHOW, DESC, EXPLAIN or TABLE. `mysql-axi \"<sql>\"` is"
+        },
+        {
+          "command": "npx -y mysql-axi describe products",
+          "outputChars": 361,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' describe products\ntable:\n  name: shop.products\n  rows_est: 400\n  size: 48 KB\ncolumns[4]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,nul"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT id, sku, name, stock FROM products WHERE stock = 0 ORDER BY id\" --limit 1000 --full",
+          "outputChars": 2249,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' query SELECT id, sku, name, stock FROM products WHERE stock = 0 ORDER BY id --limit 1000 --full\nresult[73]{id,sku,name,stock}:\n  4,SKU-0004,Product 4,0\n  "
+        }
+      ]
+    },
+    {
+      "arm": "axi_skill",
+      "task": "all out-of-stock SKUs",
+      "correct": true,
+      "answer": "SKU-0004, SKU-0008, SKU-0015, SKU-0019, SKU-0026, SKU-0030, SKU-0037, SKU-0041, SKU-0048, SKU-0052, SKU-0059, SKU-0063, SKU-0070, SKU-0074, SKU-0081, SKU-0085, SKU-0092, SKU-0096, SKU-0103, SKU-0107, SKU-0114, SKU-0118, SKU-0125, SKU-0129, SKU-0136, SKU-0140, SKU-0147, SKU-0151, SKU-0158, SKU-0162, SKU-0169, SKU-0173, SKU-0180, SKU-0184, SKU-0191, SKU-0195, SKU-0202, SKU-0206, SKU-0213, SKU-0217, SKU-0224, SKU-0228, SKU-0235, SKU-0239, SKU-0246, SKU-0250, SKU-0257, SKU-0261, SKU-0268, SKU-0272, SKU-0279, SKU-0283, SKU-0290, SKU-0294, SKU-0301, SKU-0305, SKU-0312, SKU-0316, SKU-0323, SKU-0327, SKU-0334, SKU-0338, SKU-0345, SKU-0349, SKU-0356, SKU-0360, SKU-0367, SKU-0371, SKU-0378, SKU-0382, SKU-0389, SKU-0393, SKU-0400",
+      "turns": 7,
+      "toolCalls": 5,
+      "toolOutputChars": 2759,
+      "inputTokens": 12,
+      "cacheCreationTokens": 8727,
+      "cacheReadTokens": 50550,
+      "outputTokens": 1214,
+      "costUsd": 0.0028591000000000003,
+      "durationMs": 13943,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "Skill {\"skill\":\"mysql-axi\"}",
+          "outputChars": 26,
+          "isError": false,
+          "preview": "Launching skill: mysql-axi"
+        },
+        {
+          "command": "npx -y mysql-axi --help",
+          "outputChars": 503,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' --help\nusage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\n"
+        },
+        {
+          "command": "npx -y mysql-axi tables 2>/dev/null; npx -y mysql-axi describe products 2>/dev/null",
+          "outputChars": 647,
+          "isError": false,
+          "preview": "database: shop\ntotal: 7 tables; 0 views; 2.2 MB\ntables[7]{name,kind,rows_est,size}:\n  contacts,table,120,16 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  events,table,3,16 KB\n  incidents,"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT sku, stock FROM products WHERE stock = 0 ORDER BY sku\" 2>/dev/null",
+          "outputChars": 764,
+          "isError": false,
+          "preview": "rows: 50 of 73 shown\nresult[50]{sku,stock}:\n  SKU-0004,0\n  SKU-0008,0\n  SKU-0015,0\n  SKU-0019,0\n  SKU-0026,0\n  SKU-0030,0\n  SKU-0037,0\n  SKU-0041,0\n  SKU-0048,0\n  SKU-0052,0\n  SKU-0059,0\n  SKU-0063,0\n"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT sku FROM products WHERE stock = 0 ORDER BY sku\" --limit 73 2>/dev/null",
+          "outputChars": 819,
+          "isError": false,
+          "preview": "result[73]{sku}:\n  SKU-0004\n  SKU-0008\n  SKU-0015\n  SKU-0019\n  SKU-0026\n  SKU-0030\n  SKU-0037\n  SKU-0041\n  SKU-0048\n  SKU-0052\n  SKU-0059\n  SKU-0063\n  SKU-0070\n  SKU-0074\n  SKU-0081\n  SKU-0085\n  SKU-0"
+        }
+      ]
+    },
+    {
+      "arm": "axi_skill",
+      "task": "all out-of-stock SKUs",
+      "correct": true,
+      "answer": "SKU-0004, SKU-0008, SKU-0015, SKU-0019, SKU-0026, SKU-0030, SKU-0037, SKU-0041, SKU-0048, SKU-0052, SKU-0059, SKU-0063, SKU-0070, SKU-0074, SKU-0081, SKU-0085, SKU-0092, SKU-0096, SKU-0103, SKU-0107, SKU-0114, SKU-0118, SKU-0125, SKU-0129, SKU-0136, SKU-0140, SKU-0147, SKU-0151, SKU-0158, SKU-0162, SKU-0169, SKU-0173, SKU-0180, SKU-0184, SKU-0191, SKU-0195, SKU-0202, SKU-0206, SKU-0213, SKU-0217, SKU-0224, SKU-0228, SKU-0235, SKU-0239, SKU-0246, SKU-0250, SKU-0257, SKU-0261, SKU-0268, SKU-0272, SKU-0279, SKU-0283, SKU-0290, SKU-0294, SKU-0301, SKU-0305, SKU-0312, SKU-0316, SKU-0323, SKU-0327, SKU-0334, SKU-0338, SKU-0345, SKU-0349, SKU-0356, SKU-0360, SKU-0367, SKU-0371, SKU-0378, SKU-0382, SKU-0389, SKU-0393, SKU-0400",
+      "turns": 8,
+      "toolCalls": 6,
+      "toolOutputChars": 2652,
+      "inputTokens": 14,
+      "cacheCreationTokens": 8814,
+      "cacheReadTokens": 60760,
+      "outputTokens": 1437,
+      "costUsd": 0.0030903000000000007,
+      "durationMs": 14580,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "Skill {\"skill\":\"mysql-axi\"}",
+          "outputChars": 26,
+          "isError": false,
+          "preview": "Launching skill: mysql-axi"
+        },
+        {
+          "command": "npx -y mysql-axi --help",
+          "outputChars": 503,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' --help\nusage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\n"
+        },
+        {
+          "command": "npx -y mysql-axi tables --database shop 2>/dev/null || npx -y mysql-axi tables 2>/dev/null",
+          "outputChars": 349,
+          "isError": false,
+          "preview": "database: shop\ntotal: 7 tables; 0 views; 2.2 MB\ntables[7]{name,kind,rows_est,size}:\n  contacts,table,120,16 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  events,table,3,16 KB\n  incidents,"
+        },
+        {
+          "command": "npx -y mysql-axi describe products 2>/dev/null",
+          "outputChars": 297,
+          "isError": false,
+          "preview": "table:\n  name: shop.products\n  rows_est: 400\n  size: 48 KB\ncolumns[4]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  sku,varchar(12),true,null,null,null\n  name,varchar(40),true,"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT sku FROM products WHERE stock = 0 ORDER BY sku\" 2>/dev/null",
+          "outputChars": 658,
+          "isError": false,
+          "preview": "rows: 50 of 73 shown\nresult[50]{sku}:\n  SKU-0004\n  SKU-0008\n  SKU-0015\n  SKU-0019\n  SKU-0026\n  SKU-0030\n  SKU-0037\n  SKU-0041\n  SKU-0048\n  SKU-0052\n  SKU-0059\n  SKU-0063\n  SKU-0070\n  SKU-0074\n  SKU-00"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT sku FROM products WHERE stock = 0 ORDER BY sku\" --limit 73 2>/dev/null",
+          "outputChars": 819,
+          "isError": false,
+          "preview": "result[73]{sku}:\n  SKU-0004\n  SKU-0008\n  SKU-0015\n  SKU-0019\n  SKU-0026\n  SKU-0030\n  SKU-0037\n  SKU-0041\n  SKU-0048\n  SKU-0052\n  SKU-0059\n  SKU-0063\n  SKU-0070\n  SKU-0074\n  SKU-0081\n  SKU-0085\n  SKU-0"
+        }
+      ]
+    },
+    {
+      "arm": "axi_skill",
+      "task": "root cause at the end of a report",
+      "correct": true,
+      "answer": "Expired TLS certificate on the internal message broker",
+      "turns": 6,
+      "toolCalls": 4,
+      "toolOutputChars": 6196,
+      "inputTokens": 10,
+      "cacheCreationTokens": 9450,
+      "cacheReadTokens": 40161,
+      "outputTokens": 742,
+      "costUsd": 0.0026636100000000003,
+      "durationMs": 12576,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "Skill {\"skill\":\"mysql-axi\"}",
+          "outputChars": 26,
+          "isError": false,
+          "preview": "Launching skill: mysql-axi"
+        },
+        {
+          "command": "npx -y mysql-axi --help",
+          "outputChars": 503,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' --help\nusage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\n"
+        },
+        {
+          "command": "npx -y mysql-axi tables 2>/dev/null; echo ---; npx -y mysql-axi query \"SELECT * FROM incidents ORDER BY 1 LIMIT 50\" 2>/dev/null",
+          "outputChars": 870,
+          "isError": false,
+          "preview": "database: shop\ntotal: 7 tables; 0 views; 2.2 MB\ntables[7]{name,kind,rows_est,size}:\n  contacts,table,120,16 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  events,table,3,16 KB\n  incidents,"
+        },
+        {
+          "command": "npx -y mysql-axi query --help 2>/dev/null; echo ---; npx -y mysql-axi query \"SELECT report FROM incidents WHERE id=1\" --full 2>/dev/null",
+          "outputChars": 4797,
+          "isError": false,
+          "preview": "usage: mysql-axi query \"<sql>\" [flags]\nRuns ONE read statement: SELECT, WITH ... SELECT, SHOW, DESC, EXPLAIN or TABLE. `mysql-axi \"<sql>\"` is short for this.\nIt runs in a read-only session and transac"
+        }
+      ]
+    },
+    {
+      "arm": "axi_skill",
+      "task": "root cause at the end of a report",
+      "correct": true,
+      "answer": "Expired TLS certificate on the internal message broker",
+      "turns": 7,
+      "toolCalls": 5,
+      "toolOutputChars": 5596,
+      "inputTokens": 12,
+      "cacheCreationTokens": 9278,
+      "cacheReadTokens": 50345,
+      "outputTokens": 769,
+      "costUsd": 0.0027447500000000002,
+      "durationMs": 11163,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "Skill {\"skill\":\"mysql-axi\"}",
+          "outputChars": 26,
+          "isError": false,
+          "preview": "Launching skill: mysql-axi"
+        },
+        {
+          "command": "npx -y mysql-axi --help",
+          "outputChars": 503,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' --help\nusage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\n"
+        },
+        {
+          "command": "npx -y mysql-axi tables 2>/dev/null",
+          "outputChars": 349,
+          "isError": false,
+          "preview": "database: shop\ntotal: 7 tables; 0 views; 2.2 MB\ntables[7]{name,kind,rows_est,size}:\n  contacts,table,120,16 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  events,table,3,16 KB\n  incidents,"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT * FROM incidents\" 2>/dev/null; npx -y mysql-axi describe incidents 2>/dev/null",
+          "outputChars": 778,
+          "isError": false,
+          "preview": "result[2]{id,title,report}:\n  1,Checkout outage,\"First responders suspected a cache stampede. Timeline entry: metrics were reviewed and alerts were triaged. Timeline entry: metrics were reviewed and a"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT report FROM incidents WHERE id = 1\" --full 2>/dev/null",
+          "outputChars": 3940,
+          "isError": false,
+          "preview": "result[1]{report}:\n  \"First responders suspected a cache stampede. Timeline entry: metrics were reviewed and alerts were triaged. Timeline entry: metrics were reviewed and alerts were triaged. Timelin"
+        }
+      ]
+    },
+    {
+      "arm": "axi_skill",
+      "task": "root cause at the end of a report",
+      "correct": true,
+      "answer": "Expired TLS certificate on the internal message broker",
+      "turns": 8,
+      "toolCalls": 6,
+      "toolOutputChars": 6448,
+      "inputTokens": 14,
+      "cacheCreationTokens": 9779,
+      "cacheReadTokens": 61035,
+      "outputTokens": 873,
+      "costUsd": 0.0030040500000000003,
+      "durationMs": 12149,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "Skill {\"skill\":\"mysql-axi\"}",
+          "outputChars": 26,
+          "isError": false,
+          "preview": "Launching skill: mysql-axi"
+        },
+        {
+          "command": "npx -y mysql-axi --help",
+          "outputChars": 503,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' --help\nusage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\n"
+        },
+        {
+          "command": "npx -y mysql-axi tables 2>/dev/null",
+          "outputChars": 349,
+          "isError": false,
+          "preview": "database: shop\ntotal: 7 tables; 0 views; 2.2 MB\ntables[7]{name,kind,rows_est,size}:\n  contacts,table,120,16 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  events,table,3,16 KB\n  incidents,"
+        },
+        {
+          "command": "npx -y mysql-axi sample incidents 2>/dev/null; npx -y mysql-axi describe incidents 2>/dev/null",
+          "outputChars": 778,
+          "isError": false,
+          "preview": "result[2]{id,title,report}:\n  1,Checkout outage,\"First responders suspected a cache stampede. Timeline entry: metrics were reviewed and alerts were triaged. Timeline entry: metrics were reviewed and a"
+        },
+        {
+          "command": "npx -y mysql-axi query --help 2>/dev/null | head -40",
+          "outputChars": 852,
+          "isError": false,
+          "preview": "usage: mysql-axi query \"<sql>\" [flags]\nRuns ONE read statement: SELECT, WITH ... SELECT, SHOW, DESC, EXPLAIN or TABLE. `mysql-axi \"<sql>\"` is short for this.\nIt runs in a read-only session and transac"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT report FROM incidents WHERE id = 1\" --full 2>/dev/null",
+          "outputChars": 3940,
+          "isError": false,
+          "preview": "result[1]{report}:\n  \"First responders suspected a cache stampede. Timeline entry: metrics were reviewed and alerts were triaged. Timeline entry: metrics were reviewed and alerts were triaged. Timelin"
+        }
+      ]
+    },
+    {
+      "arm": "axi_skill",
+      "task": "literal 'NULL' text vs SQL NULL",
+      "correct": true,
+      "answer": "13",
+      "turns": 7,
+      "toolCalls": 5,
+      "toolOutputChars": 2326,
+      "inputTokens": 10,
+      "cacheCreationTokens": 8300,
+      "cacheReadTokens": 41233,
+      "outputTokens": 971,
+      "costUsd": 0.0025588300000000002,
+      "durationMs": 10816,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "Skill {\"skill\":\"mysql-axi\"}",
+          "outputChars": 26,
+          "isError": false,
+          "preview": "Launching skill: mysql-axi"
+        },
+        {
+          "command": "npx -y mysql-axi 2>&1 | head -80",
+          "outputChars": 734,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi'\nbin: /private$TMPDIR/mysql-axi-tokens-cwd-hu9pNe/node_modules/.bin/mysql-axi\ndescription: \"READ-ONLY MySQL CLI for agents - explore schemas and run capped"
+        },
+        {
+          "command": "npx -y mysql-axi --help 2>&1 | head -80",
+          "outputChars": 503,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' --help\nusage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\n"
+        },
+        {
+          "command": "npx -y mysql-axi tables 2>&1; npx -y mysql-axi describe contacts 2>&1",
+          "outputChars": 734,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' tables\ndatabase: shop\ntotal: 7 tables; 0 views; 2.2 MB\ntables[7]{name,kind,rows_est,size}:\n  contacts,table,120,16 KB\n  customers,table,1000,176 KB\n  digi"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT SUM(phone = BINARY 'NULL') AS exact_null_text, SUM(LOWER(TRIM(phone)) = 'null') AS ci_trimmed, SUM(phone IS NULL) AS sql_null, SUM(phone = '') AS empty_str, COUNT(*) AS total FROM contacts\" 2>&1",
+          "outputChars": 329,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' query SELECT SUM(phone = BINARY 'NULL') AS exact_null_text, SUM(LOWER(TRIM(phone)) = 'null') AS ci_trimmed, SUM(phone IS NULL) AS sql_null, SUM(phone = ''"
+        }
+      ]
+    },
+    {
+      "arm": "axi_skill",
+      "task": "literal 'NULL' text vs SQL NULL",
+      "correct": true,
+      "answer": "13",
+      "turns": 8,
+      "toolCalls": 6,
+      "toolOutputChars": 2310,
+      "inputTokens": 14,
+      "cacheCreationTokens": 8617,
+      "cacheReadTokens": 62183,
+      "outputTokens": 1245,
+      "costUsd": 0.00296913,
+      "durationMs": 18002,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "Skill {\"skill\":\"mysql-axi\"}",
+          "outputChars": 26,
+          "isError": false,
+          "preview": "Launching skill: mysql-axi"
+        },
+        {
+          "command": "npx -y mysql-axi --help",
+          "outputChars": 503,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' --help\nusage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\n"
+        },
+        {
+          "command": "npx -y mysql-axi tables 2>/dev/null; npx -y mysql-axi query --help 2>/dev/null",
+          "outputChars": 1202,
+          "isError": false,
+          "preview": "database: shop\ntotal: 7 tables; 0 views; 2.2 MB\ntables[7]{name,kind,rows_est,size}:\n  contacts,table,120,16 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  events,table,3,16 KB\n  incidents,"
+        },
+        {
+          "command": "npx -y mysql-axi describe contacts 2>/dev/null",
+          "outputChars": 267,
+          "isError": false,
+          "preview": "table:\n  name: shop.contacts\n  rows_est: 120\n  size: 16 KB\ncolumns[3]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  name,varchar(30),true,null,null,null\n  phone,varchar(20),tru"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT SUM(BINARY phone = 'NULL') AS exact_NULL, SUM(LOWER(TRIM(phone)) = 'null') AS ci_trim_null, SUM(phone IS NULL) AS sql_null, SUM(phone = '') AS empty, COUNT(*) AS total FROM contacts\" 2>/dev/null",
+          "outputChars": 234,
+          "isError": true,
+          "preview": "Exit code 1\nerror: \"You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'empty, COUNT(*) AS total FROM contacts' at li"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT SUM(BINARY phone = 'NULL') AS exact_NULL, SUM(LOWER(TRIM(phone)) = 'null') AS ci_trim_null, SUM(phone IS NULL) AS sql_null, SUM(phone = '') AS empty_str, COUNT(*) AS total FROM contacts\" 2>/dev/null",
+          "outputChars": 78,
+          "isError": false,
+          "preview": "result[1]{exact_NULL,ci_trim_null,sql_null,empty_str,total}:\n  13,13,14,13,120"
+        }
+      ]
+    },
+    {
+      "arm": "axi_skill",
+      "task": "literal 'NULL' text vs SQL NULL",
+      "correct": true,
+      "answer": "13",
+      "turns": 7,
+      "toolCalls": 5,
+      "toolOutputChars": 2088,
+      "inputTokens": 12,
+      "cacheCreationTokens": 8135,
+      "cacheReadTokens": 50947,
+      "outputTokens": 895,
+      "costUsd": 0.0025851700000000003,
+      "durationMs": 13024,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "Skill {\"skill\":\"mysql-axi\"}",
+          "outputChars": 26,
+          "isError": false,
+          "preview": "Launching skill: mysql-axi"
+        },
+        {
+          "command": "npx -y mysql-axi --help",
+          "outputChars": 503,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' --help\nusage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\n"
+        },
+        {
+          "command": "npx -y mysql-axi tables 2>/dev/null; echo ---; npx -y mysql-axi query --help 2>/dev/null",
+          "outputChars": 1206,
+          "isError": false,
+          "preview": "database: shop\ntotal: 7 tables; 0 views; 2.2 MB\ntables[7]{name,kind,rows_est,size}:\n  contacts,table,120,16 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  events,table,3,16 KB\n  incidents,"
+        },
+        {
+          "command": "npx -y mysql-axi describe contacts 2>/dev/null",
+          "outputChars": 267,
+          "isError": false,
+          "preview": "table:\n  name: shop.contacts\n  rows_est: 120\n  size: 16 KB\ncolumns[3]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  name,varchar(30),true,null,null,null\n  phone,varchar(20),tru"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT SUM(phone = BINARY 'NULL') AS exact_null_text, SUM(UPPER(TRIM(phone)) = 'NULL') AS loose_null_text, SUM(phone IS NULL) AS sql_null, SUM(phone = '') AS empty_str, COUNT(*) AS total FROM contacts\" 2>/dev/null",
+          "outputChars": 86,
+          "isError": false,
+          "preview": "result[1]{exact_null_text,loose_null_text,sql_null,empty_str,total}:\n  13,13,14,13,120"
+        }
+      ]
+    },
+    {
+      "arm": "axi_skill",
+      "task": "exact BIGINT id",
+      "correct": true,
+      "answer": "18446744073709551558",
+      "turns": 8,
+      "toolCalls": 6,
+      "toolOutputChars": 2503,
+      "inputTokens": 14,
+      "cacheCreationTokens": 8469,
+      "cacheReadTokens": 61450,
+      "outputTokens": 1061,
+      "costUsd": 0.0028402,
+      "durationMs": 14247,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "Skill {\"skill\":\"mysql-axi\",\"args\":\"Find the id of the most recent event in the shop database.\"}",
+          "outputChars": 26,
+          "isError": false,
+          "preview": "Launching skill: mysql-axi"
+        },
+        {
+          "command": "npx -y mysql-axi --help",
+          "outputChars": 503,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' --help\nusage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\n"
+        },
+        {
+          "command": "npx -y mysql-axi tables --help; npx -y mysql-axi tables shop 2>&1 | head -100",
+          "outputChars": 681,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' tables --help\nusage: mysql-axi tables [-d <database>] [flags]\nTables and views of one database with estimated rows and size.\nflags:\n  --profile <name>, -d"
+        },
+        {
+          "command": "npx -y mysql-axi tables -d shop 2>&1",
+          "outputChars": 410,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' tables -d shop\ndatabase: shop\ntotal: 7 tables; 0 views; 2.2 MB\ntables[7]{name,kind,rows_est,size}:\n  contacts,table,120,16 KB\n  customers,table,1000,176 K"
+        },
+        {
+          "command": "npx -y mysql-axi describe events -d shop 2>&1; npx -y mysql-axi sample events -d shop 2>&1",
+          "outputChars": 587,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' describe events -d shop\ntable:\n  name: shop.events\n  rows_est: 3\n  size: 16 KB\ncolumns[3]{name,type,nullable,key,default,extra}:\n  id,bigint unsigned,fals"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT id, kind, at FROM events ORDER BY at DESC LIMIT 5\" -d shop 2>&1",
+          "outputChars": 296,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' query SELECT id, kind, at FROM events ORDER BY at DESC LIMIT 5 -d shop\nresult[3]{id,kind,at}:\n  \"18446744073709551558\",logout,\"2026-09-30 23:59:59\"\n  \"184"
+        }
+      ]
+    },
+    {
+      "arm": "axi_skill",
+      "task": "exact BIGINT id",
+      "correct": true,
+      "answer": "18446744073709551558",
+      "turns": 7,
+      "toolCalls": 5,
+      "toolOutputChars": 1739,
+      "inputTokens": 12,
+      "cacheCreationTokens": 7943,
+      "cacheReadTokens": 50349,
+      "outputTokens": 891,
+      "costUsd": 0.00253879,
+      "durationMs": 12414,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "Skill {\"skill\":\"mysql-axi\"}",
+          "outputChars": 26,
+          "isError": false,
+          "preview": "Launching skill: mysql-axi"
+        },
+        {
+          "command": "npx -y mysql-axi --help",
+          "outputChars": 503,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' --help\nusage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\n"
+        },
+        {
+          "command": "npx -y mysql-axi tables 2>/dev/null; echo ---; npx -y mysql-axi overview 2>/dev/null",
+          "outputChars": 578,
+          "isError": true,
+          "preview": "Exit code 2\ndatabase: shop\ntotal: 7 tables; 0 views; 2.2 MB\ntables[7]{name,kind,rows_est,size}:\n  contacts,table,120,16 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  events,table,3,16 KB\n"
+        },
+        {
+          "command": "npx -y mysql-axi describe events 2>/dev/null; echo ---; npx -y mysql-axi sample events 2>/dev/null",
+          "outputChars": 453,
+          "isError": false,
+          "preview": "table:\n  name: shop.events\n  rows_est: 3\n  size: 16 KB\ncolumns[3]{name,type,nullable,key,default,extra}:\n  id,bigint unsigned,false,PRI,null,null\n  kind,varchar(20),true,null,null,null\n  at,datetime,t"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT id, kind, at FROM events ORDER BY at DESC LIMIT 5\" 2>/dev/null",
+          "outputChars": 179,
+          "isError": false,
+          "preview": "result[3]{id,kind,at}:\n  \"18446744073709551558\",logout,\"2026-09-30 23:59:59\"\n  \"18446744073709551557\",login,\"2026-09-01 10:00:00\"\n  \"9007199254740993\",signup,\"2026-08-01 08:00:00\""
+        }
+      ]
+    },
+    {
+      "arm": "axi_skill",
+      "task": "exact BIGINT id",
+      "correct": true,
+      "answer": "18446744073709551558",
+      "turns": 7,
+      "toolCalls": 5,
+      "toolOutputChars": 1506,
+      "inputTokens": 12,
+      "cacheCreationTokens": 7876,
+      "cacheReadTokens": 50225,
+      "outputTokens": 874,
+      "costUsd": 0.0025156499999999995,
+      "durationMs": 11641,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "Skill {\"skill\":\"mysql-axi\"}",
+          "outputChars": 26,
+          "isError": false,
+          "preview": "Launching skill: mysql-axi"
+        },
+        {
+          "command": "npx -y mysql-axi --help",
+          "outputChars": 503,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' --help\nusage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\n"
+        },
+        {
+          "command": "npx -y mysql-axi tables 2>/dev/null",
+          "outputChars": 349,
+          "isError": false,
+          "preview": "database: shop\ntotal: 7 tables; 0 views; 2.2 MB\ntables[7]{name,kind,rows_est,size}:\n  contacts,table,120,16 KB\n  customers,table,1000,176 KB\n  digits,table,10,16 KB\n  events,table,3,16 KB\n  incidents,"
+        },
+        {
+          "command": "npx -y mysql-axi describe events 2>/dev/null; npx -y mysql-axi sample events --limit 10 2>/dev/null",
+          "outputChars": 449,
+          "isError": false,
+          "preview": "table:\n  name: shop.events\n  rows_est: 3\n  size: 16 KB\ncolumns[3]{name,type,nullable,key,default,extra}:\n  id,bigint unsigned,false,PRI,null,null\n  kind,varchar(20),true,null,null,null\n  at,datetime,t"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT id, kind, at FROM events ORDER BY at DESC LIMIT 5\" 2>/dev/null",
+          "outputChars": 179,
+          "isError": false,
+          "preview": "result[3]{id,kind,at}:\n  \"18446744073709551558\",logout,\"2026-09-30 23:59:59\"\n  \"18446744073709551557\",login,\"2026-09-01 10:00:00\"\n  \"9007199254740993\",signup,\"2026-08-01 08:00:00\""
+        }
+      ]
+    },
+    {
+      "arm": "axi_skill",
+      "task": "top spender in March",
+      "correct": true,
+      "answer": "customer_id 500 (\"User 904\") — exact total 999.99",
+      "turns": 7,
+      "toolCalls": 5,
+      "toolOutputChars": 4880,
+      "inputTokens": 12,
+      "cacheCreationTokens": 10199,
+      "cacheReadTokens": 53387,
+      "outputTokens": 1700,
+      "costUsd": 0.0034248700000000004,
+      "durationMs": 16082,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "Skill {\"skill\":\"mysql-axi\"}",
+          "outputChars": 26,
+          "isError": false,
+          "preview": "Launching skill: mysql-axi"
+        },
+        {
+          "command": "npx -y mysql-axi 2>&1; echo ---; npx -y mysql-axi --help 2>&1",
+          "outputChars": 1242,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi'\nbin: /private$TMPDIR/mysql-axi-tokens-cwd-h627qq/node_modules/.bin/mysql-axi\ndescription: \"READ-ONLY MySQL CLI for agents - explore schemas and run capped"
+        },
+        {
+          "command": "npx -y mysql-axi tables 2>&1; echo ---; npx -y mysql-axi describe orders 2>&1; echo ---; npx -y mysql-axi describe customers 2>&1; echo ---; npx -y mysql-axi describe order_items 2>&1",
+          "outputChars": 1777,
+          "isError": true,
+          "preview": "Exit code 1\nnpm notice run npx\nnpm notice run 'mysql-axi' tables\ndatabase: shop\ntotal: 7 tables; 0 views; 2.2 MB\ntables[7]{name,kind,rows_est,size}:\n  contacts,table,120,16 KB\n  customers,table,1000,1"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT status, COUNT(*) AS n, SUM(total) AS s, MIN(created_at) AS first_at, MAX(created_at) AS last_at FROM orders GROUP BY status\" 2>&1; echo ---; npx -y mysql-axi query \"SELECT id, status, total, meta, created_at FROM orders WHERE meta IS NOT NULL LIMIT 5\" 2>&1",
+          "outputChars": 972,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' query SELECT status, COUNT(*) AS n, SUM(total) AS s, MIN(created_at) AS first_at, MAX(created_at) AS last_at FROM orders GROUP BY status\nresult[3]{status,"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT o.customer_id, c.name, c.deleted_at, COUNT(*) AS orders, SUM(o.total) AS total_spent FROM orders o JOIN customers c ON c.id = o.customer_id WHERE o.status = 'paid' AND o.created_at >= '2026-03-01 00:00:00' AND o.created_at < '2026-04-01 00:00:00' GROUP BY o.customer_id, c.name, c.deleted_at ORDER BY total_spent DESC LIMIT 5\" 2>&1; echo ---; npx -y mysql-axi query \"SE",
+          "outputChars": 863,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' query SELECT o.customer_id, c.name, c.deleted_at, COUNT(*) AS orders, SUM(o.total) AS total_spent FROM orders o JOIN customers c ON c.id = o.customer_id W"
+        }
+      ]
+    },
+    {
+      "arm": "axi_skill",
+      "task": "top spender in March",
+      "correct": true,
+      "answer": "User 904 (customer_id 500), exact total 999.99",
+      "turns": 7,
+      "toolCalls": 5,
+      "toolOutputChars": 4199,
+      "inputTokens": 12,
+      "cacheCreationTokens": 9470,
+      "cacheReadTokens": 52451,
+      "outputTokens": 1319,
+      "costUsd": 0.00307921,
+      "durationMs": 14989,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "Skill {\"skill\":\"mysql-axi\"}",
+          "outputChars": 26,
+          "isError": false,
+          "preview": "Launching skill: mysql-axi"
+        },
+        {
+          "command": "npx -y mysql-axi --help",
+          "outputChars": 503,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' --help\nusage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\n"
+        },
+        {
+          "command": "npx -y mysql-axi query --help; echo ---; npx -y mysql-axi describe orders; echo ---; npx -y mysql-axi describe customers 2>&1; echo ---; npx -y mysql-axi tables",
+          "outputChars": 2510,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' query --help\nusage: mysql-axi query \"<sql>\" [flags]\nRuns ONE read statement: SELECT, WITH ... SELECT, SHOW, DESC, EXPLAIN or TABLE. `mysql-axi \"<sql>\"` is"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT status, CONCAT('[',status,']') AS bracketed, HEX(status) AS hx, COUNT(*) AS n, MIN(created_at) AS first_at, MAX(created_at) AS last_at FROM orders GROUP BY status, HEX(status) ORDER BY status\" --limit 100",
+          "outputChars": 567,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' query SELECT status, CONCAT('[',status,']') AS bracketed, HEX(status) AS hx, COUNT(*) AS n, MIN(created_at) AS first_at, MAX(created_at) AS last_at FROM o"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT o.customer_id, c.name, c.deleted_at, COUNT(*) AS paid_orders, SUM(o.total) AS paid_total FROM orders o JOIN customers c ON c.id = o.customer_id WHERE o.status = 'paid' AND o.created_at >= '2026-03-01 00:00:00' AND o.created_at < '2026-04-01 00:00:00' GROUP BY o.customer_id, c.name, c.deleted_at ORDER BY paid_total DESC LIMIT 5\" --limit 10",
+          "outputChars": 593,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' query SELECT o.customer_id, c.name, c.deleted_at, COUNT(*) AS paid_orders, SUM(o.total) AS paid_total FROM orders o JOIN customers c ON c.id = o.customer_"
+        }
+      ]
+    },
+    {
+      "arm": "axi_skill",
+      "task": "top spender in March",
+      "correct": true,
+      "answer": "User 904 (customer id 500), total 999.99",
+      "turns": 7,
+      "toolCalls": 5,
+      "toolOutputChars": 4325,
+      "inputTokens": 12,
+      "cacheCreationTokens": 9662,
+      "cacheReadTokens": 53499,
+      "outputTokens": 1447,
+      "costUsd": 0.00319209,
+      "durationMs": 15110,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "Skill {\"skill\":\"mysql-axi\"}",
+          "outputChars": 26,
+          "isError": false,
+          "preview": "Launching skill: mysql-axi"
+        },
+        {
+          "command": "npx -y mysql-axi 2>&1; echo ---; npx -y mysql-axi query --help 2>&1",
+          "outputChars": 1650,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi'\nbin: /private$TMPDIR/mysql-axi-tokens-cwd-sboyJF/node_modules/.bin/mysql-axi\ndescription: \"READ-ONLY MySQL CLI for agents - explore schemas and run capped"
+        },
+        {
+          "command": "npx -y mysql-axi tables 2>&1; echo ---; npx -y mysql-axi describe orders 2>&1; echo ---; npx -y mysql-axi describe customers 2>&1",
+          "outputChars": 1594,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' tables\ndatabase: shop\ntotal: 7 tables; 0 views; 2.2 MB\ntables[7]{name,kind,rows_est,size}:\n  contacts,table,120,16 KB\n  customers,table,1000,176 KB\n  digi"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT status, COUNT(*) AS n, MIN(created_at) AS first_at, MAX(created_at) AS last_at FROM orders GROUP BY status\" 2>&1",
+          "outputChars": 378,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' query SELECT status, COUNT(*) AS n, MIN(created_at) AS first_at, MAX(created_at) AS last_at FROM orders GROUP BY status\nresult[3]{status,n,first_at,last_a"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT c.id, c.name, c.email, c.deleted_at, COUNT(*) AS orders, SUM(o.total) AS total_spent FROM orders o JOIN customers c ON c.id = o.customer_id WHERE o.status = 'paid' AND o.created_at >= '2026-03-01 00:00:00' AND o.created_at < '2026-04-01 00:00:00' GROUP BY c.id, c.name, c.email, c.deleted_at ORDER BY total_spent DESC LIMIT 5\" 2>&1",
+          "outputChars": 677,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' query SELECT c.id, c.name, c.email, c.deleted_at, COUNT(*) AS orders, SUM(o.total) AS total_spent FROM orders o JOIN customers c ON c.id = o.customer_id W"
         }
       ]
     }

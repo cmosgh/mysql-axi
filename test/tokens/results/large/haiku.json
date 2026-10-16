@@ -1,0 +1,3383 @@
+{
+  "suite": "large",
+  "model": "haiku",
+  "runs": 3,
+  "date": "2026-10-16T07:09:44.268Z",
+  "setup": {
+    "claude": "2.1.301 (Claude Code)",
+    "mysqlServer": "8.0.46",
+    "mysqlClient": "mysql  Ver 14.14 Distrib 5.7.42, for osx10.19 (x86_64) using  EditLine wrapper",
+    "mysqlAxi": "0.1.0 (46a182a + local changes)",
+    "maxTurns": 25,
+    "concurrency": 4,
+    "prompts": {
+      "plain": "You have a local MySQL 8 database named shop. Use the `mysql` command-line client through Bash: `mysql -h 127.0.0.1 -P 63471 -u bench shop` (the password is already in MYSQL_PWD).\nTask: <task prompt>\nEnd your reply with one line: ANSWER: <short answer>",
+      "axi": "You have a local MySQL 8 database named shop. Use the `mysql-axi` CLI through Bash; the connection is already configured.\nTask: <task prompt>\nEnd your reply with one line: ANSWER: <short answer>",
+      "axi_home": "You have a local MySQL 8 database named shop. Use the `mysql-axi` CLI through Bash; the connection is already configured.\nTask: <task prompt>\nEnd your reply with one line: ANSWER: <short answer>",
+      "mcp": "You have a local MySQL 8 database named shop. Use the tools of the `mysql` MCP server; the connection is already configured.\nTask: <task prompt>\nEnd your reply with one line: ANSWER: <short answer>",
+      "axi_skill": "You have a local MySQL 8 database named shop. Use the `mysql-axi` CLI through Bash; the connection is already configured.\nTask: <task prompt>\nEnd your reply with one line: ANSWER: <short answer>"
+    },
+    "homeView": "bin: <bin>/mysql-axi\ndescription: \"READ-ONLY MySQL CLI for agents - explore schemas and run capped read queries, with TOON output. Writes are refused by a client-side guard plus a read-only session (not a grant check).\"\nmode: READ-ONLY - one SELECT/WITH/SHOW/DESC/EXPLAIN/TABLE statement per call; results capped at 50 rows\nconnection: \"bench@127.0.0.1:63471/shop (MYSQL_AXI_URL)\"\nhelp[2]:\n  Run `mysql-axi tables`, `mysql-axi describe <table>` or `mysql-axi sample <table>` to explore\n  Run `mysql-axi query \"<sql>\"` or `mysql-axi explain \"<select>\"`; `mysql-axi <command> --help` for flags\n",
+    "mcpServer": "mysql-mcp-server@0.1.4",
+    "tasks": {
+      "wide table columns": "How many columns does the profiles table have, and which of them are TEXT or JSON columns? The ANSWER line gives the count and those column names.",
+      "one wide row": "Which plan is the profile with handle member_02718 on, which country is it in, and what does its bio say it writes about?",
+      "always-NULL columns": "Which columns of the profiles table are NULL in every row? The ANSWER line lists only those column names, comma-separated.",
+      "largest tables": "Which three tables in the database have the most rows? The ANSWER line names them, largest first.",
+      "events per kind": "How many events are there per kind in the events table? The ANSWER line lists each kind with its count.",
+      "all enterprise handles in Norway": "List the handle of every profile on the enterprise plan located in Norway. The ANSWER line must list all of them, comma-separated."
+    },
+    "laterArms": {
+      "axi_skill": {
+        "date": "2026-10-16T07:26:43.875Z",
+        "claude": "2.1.301 (Claude Code)",
+        "mysqlServer": "8.0.46",
+        "mysqlAxi": "0.1.0 (46a182a + local changes)"
+      }
+    }
+  },
+  "results": [
+    {
+      "arm": "plain",
+      "task": "wide table columns",
+      "correct": true,
+      "answer": "66 columns; TEXT/JSON columns are bio, notes (TEXT) and preferences, address (JSON)",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 1845,
+      "inputTokens": 4,
+      "cacheCreationTokens": 4572,
+      "cacheReadTokens": 7670,
+      "outputTokens": 852,
+      "costUsd": 0.0014175,
+      "durationMs": 6197,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SELECT COLUMN_NAME, DATA_TYPE, COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='shop' AND TABLE_NAME='profiles' ORDER BY ORDINAL_POSITION;\"",
+          "outputChars": 1845,
+          "isError": false,
+          "preview": "COLUMN_NAME\tDATA_TYPE\tCOLUMN_TYPE\nid\tint\tint\nhandle\tvarchar\tvarchar(20)\nemail\tvarchar\tvarchar(120)\ndisplay_name\tvarchar\tvarchar(80)\ncountry\tvarchar\tvarchar(40)\nplan\tvarchar\tvarchar(20)\nstatus\tvarchar\t"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "wide table columns",
+      "correct": true,
+      "answer": "66 columns; TEXT: bio, notes; JSON: preferences, address",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 3489,
+      "inputTokens": 6,
+      "cacheCreationTokens": 5133,
+      "cacheReadTokens": 13445,
+      "outputTokens": 454,
+      "costUsd": 0.00138865,
+      "durationMs": 6046,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi describe profiles 2>&1",
+          "outputChars": 3039,
+          "isError": false,
+          "preview": "table:\n  name: shop.profiles\n  rows_est: 2061\n  size: 13 MB\ncolumns[66]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  handle,varchar(20),false,UNI,null,null\n  email,varchar(120"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "wide table columns",
+      "correct": true,
+      "answer": "66 columns; TEXT: bio, notes; JSON: preferences, address",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 3039,
+      "inputTokens": 4,
+      "cacheCreationTokens": 5208,
+      "cacheReadTokens": 7984,
+      "outputTokens": 296,
+      "costUsd": 0.00126984,
+      "durationMs": 4136,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi describe profiles",
+          "outputChars": 3039,
+          "isError": false,
+          "preview": "table:\n  name: shop.profiles\n  rows_est: 2061\n  size: 13 MB\ncolumns[66]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  handle,varchar(20),false,UNI,null,null\n  email,varchar(120"
+        }
+      ]
+    },
+    {
+      "arm": "mcp",
+      "task": "wide table columns",
+      "correct": true,
+      "answer": "66 columns; TEXT/JSON columns: bio, notes (text), preferences, address (json)",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 8631,
+      "inputTokens": 4,
+      "cacheCreationTokens": 7579,
+      "cacheReadTokens": 5951,
+      "outputTokens": 752,
+      "costUsd": 0.0019517100000000002,
+      "durationMs": 5944,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "describe_table {\"table\":\"profiles\",\"database\":\"shop\"}",
+          "outputChars": 8631,
+          "isError": false,
+          "preview": "[\n  {\n    \"Field\": \"id\",\n    \"Type\": \"int\",\n    \"Null\": \"NO\",\n    \"Key\": \"PRI\",\n    \"Default\": null,\n    \"Extra\": \"\"\n  },\n  {\n    \"Field\": \"handle\",\n    \"Type\": \"varchar(20)\",\n    \"Null\": \"NO\",\n    \"K"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "wide table columns",
+      "correct": true,
+      "answer": "66 columns; TEXT/JSON columns are bio, notes, preferences, address",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 1845,
+      "inputTokens": 4,
+      "cacheCreationTokens": 4570,
+      "cacheReadTokens": 7668,
+      "outputTokens": 905,
+      "costUsd": 0.0014435799999999999,
+      "durationMs": 5735,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SELECT COLUMN_NAME, DATA_TYPE, COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='shop' AND TABLE_NAME='profiles' ORDER BY ORDINAL_POSITION;\"",
+          "outputChars": 1845,
+          "isError": false,
+          "preview": "COLUMN_NAME\tDATA_TYPE\tCOLUMN_TYPE\nid\tint\tint\nhandle\tvarchar\tvarchar(20)\nemail\tvarchar\tvarchar(120)\ndisplay_name\tvarchar\tvarchar(80)\ncountry\tvarchar\tvarchar(40)\nplan\tvarchar\tvarchar(20)\nstatus\tvarchar\t"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "wide table columns",
+      "correct": true,
+      "answer": "66 columns; TEXT: bio, notes; JSON: preferences, address",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 3489,
+      "inputTokens": 6,
+      "cacheCreationTokens": 5132,
+      "cacheReadTokens": 13440,
+      "outputTokens": 871,
+      "costUsd": 0.0015969000000000003,
+      "durationMs": 7228,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi describe profiles 2>&1",
+          "outputChars": 3039,
+          "isError": false,
+          "preview": "table:\n  name: shop.profiles\n  rows_est: 2061\n  size: 13 MB\ncolumns[66]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  handle,varchar(20),false,UNI,null,null\n  email,varchar(120"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "wide table columns",
+      "correct": true,
+      "answer": "66 columns; TEXT/JSON columns are bio, notes (TEXT) and preferences, address (JSON)",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 3039,
+      "inputTokens": 4,
+      "cacheCreationTokens": 5208,
+      "cacheReadTokens": 7984,
+      "outputTokens": 954,
+      "costUsd": 0.00159884,
+      "durationMs": 5846,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi describe profiles",
+          "outputChars": 3039,
+          "isError": false,
+          "preview": "table:\n  name: shop.profiles\n  rows_est: 2061\n  size: 13 MB\ncolumns[66]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  handle,varchar(20),false,UNI,null,null\n  email,varchar(120"
+        }
+      ]
+    },
+    {
+      "arm": "mcp",
+      "task": "wide table columns",
+      "correct": true,
+      "answer": "66 columns; TEXT/JSON columns: bio, notes (TEXT), preferences, address (JSON)",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 8631,
+      "inputTokens": 4,
+      "cacheCreationTokens": 7581,
+      "cacheReadTokens": 5953,
+      "outputTokens": 702,
+      "costUsd": 0.00192713,
+      "durationMs": 4081,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "describe_table {\"table\":\"profiles\",\"database\":\"shop\"}",
+          "outputChars": 8631,
+          "isError": false,
+          "preview": "[\n  {\n    \"Field\": \"id\",\n    \"Type\": \"int\",\n    \"Null\": \"NO\",\n    \"Key\": \"PRI\",\n    \"Default\": null,\n    \"Extra\": \"\"\n  },\n  {\n    \"Field\": \"handle\",\n    \"Type\": \"varchar(20)\",\n    \"Null\": \"NO\",\n    \"K"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "wide table columns",
+      "correct": true,
+      "answer": "66 columns; TEXT: bio, notes; JSON: preferences, address",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 1845,
+      "inputTokens": 4,
+      "cacheCreationTokens": 4570,
+      "cacheReadTokens": 7668,
+      "outputTokens": 1289,
+      "costUsd": 0.00163558,
+      "durationMs": 6989,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SELECT COLUMN_NAME, DATA_TYPE, COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='shop' AND TABLE_NAME='profiles' ORDER BY ORDINAL_POSITION;\"",
+          "outputChars": 1845,
+          "isError": false,
+          "preview": "COLUMN_NAME\tDATA_TYPE\tCOLUMN_TYPE\nid\tint\tint\nhandle\tvarchar\tvarchar(20)\nemail\tvarchar\tvarchar(120)\ndisplay_name\tvarchar\tvarchar(80)\ncountry\tvarchar\tvarchar(40)\nplan\tvarchar\tvarchar(20)\nstatus\tvarchar\t"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "wide table columns",
+      "correct": true,
+      "answer": "66 columns; TEXT/JSON columns are bio, notes (TEXT) and preferences, address (JSON)",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 2662,
+      "inputTokens": 6,
+      "cacheCreationTokens": 5374,
+      "cacheReadTokens": 14482,
+      "outputTokens": 936,
+      "costUsd": 0.00168822,
+      "durationMs": 7801,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi \"SELECT COLUMN_NAME, DATA_TYPE, COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='shop' AND TABLE_NAME='profiles' ORDER BY ORDINAL_POSITION\" 2>&1",
+          "outputChars": 1563,
+          "isError": false,
+          "preview": "rows: 50 of 66 shown\nresult[50]{COLUMN_NAME,DATA_TYPE,COLUMN_TYPE}:\n  id,int,int\n  handle,varchar,varchar(20)\n  email,varchar,varchar(120)\n  display_name,varchar,varchar(80)\n  country,varchar,varchar("
+        },
+        {
+          "command": "mysql-axi \"SELECT COLUMN_NAME, DATA_TYPE, COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='shop' AND TABLE_NAME='profiles' ORDER BY ORDINAL_POSITION\" --limit 66 2>&1 | tail -20",
+          "outputChars": 649,
+          "isError": false,
+          "preview": "  churn_risk,decimal,\"decimal(4,3)\"\n  nps_score,tinyint,tinyint\n  support_tickets,int,int\n  last_ticket_at,datetime,datetime\n  sla_tier,varchar,varchar(10)\n  account_manager,varchar,varchar(60)\n  regi"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "wide table columns",
+      "correct": true,
+      "answer": "66 columns; TEXT: bio, notes; JSON: preferences, address",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 3039,
+      "inputTokens": 4,
+      "cacheCreationTokens": 5210,
+      "cacheReadTokens": 7986,
+      "outputTokens": 802,
+      "costUsd": 0.0015232600000000002,
+      "durationMs": 5222,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi describe profiles",
+          "outputChars": 3039,
+          "isError": false,
+          "preview": "table:\n  name: shop.profiles\n  rows_est: 2061\n  size: 13 MB\ncolumns[66]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  handle,varchar(20),false,UNI,null,null\n  email,varchar(120"
+        }
+      ]
+    },
+    {
+      "arm": "mcp",
+      "task": "wide table columns",
+      "correct": true,
+      "answer": "66 columns; TEXT/JSON columns are bio, notes (text) and preferences, address (json)",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 8631,
+      "inputTokens": 4,
+      "cacheCreationTokens": 7581,
+      "cacheReadTokens": 5953,
+      "outputTokens": 877,
+      "costUsd": 0.00201463,
+      "durationMs": 5051,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "describe_table {\"table\":\"profiles\",\"database\":\"shop\"}",
+          "outputChars": 8631,
+          "isError": false,
+          "preview": "[\n  {\n    \"Field\": \"id\",\n    \"Type\": \"int\",\n    \"Null\": \"NO\",\n    \"Key\": \"PRI\",\n    \"Default\": null,\n    \"Extra\": \"\"\n  },\n  {\n    \"Field\": \"handle\",\n    \"Type\": \"varchar(20)\",\n    \"Null\": \"NO\",\n    \"K"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "one wide row",
+      "correct": true,
+      "answer": "pro plan; France; writes about cycling",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 3935,
+      "inputTokens": 6,
+      "cacheCreationTokens": 5580,
+      "cacheReadTokens": 14831,
+      "outputTokens": 675,
+      "costUsd": 0.00160241,
+      "durationMs": 6950,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SHOW TABLES;\" && mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='shop' AND (COLUMN_NAME LIKE '%handle%' OR TABLE_NAME LIKE '%profile%' OR TABLE_NAME LIKE '%plan%' OR TABLE_NAME LIKE '%countr%' OR TABLE_NAME LIKE '%user%');\"",
+          "outputChars": 2757,
+          "isError": false,
+          "preview": "Tables_in_shop\nanalytics_log\nanalytics_notes\nanalytics_settings\nanalytics_snapshots\nanalytics_tags\naudit_log\naudit_notes\naudit_settings\naudit_snapshots\naudit_tags\nauth_log\nauth_notes\nauth_settings\naut"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SELECT id, handle, plan, country, bio, status, deleted_at, merged_into_id FROM profiles WHERE handle LIKE '%member_02718%';\"",
+          "outputChars": 1178,
+          "isError": false,
+          "preview": "id\thandle\tplan\tcountry\tbio\tstatus\tdeleted_at\tmerged_into_id\n2718\tmember_02718\tpro\tFrance\tMember 2718 writes about cycling. Longer biography text with several sentences about hobbies and work. Longer b"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "one wide row",
+      "correct": true,
+      "answer": "Plan: pro; Country: France; Bio: writes about cycling",
+      "turns": 6,
+      "toolCalls": 5,
+      "toolOutputChars": 4320,
+      "inputTokens": 10,
+      "cacheCreationTokens": 5949,
+      "cacheReadTokens": 28797,
+      "outputTokens": 839,
+      "costUsd": 0.00189827,
+      "durationMs": 12213,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi \"SHOW TABLES;\" 2>&1 | head -50",
+          "outputChars": 819,
+          "isError": false,
+          "preview": "rows: 50 of 65 shown\nresult[50]{Tables_in_shop}:\n  analytics_log\n  analytics_notes\n  analytics_settings\n  analytics_snapshots\n  analytics_tags\n  audit_log\n  audit_notes\n  audit_settings\n  audit_snapsh"
+        },
+        {
+          "command": "mysql-axi tables 2>&1 | grep -i -E \"profile|member|plan|user|account|country\" ; echo ---; mysql-axi describe profiles 2>&1 | head -40",
+          "outputChars": 1615,
+          "isError": false,
+          "preview": "  profiles,table,2061,13 MB\n---\ntable:\n  name: shop.profiles\n  rows_est: 2061\n  size: 13 MB\ncolumns[66]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  handle,varchar(20),false,U"
+        },
+        {
+          "command": "mysql-axi query \"SELECT id, handle, country, plan, status, bio, deleted_at, merged_into_id FROM profiles WHERE handle = 'member_02718'\" 2>&1",
+          "outputChars": 347,
+          "isError": false,
+          "preview": "result[1]{id,handle,country,plan,status,bio,deleted_at,merged_into_id}:\n  2718,member_02718,France,pro,suspended,Member 2718 writes about cycling. Longer biography text with several sentences about ho"
+        },
+        {
+          "command": "mysql-axi query \"SELECT bio FROM profiles WHERE handle = 'member_02718'\" --full 2>&1 | head -c 3000",
+          "outputChars": 1089,
+          "isError": false,
+          "preview": "result[1]{bio}:\n  \"Member 2718 writes about cycling. Longer biography text with several sentences about hobbies and work. Longer biography text with several sentences about hobbies and work. Longer bi"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "one wide row",
+      "correct": true,
+      "answer": "pro plan, France, writes about cycling",
+      "turns": 5,
+      "toolCalls": 4,
+      "toolOutputChars": 6615,
+      "inputTokens": 10,
+      "cacheCreationTokens": 7472,
+      "cacheReadTokens": 32737,
+      "outputTokens": 855,
+      "costUsd": 0.0022502700000000004,
+      "durationMs": 12203,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi tables",
+          "outputChars": 2201,
+          "isError": false,
+          "preview": "database: shop\ntotal: 65 tables; 0 views; 124 MB\ntables[65]{name,kind,rows_est,size}:\n  analytics_log,table,81,16 KB\n  analytics_notes,table,17,16 KB\n  analytics_settings,table,68,16 KB\n  analytics_sn"
+        },
+        {
+          "command": "<bin>/mysql-axi describe profiles",
+          "outputChars": 3039,
+          "isError": false,
+          "preview": "table:\n  name: shop.profiles\n  rows_est: 2061\n  size: 13 MB\ncolumns[66]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  handle,varchar(20),false,UNI,null,null\n  email,varchar(120"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT handle, plan, country, bio FROM profiles WHERE handle = 'member_02718'\"",
+          "outputChars": 286,
+          "isError": false,
+          "preview": "result[1]{handle,plan,country,bio}:\n  member_02718,pro,France,Member 2718 writes about cycling. Longer biography text with several sentences about hobbies and work. Longer biography text with several "
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT bio FROM profiles WHERE handle = 'member_02718'\" --full",
+          "outputChars": 1089,
+          "isError": false,
+          "preview": "result[1]{bio}:\n  \"Member 2718 writes about cycling. Longer biography text with several sentences about hobbies and work. Longer biography text with several sentences about hobbies and work. Longer bi"
+        }
+      ]
+    },
+    {
+      "arm": "mcp",
+      "task": "one wide row",
+      "correct": true,
+      "answer": "Plan: pro; Country: France; Bio: writes about cycling",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 14944,
+      "inputTokens": 8,
+      "cacheCreationTokens": 10927,
+      "cacheReadTokens": 25199,
+      "outputTokens": 430,
+      "costUsd": 0.0026531900000000006,
+      "durationMs": 5666,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "list_tables {\"database\":\"shop\"}",
+          "outputChars": 5145,
+          "isError": false,
+          "preview": "[\n  {\n    \"Tables_in_shop\": \"analytics_log\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"analytics_notes\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"analytics_s"
+        },
+        {
+          "command": "describe_table {\"database\":\"shop\",\"table\":\"profiles\"}",
+          "outputChars": 8631,
+          "isError": false,
+          "preview": "[\n  {\n    \"Field\": \"id\",\n    \"Type\": \"int\",\n    \"Null\": \"NO\",\n    \"Key\": \"PRI\",\n    \"Default\": null,\n    \"Extra\": \"\"\n  },\n  {\n    \"Field\": \"handle\",\n    \"Type\": \"varchar(20)\",\n    \"Null\": \"NO\",\n    \"K"
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT handle, plan, country, bio FROM profiles WHERE handle = 'member_02718'\"}",
+          "outputChars": 1168,
+          "isError": false,
+          "preview": "[\n  {\n    \"handle\": \"member_02718\",\n    \"plan\": \"pro\",\n    \"country\": \"France\",\n    \"bio\": \"Member 2718 writes about cycling. Longer biography text with several sentences about hobbies and work. Longe"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "one wide row",
+      "correct": true,
+      "answer": "pro plan; France; writes about cycling",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 11042,
+      "inputTokens": 6,
+      "cacheCreationTokens": 8669,
+      "cacheReadTokens": 17848,
+      "outputTokens": 655,
+      "costUsd": 0.00224038,
+      "durationMs": 6765,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SHOW TABLES; SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='shop' ORDER BY TABLE_NAME, ORDINAL_POSITION;\"",
+          "outputChars": 9733,
+          "isError": false,
+          "preview": "Tables_in_shop\nanalytics_log\nanalytics_notes\nanalytics_settings\nanalytics_snapshots\nanalytics_tags\naudit_log\naudit_notes\naudit_settings\naudit_snapshots\naudit_tags\nauth_log\nauth_notes\nauth_settings\naut"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SELECT id, handle, plan, country, bio, deleted_at, merged_into_id, status FROM profiles WHERE handle = 'member_02718'\\G\"",
+          "outputChars": 1309,
+          "isError": false,
+          "preview": "*************************** 1. row ***************************\n            id: 2718\n        handle: member_02718\n          plan: pro\n       country: France\n           bio: Member 2718 writes about cyc"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "one wide row",
+      "correct": true,
+      "answer": "pro plan, France, writes about cycling",
+      "turns": 6,
+      "toolCalls": 5,
+      "toolOutputChars": 7364,
+      "inputTokens": 10,
+      "cacheCreationTokens": 7502,
+      "cacheReadTokens": 28232,
+      "outputTokens": 884,
+      "costUsd": 0.00222572,
+      "durationMs": 10323,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi \"SHOW TABLES FROM shop;\" 2>&1 | head -50",
+          "outputChars": 819,
+          "isError": false,
+          "preview": "rows: 50 of 65 shown\nresult[50]{Tables_in_shop}:\n  analytics_log\n  analytics_notes\n  analytics_settings\n  analytics_snapshots\n  analytics_tags\n  audit_log\n  audit_notes\n  audit_settings\n  audit_snapsh"
+        },
+        {
+          "command": "mysql-axi tables --help 2>&1 | head -30; mysql-axi tables --like '%profile%' 2>&1 | head -30; mysql-axi tables --like '%member%' 2>&1 | head -30; mysql-axi tables --like '%user%' 2>&1 | head -30",
+          "outputChars": 1067,
+          "isError": false,
+          "preview": "usage: mysql-axi tables [-d <database>] [flags]\nTables and views of one database with estimated rows and size.\nflags:\n  --profile <name>, -d/--database <name>, --sort name|size|rows (default name), --"
+        },
+        {
+          "command": "mysql-axi tables -d shop --sort name --limit 200 2>&1 | grep -i -E 'profile|member|user|account|country|plan' ",
+          "outputChars": 27,
+          "isError": false,
+          "preview": "  profiles,table,2061,13 MB"
+        },
+        {
+          "command": "mysql-axi describe profiles 2>&1; mysql-axi query \"SELECT * FROM profiles WHERE handle = 'member_02718'\" 2>&1",
+          "outputChars": 5001,
+          "isError": false,
+          "preview": "table:\n  name: shop.profiles\n  rows_est: 2061\n  size: 13 MB\ncolumns[66]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  handle,varchar(20),false,UNI,null,null\n  email,varchar(120"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "one wide row",
+      "correct": true,
+      "answer": "Plan: pro; Country: France; Bio says it writes about cycling.",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 7201,
+      "inputTokens": 6,
+      "cacheCreationTokens": 7678,
+      "cacheReadTokens": 15143,
+      "outputTokens": 763,
+      "costUsd": 0.00206913,
+      "durationMs": 8224,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi tables",
+          "outputChars": 2201,
+          "isError": false,
+          "preview": "database: shop\ntotal: 65 tables; 0 views; 124 MB\ntables[65]{name,kind,rows_est,size}:\n  analytics_log,table,81,16 KB\n  analytics_notes,table,17,16 KB\n  analytics_settings,table,68,16 KB\n  analytics_sn"
+        },
+        {
+          "command": "<bin>/mysql-axi describe profiles",
+          "outputChars": 3039,
+          "isError": false,
+          "preview": "table:\n  name: shop.profiles\n  rows_est: 2061\n  size: 13 MB\ncolumns[66]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  handle,varchar(20),false,UNI,null,null\n  email,varchar(120"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT * FROM profiles WHERE handle = 'member_02718'\"",
+          "outputChars": 1961,
+          "isError": false,
+          "preview": "result[1]{id,handle,email,display_name,country,plan,status,signup_date,bio,notes,preferences,address,phone,deleted_at,legacy_crm_id,merged_into_id,referrer_code,vat_number,cancelled_at,timezone,locale"
+        }
+      ]
+    },
+    {
+      "arm": "mcp",
+      "task": "one wide row",
+      "correct": true,
+      "answer": "Plan: pro; Country: France; Bio: writes about cycling",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 14944,
+      "inputTokens": 8,
+      "cacheCreationTokens": 10928,
+      "cacheReadTokens": 25203,
+      "outputTokens": 420,
+      "costUsd": 0.0026484300000000002,
+      "durationMs": 6289,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "list_tables {\"database\":\"shop\"}",
+          "outputChars": 5145,
+          "isError": false,
+          "preview": "[\n  {\n    \"Tables_in_shop\": \"analytics_log\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"analytics_notes\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"analytics_s"
+        },
+        {
+          "command": "describe_table {\"table\":\"profiles\",\"database\":\"shop\"}",
+          "outputChars": 8631,
+          "isError": false,
+          "preview": "[\n  {\n    \"Field\": \"id\",\n    \"Type\": \"int\",\n    \"Null\": \"NO\",\n    \"Key\": \"PRI\",\n    \"Default\": null,\n    \"Extra\": \"\"\n  },\n  {\n    \"Field\": \"handle\",\n    \"Type\": \"varchar(20)\",\n    \"Null\": \"NO\",\n    \"K"
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT handle, plan, country, bio FROM profiles WHERE handle = 'member_02718'\"}",
+          "outputChars": 1168,
+          "isError": false,
+          "preview": "[\n  {\n    \"handle\": \"member_02718\",\n    \"plan\": \"pro\",\n    \"country\": \"France\",\n    \"bio\": \"Member 2718 writes about cycling. Longer biography text with several sentences about hobbies and work. Longe"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "one wide row",
+      "correct": true,
+      "answer": "pro plan, France, cycling",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 4093,
+      "inputTokens": 6,
+      "cacheCreationTokens": 5937,
+      "cacheReadTokens": 15014,
+      "outputTokens": 928,
+      "costUsd": 0.0018021400000000003,
+      "durationMs": 6116,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SHOW TABLES;\" 2>&1",
+          "outputChars": 932,
+          "isError": false,
+          "preview": "Tables_in_shop\nanalytics_log\nanalytics_notes\nanalytics_settings\nanalytics_snapshots\nanalytics_tags\naudit_log\naudit_notes\naudit_settings\naudit_snapshots\naudit_tags\nauth_log\nauth_notes\nauth_settings\naut"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SELECT TABLE_NAME, COLUMN_NAME, DATA_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='shop' AND (TABLE_NAME LIKE '%profile%' OR TABLE_NAME LIKE '%plan%' OR TABLE_NAME LIKE '%user%' OR TABLE_NAME LIKE '%member%' OR TABLE_NAME LIKE '%account%' OR COLUMN_NAME LIKE '%handle%' OR COLUMN_NAME LIKE '%bio%' OR COLUMN_NAME LIKE '%country%');\" 2>&1",
+          "outputChars": 1824,
+          "isError": false,
+          "preview": "TABLE_NAME\tCOLUMN_NAME\tDATA_TYPE\nprofiles\tid\tint\nprofiles\thandle\tvarchar\nprofiles\temail\tvarchar\nprofiles\tdisplay_name\tvarchar\nprofiles\tcountry\tvarchar\nprofiles\tplan\tvarchar\nprofiles\tstatus\tvarchar\npro"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SELECT id, handle, display_name, country, plan, status, deleted_at, merged_into_id, bio FROM profiles WHERE handle = 'member_02718';\" 2>&1; echo \"---\"; mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SELECT id, handle, display_name, country, plan, status, deleted_at, merged_into_id FROM profiles WHERE handle LIKE '%02718%';\" 2>&1",
+          "outputChars": 1337,
+          "isError": false,
+          "preview": "id\thandle\tdisplay_name\tcountry\tplan\tstatus\tdeleted_at\tmerged_into_id\tbio\n2718\tmember_02718\tMember 2718\tFrance\tpro\tsuspended\tNULL\tNULL\tMember 2718 writes about cycling. Longer biography text with sever"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "one wide row",
+      "correct": true,
+      "answer": "Plan: pro; Country: France; Bio: writes about cycling",
+      "turns": 5,
+      "toolCalls": 4,
+      "toolOutputChars": 7070,
+      "inputTokens": 10,
+      "cacheCreationTokens": 7105,
+      "cacheReadTokens": 30541,
+      "outputTokens": 641,
+      "costUsd": 0.00204791,
+      "durationMs": 7915,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi tables 2>&1; echo ---; mysql-axi describe profiles 2>&1",
+          "outputChars": 5245,
+          "isError": false,
+          "preview": "database: shop\ntotal: 65 tables; 0 views; 124 MB\ntables[65]{name,kind,rows_est,size}:\n  analytics_log,table,81,16 KB\n  analytics_notes,table,17,16 KB\n  analytics_settings,table,68,16 KB\n  analytics_sn"
+        },
+        {
+          "command": "mysql-axi query \"SELECT handle, plan, country, bio FROM profiles WHERE handle = 'member_02718'\" 2>&1",
+          "outputChars": 286,
+          "isError": false,
+          "preview": "result[1]{handle,plan,country,bio}:\n  member_02718,pro,France,Member 2718 writes about cycling. Longer biography text with several sentences about hobbies and work. Longer biography text with several "
+        },
+        {
+          "command": "mysql-axi query \"SELECT bio FROM profiles WHERE handle = 'member_02718'\" --full 2>&1",
+          "outputChars": 1089,
+          "isError": false,
+          "preview": "result[1]{bio}:\n  \"Member 2718 writes about cycling. Longer biography text with several sentences about hobbies and work. Longer biography text with several sentences about hobbies and work. Longer bi"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "one wide row",
+      "correct": true,
+      "answer": "pro plan, France, writes about cycling",
+      "turns": 5,
+      "toolCalls": 4,
+      "toolOutputChars": 6615,
+      "inputTokens": 10,
+      "cacheCreationTokens": 7488,
+      "cacheReadTokens": 32781,
+      "outputTokens": 895,
+      "costUsd": 0.00227391,
+      "durationMs": 8849,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi tables",
+          "outputChars": 2201,
+          "isError": false,
+          "preview": "database: shop\ntotal: 65 tables; 0 views; 124 MB\ntables[65]{name,kind,rows_est,size}:\n  analytics_log,table,81,16 KB\n  analytics_notes,table,17,16 KB\n  analytics_settings,table,68,16 KB\n  analytics_sn"
+        },
+        {
+          "command": "<bin>/mysql-axi describe profiles",
+          "outputChars": 3039,
+          "isError": false,
+          "preview": "table:\n  name: shop.profiles\n  rows_est: 2061\n  size: 13 MB\ncolumns[66]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  handle,varchar(20),false,UNI,null,null\n  email,varchar(120"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT handle, plan, country, bio FROM profiles WHERE handle = 'member_02718'\"",
+          "outputChars": 286,
+          "isError": false,
+          "preview": "result[1]{handle,plan,country,bio}:\n  member_02718,pro,France,Member 2718 writes about cycling. Longer biography text with several sentences about hobbies and work. Longer biography text with several "
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT bio FROM profiles WHERE handle = 'member_02718'\" --full",
+          "outputChars": 1089,
+          "isError": false,
+          "preview": "result[1]{bio}:\n  \"Member 2718 writes about cycling. Longer biography text with several sentences about hobbies and work. Longer biography text with several sentences about hobbies and work. Longer bi"
+        }
+      ]
+    },
+    {
+      "arm": "mcp",
+      "task": "one wide row",
+      "correct": true,
+      "answer": "Plan: pro; Country: France; Bio: writes about cycling",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 14944,
+      "inputTokens": 8,
+      "cacheCreationTokens": 10925,
+      "cacheReadTokens": 25197,
+      "outputTokens": 427,
+      "costUsd": 0.00265127,
+      "durationMs": 5555,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "list_tables {\"database\":\"shop\"}",
+          "outputChars": 5145,
+          "isError": false,
+          "preview": "[\n  {\n    \"Tables_in_shop\": \"analytics_log\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"analytics_notes\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"analytics_s"
+        },
+        {
+          "command": "describe_table {\"table\":\"profiles\",\"database\":\"shop\"}",
+          "outputChars": 8631,
+          "isError": false,
+          "preview": "[\n  {\n    \"Field\": \"id\",\n    \"Type\": \"int\",\n    \"Null\": \"NO\",\n    \"Key\": \"PRI\",\n    \"Default\": null,\n    \"Extra\": \"\"\n  },\n  {\n    \"Field\": \"handle\",\n    \"Type\": \"varchar(20)\",\n    \"Null\": \"NO\",\n    \"K"
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT handle, plan, country, bio FROM profiles WHERE handle = 'member_02718'\"}",
+          "outputChars": 1168,
+          "isError": false,
+          "preview": "[\n  {\n    \"handle\": \"member_02718\",\n    \"plan\": \"pro\",\n    \"country\": \"France\",\n    \"bio\": \"Member 2718 writes about cycling. Longer biography text with several sentences about hobbies and work. Longe"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "always-NULL columns",
+      "correct": true,
+      "answer": "deleted_at, legacy_crm_id, merged_into_id",
+      "turns": 5,
+      "toolCalls": 4,
+      "toolOutputChars": 3244,
+      "inputTokens": 10,
+      "cacheCreationTokens": 7363,
+      "cacheReadTokens": 27975,
+      "outputTokens": 2704,
+      "costUsd": 0.0031053499999999998,
+      "durationMs": 129890,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='shop' AND TABLE_NAME='profiles' ORDER BY ORDINAL_POSITION;\" && mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SELECT COUNT(*) AS total_rows FROM profiles;\"",
+          "outputChars": 762,
+          "isError": false,
+          "preview": "COLUMN_NAME\nid\nhandle\nemail\ndisplay_name\ncountry\nplan\nstatus\nsignup_date\nbio\nnotes\npreferences\naddress\nphone\ndeleted_at\nlegacy_crm_id\nmerged_into_id\nreferrer_code\nvat_number\ncancelled_at\ntimezone\nloca"
+        },
+        {
+          "command": "cols=$(mysql -h 127.0.0.1 -P 63471 -u bench shop -N -B -e \"SELECT GROUP_CONCAT(CONCAT('COUNT(\\`',COLUMN_NAME,'\\`) AS \\`',COLUMN_NAME,'\\`') ORDER BY ORDINAL_POSITION) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='shop' AND TABLE_NAME='profiles';\") && mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SELECT $cols FROM profiles;\" -E",
+          "outputChars": 208,
+          "isError": true,
+          "preview": "Exit code 1\nERROR 1064 (42000) at line 1: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '`websi FROM profiles' a"
+        },
+        {
+          "command": "cols=$(mysql -h 127.0.0.1 -P 63471 -u bench shop -N -B -e \"SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='shop' AND TABLE_NAME='profiles' ORDER BY ORDINAL_POSITION;\" | awk '{printf \"%sCOUNT(`%s`) AS `%s`\", (NR>1?\", \":\"\"), $1, $1}') && mysql -h 127.0.0.1 -P 63471 -u bench shop -E -e \"SELECT $cols FROM profiles;\"",
+          "outputChars": 421,
+          "isError": true,
+          "preview": "This Bash command contains multiple operations. The following parts require approval: cols=$(mysql -h 127.0.0.1 -P 63471 -u bench shop -N -B -e \"SELECT COLUMN_NAME FROM information_schema.COLUMNS WHER"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 63471 -u bench shop -E -e \"SELECT COUNT(id) AS id, COUNT(handle) AS handle, COUNT(email) AS email, COUNT(display_name) AS display_name, COUNT(country) AS country, COUNT(plan) AS plan, COUNT(status) AS status, COUNT(signup_date) AS signup_date, COUNT(bio) AS bio, COUNT(notes) AS notes, COUNT(preferences) AS preferences, COUNT(address) AS address, COUNT(phone) AS phone, COUNT(d",
+          "outputChars": 1853,
+          "isError": false,
+          "preview": "*************************** 1. row ***************************\n                  id: 3000\n              handle: 3000\n               email: 3000\n        display_name: 3000\n             country: 3000\n  "
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "always-NULL columns",
+      "correct": true,
+      "answer": "deleted_at, legacy_crm_id, merged_into_id",
+      "turns": 5,
+      "toolCalls": 4,
+      "toolOutputChars": 4854,
+      "inputTokens": 10,
+      "cacheCreationTokens": 7301,
+      "cacheReadTokens": 30980,
+      "outputTokens": 1483,
+      "costUsd": 0.0025125,
+      "durationMs": 13502,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50; echo ---; mysql-axi \"DESCRIBE profiles\" 2>&1 | head -80",
+          "outputChars": 2403,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi describe profiles --limit 66 2>&1 | tail -20; echo ---; mysql-axi query --help 2>&1 | head -30",
+          "outputChars": 1038,
+          "isError": false,
+          "preview": "error: unknown flag --limit for `mysql-axi describe`\ncode: VALIDATION_ERROR\nhelp[1]:\n  valid flags for `mysql-axi describe`: --profile, --database, --timeout (--help always allowed)\n---\nusage: mysql-a"
+        },
+        {
+          "command": "mysql-axi query \"SELECT COLUMN_NAME, IS_NULLABLE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='shop' AND TABLE_NAME='profiles' ORDER BY ORDINAL_POSITION\" --limit 100 2>&1; echo ---; mysql-axi query \"SELECT COUNT(*) AS total FROM profiles\" 2>&1",
+          "outputChars": 1144,
+          "isError": false,
+          "preview": "result[66]{COLUMN_NAME,IS_NULLABLE}:\n  id,NO\n  handle,NO\n  email,NO\n  display_name,NO\n  country,NO\n  plan,NO\n  status,NO\n  signup_date,NO\n  bio,YES\n  notes,YES\n  preferences,YES\n  address,YES\n  phone,"
+        },
+        {
+          "command": "mysql-axi query \"SELECT COUNT(bio) AS bio_nn, COUNT(notes) AS notes_nn, COUNT(preferences) AS preferences_nn, COUNT(address) AS address_nn, COUNT(phone) AS phone_nn, COUNT(deleted_at) AS deleted_at_nn, COUNT(legacy_crm_id) AS legacy_crm_id_nn, COUNT(merged_into_id) AS merged_into_id_nn, COUNT(referrer_code) AS referrer_code_nn, COUNT(vat_number) AS vat_number_nn, COUNT(cancelled_at) AS cancelled_a",
+          "outputChars": 269,
+          "isError": false,
+          "preview": "result[1]{bio_nn,notes_nn,preferences_nn,address_nn,phone_nn,deleted_at_nn,legacy_crm_id_nn,merged_into_id_nn,referrer_code_nn,vat_number_nn,cancelled_at_nn,website_nn,trial_ends_at_nn,last_ticket_at_"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "always-NULL columns",
+      "correct": true,
+      "answer": "deleted_at, legacy_crm_id, merged_into_id",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 3266,
+      "inputTokens": 6,
+      "cacheCreationTokens": 5928,
+      "cacheReadTokens": 15324,
+      "outputTokens": 909,
+      "costUsd": 0.00179394,
+      "durationMs": 7118,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi describe profiles",
+          "outputChars": 3039,
+          "isError": false,
+          "preview": "table:\n  name: shop.profiles\n  rows_est: 2061\n  size: 13 MB\ncolumns[66]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  handle,varchar(20),false,UNI,null,null\n  email,varchar(120"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT COUNT(*) AS total, COUNT(bio) AS bio, COUNT(notes) AS notes, COUNT(preferences) AS preferences, COUNT(address) AS address, COUNT(phone) AS phone, COUNT(deleted_at) AS deleted_at, COUNT(legacy_crm_id) AS legacy_crm_id, COUNT(merged_into_id) AS merged_into_id, COUNT(referrer_code) AS referrer_code, COUNT(vat_number) AS vat_number, COUNT(cancelled_at) AS cancelled_at, CO",
+          "outputChars": 227,
+          "isError": false,
+          "preview": "result[1]{total,bio,notes,preferences,address,phone,deleted_at,legacy_crm_id,merged_into_id,referrer_code,vat_number,cancelled_at,website,trial_ends_at,last_ticket_at}:\n  3000,3000,3000,3000,3000,2000"
+        }
+      ]
+    },
+    {
+      "arm": "mcp",
+      "task": "always-NULL columns",
+      "correct": true,
+      "answer": "deleted_at, legacy_crm_id, merged_into_id",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 9020,
+      "inputTokens": 6,
+      "cacheCreationTokens": 8458,
+      "cacheReadTokens": 15110,
+      "outputTokens": 860,
+      "costUsd": 0.0022733,
+      "durationMs": 5955,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "describe_table {\"table\":\"profiles\",\"database\":\"shop\"}",
+          "outputChars": 8631,
+          "isError": false,
+          "preview": "[\n  {\n    \"Field\": \"id\",\n    \"Type\": \"int\",\n    \"Null\": \"NO\",\n    \"Key\": \"PRI\",\n    \"Default\": null,\n    \"Extra\": \"\"\n  },\n  {\n    \"Field\": \"handle\",\n    \"Type\": \"varchar(20)\",\n    \"Null\": \"NO\",\n    \"K"
+        },
+        {
+          "command": "execute_query {\"query\":\"SELECT COUNT(*) AS total_rows FROM profiles\",\"database\":\"shop\"}",
+          "outputChars": 36,
+          "isError": false,
+          "preview": "[\n  {\n    \"total_rows\": \"3000\"\n  }\n]"
+        },
+        {
+          "command": "execute_query {\"query\":\"SELECT COUNT(bio) AS bio, COUNT(notes) AS notes, COUNT(preferences) AS preferences, COUNT(address) AS address, COUNT(phone) AS phone, COUNT(deleted_at) AS deleted_at, COUNT(legacy_crm_id) AS legacy_crm_id, COUNT(merged_into_id) AS merged_into_id, COUNT(referrer_code) AS referrer_code, COUNT(vat_number) AS vat_number, COUNT(cancelled_at) AS cancelled_at, COUNT(website) AS we",
+          "outputChars": 353,
+          "isError": false,
+          "preview": "[\n  {\n    \"bio\": \"3000\",\n    \"notes\": \"3000\",\n    \"preferences\": \"3000\",\n    \"address\": \"3000\",\n    \"phone\": \"2000\",\n    \"deleted_at\": \"0\",\n    \"legacy_crm_id\": \"0\",\n    \"merged_into_id\": \"0\",\n    \"re"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "always-NULL columns",
+      "correct": true,
+      "answer": "deleted_at, legacy_crm_id, merged_into_id",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 2270,
+      "inputTokens": 6,
+      "cacheCreationTokens": 5419,
+      "cacheReadTokens": 14598,
+      "outputTokens": 825,
+      "costUsd": 0.0016428799999999998,
+      "durationMs": 8372,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SELECT COUNT(*) AS n FROM profiles; DESCRIBE profiles;\"",
+          "outputChars": 2068,
+          "isError": false,
+          "preview": "n\n3000\nField\tType\tNull\tKey\tDefault\tExtra\nid\tint\tNO\tPRI\tNULL\t\nhandle\tvarchar(20)\tNO\tUNI\tNULL\t\nemail\tvarchar(120)\tNO\t\tNULL\t\ndisplay_name\tvarchar(80)\tNO\t\tNULL\t\ncountry\tvarchar(40)\tNO\t\tNULL\t\nplan\tvarchar("
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SELECT COUNT(bio) bio, COUNT(notes) notes, COUNT(preferences) preferences, COUNT(address) address, COUNT(phone) phone, COUNT(deleted_at) deleted_at, COUNT(legacy_crm_id) legacy_crm_id, COUNT(merged_into_id) merged_into_id, COUNT(referrer_code) referrer_code, COUNT(vat_number) vat_number, COUNT(cancelled_at) cancelled_at, COUNT(website) website, COUNT(t",
+          "outputChars": 202,
+          "isError": false,
+          "preview": "bio\tnotes\tpreferences\taddress\tphone\tdeleted_at\tlegacy_crm_id\tmerged_into_id\treferrer_code\tvat_number\tcancelled_at\twebsite\ttrial_ends_at\tlast_ticket_at\n3000\t3000\t3000\t3000\t2000\t0\t0\t0\t6\t12\t75\t600\t600\t26"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "always-NULL columns",
+      "correct": true,
+      "answer": "deleted_at, legacy_crm_id, merged_into_id",
+      "turns": 5,
+      "toolCalls": 4,
+      "toolOutputChars": 4813,
+      "inputTokens": 10,
+      "cacheCreationTokens": 7274,
+      "cacheReadTokens": 31106,
+      "outputTokens": 1616,
+      "costUsd": 0.00257486,
+      "durationMs": 12397,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50; echo ---; mysql-axi \"DESCRIBE shop.profiles\" 2>&1 | head -100",
+          "outputChars": 2403,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi describe profiles --limit 66 2>&1 | tail -20; echo ---; mysql-axi query --help 2>&1 | head -30",
+          "outputChars": 1038,
+          "isError": false,
+          "preview": "error: unknown flag --limit for `mysql-axi describe`\ncode: VALIDATION_ERROR\nhelp[1]:\n  valid flags for `mysql-axi describe`: --profile, --database, --timeout (--help always allowed)\n---\nusage: mysql-a"
+        },
+        {
+          "command": "mysql-axi query \"SELECT COLUMN_NAME, IS_NULLABLE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='shop' AND TABLE_NAME='profiles' ORDER BY ORDINAL_POSITION\" --limit 200 2>&1; echo ---; mysql-axi query \"SELECT COUNT(*) AS n FROM shop.profiles\" 2>&1",
+          "outputChars": 1140,
+          "isError": false,
+          "preview": "result[66]{COLUMN_NAME,IS_NULLABLE}:\n  id,NO\n  handle,NO\n  email,NO\n  display_name,NO\n  country,NO\n  plan,NO\n  status,NO\n  signup_date,NO\n  bio,YES\n  notes,YES\n  preferences,YES\n  address,YES\n  phone,"
+        },
+        {
+          "command": "mysql-axi query \"SELECT COUNT(*) AS total, SUM(bio IS NULL) AS bio, SUM(notes IS NULL) AS notes, SUM(preferences IS NULL) AS preferences, SUM(address IS NULL) AS address, SUM(phone IS NULL) AS phone, SUM(deleted_at IS NULL) AS deleted_at, SUM(legacy_crm_id IS NULL) AS legacy_crm_id, SUM(merged_into_id IS NULL) AS merged_into_id, SUM(referrer_code IS NULL) AS referrer_code, SUM(vat_number IS NULL) ",
+          "outputChars": 232,
+          "isError": false,
+          "preview": "result[1]{total,bio,notes,preferences,address,phone,deleted_at,legacy_crm_id,merged_into_id,referrer_code,vat_number,cancelled_at,website,trial_ends_at,last_ticket_at}:\n  3000,0,0,0,0,1000,3000,3000,3"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "always-NULL columns",
+      "correct": true,
+      "answer": "deleted_at, legacy_crm_id, merged_into_id",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 3295,
+      "inputTokens": 6,
+      "cacheCreationTokens": 6172,
+      "cacheReadTokens": 15551,
+      "outputTokens": 1109,
+      "costUsd": 0.00194501,
+      "durationMs": 7090,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi describe profiles",
+          "outputChars": 3039,
+          "isError": false,
+          "preview": "table:\n  name: shop.profiles\n  rows_est: 2061\n  size: 13 MB\ncolumns[66]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  handle,varchar(20),false,UNI,null,null\n  email,varchar(120"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT COUNT(*) AS total_rows FROM profiles\"",
+          "outputChars": 29,
+          "isError": false,
+          "preview": "result[1]{total_rows}:\n  3000"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT COUNT(bio) AS bio, COUNT(notes) AS notes, COUNT(preferences) AS preferences, COUNT(address) AS address, COUNT(phone) AS phone, COUNT(deleted_at) AS deleted_at, COUNT(legacy_crm_id) AS legacy_crm_id, COUNT(merged_into_id) AS merged_into_id, COUNT(referrer_code) AS referrer_code, COUNT(vat_number) AS vat_number, COUNT(cancelled_at) AS cancelled_at, COUNT(website) AS web",
+          "outputChars": 227,
+          "isError": false,
+          "preview": "result[1]{bio,notes,preferences,address,phone,deleted_at,legacy_crm_id,merged_into_id,referrer_code,vat_number,cancelled_at,website,trial_ends_at,last_ticket_at,total}:\n  3000,3000,3000,3000,2000,0,0,"
+        }
+      ]
+    },
+    {
+      "arm": "mcp",
+      "task": "always-NULL columns",
+      "correct": true,
+      "answer": "deleted_at, legacy_crm_id, merged_into_id",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 9083,
+      "inputTokens": 6,
+      "cacheCreationTokens": 8564,
+      "cacheReadTokens": 15110,
+      "outputTokens": 918,
+      "costUsd": 0.0023235,
+      "durationMs": 6442,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "describe_table {\"table\":\"profiles\",\"database\":\"shop\"}",
+          "outputChars": 8631,
+          "isError": false,
+          "preview": "[\n  {\n    \"Field\": \"id\",\n    \"Type\": \"int\",\n    \"Null\": \"NO\",\n    \"Key\": \"PRI\",\n    \"Default\": null,\n    \"Extra\": \"\"\n  },\n  {\n    \"Field\": \"handle\",\n    \"Type\": \"varchar(20)\",\n    \"Null\": \"NO\",\n    \"K"
+        },
+        {
+          "command": "execute_query {\"query\":\"SELECT COUNT(*) AS total_rows FROM profiles\",\"database\":\"shop\"}",
+          "outputChars": 36,
+          "isError": false,
+          "preview": "[\n  {\n    \"total_rows\": \"3000\"\n  }\n]"
+        },
+        {
+          "command": "execute_query {\"query\":\"SELECT COUNT(bio) AS bio_nn, COUNT(notes) AS notes_nn, COUNT(preferences) AS preferences_nn, COUNT(address) AS address_nn, COUNT(phone) AS phone_nn, COUNT(deleted_at) AS deleted_at_nn, COUNT(legacy_crm_id) AS legacy_crm_id_nn, COUNT(merged_into_id) AS merged_into_id_nn, COUNT(referrer_code) AS referrer_code_nn, COUNT(vat_number) AS vat_number_nn, COUNT(cancelled_at) AS canc",
+          "outputChars": 416,
+          "isError": false,
+          "preview": "[\n  {\n    \"bio_nn\": \"3000\",\n    \"notes_nn\": \"3000\",\n    \"preferences_nn\": \"3000\",\n    \"address_nn\": \"3000\",\n    \"phone_nn\": \"2000\",\n    \"deleted_at_nn\": \"0\",\n    \"legacy_crm_id_nn\": \"0\",\n    \"merged_i"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "always-NULL columns",
+      "correct": true,
+      "answer": "deleted_at, legacy_crm_id, merged_into_id",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 2588,
+      "inputTokens": 6,
+      "cacheCreationTokens": 6036,
+      "cacheReadTokens": 13776,
+      "outputTokens": 2192,
+      "costUsd": 0.00244156,
+      "durationMs": 13836,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='shop' AND TABLE_NAME='profiles' ORDER BY ORDINAL_POSITION; SELECT COUNT(*) AS total_rows FROM profiles;\"",
+          "outputChars": 762,
+          "isError": false,
+          "preview": "COLUMN_NAME\nid\nhandle\nemail\ndisplay_name\ncountry\nplan\nstatus\nsignup_date\nbio\nnotes\npreferences\naddress\nphone\ndeleted_at\nlegacy_crm_id\nmerged_into_id\nreferrer_code\nvat_number\ncancelled_at\ntimezone\nloca"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SELECT COUNT(id) id, COUNT(handle) handle, COUNT(email) email, COUNT(display_name) display_name, COUNT(country) country, COUNT(plan) plan, COUNT(status) status, COUNT(signup_date) signup_date, COUNT(bio) bio, COUNT(notes) notes, COUNT(preferences) preferences, COUNT(address) address, COUNT(phone) phone, COUNT(deleted_at) deleted_at, COUNT(legacy_crm_id",
+          "outputChars": 1826,
+          "isError": false,
+          "preview": "*************************** 1. row ***************************\n                  id: 3000\n              handle: 3000\n               email: 3000\n        display_name: 3000\n             country: 3000\n  "
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "always-NULL columns",
+      "correct": true,
+      "answer": "deleted_at, legacy_crm_id, merged_into_id",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 2625,
+      "inputTokens": 6,
+      "cacheCreationTokens": 5567,
+      "cacheReadTokens": 14637,
+      "outputTokens": 1128,
+      "costUsd": 0.00182437,
+      "durationMs": 8121,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi \"DESCRIBE shop.profiles\" 2>&1 | head -100",
+          "outputChars": 1948,
+          "isError": false,
+          "preview": "rows: 50 of 66 shown\nresult[50]{Field,Type,Null,Key,Default,Extra}:\n  id,int,NO,PRI,null,\"\"\n  handle,varchar(20),NO,UNI,null,\"\"\n  email,varchar(120),NO,\"\",null,\"\"\n  display_name,varchar(80),NO,\"\",null"
+        },
+        {
+          "command": "mysql-axi query \"SELECT COUNT(*) AS total, COUNT(bio) AS bio, COUNT(notes) AS notes, COUNT(preferences) AS preferences, COUNT(address) AS address, COUNT(phone) AS phone, COUNT(deleted_at) AS deleted_at, COUNT(legacy_crm_id) AS legacy_crm_id, COUNT(merged_into_id) AS merged_into_id, COUNT(referrer_code) AS referrer_code, COUNT(vat_number) AS vat_number, COUNT(cancelled_at) AS cancelled_at, COUNT(we",
+          "outputChars": 227,
+          "isError": false,
+          "preview": "result[1]{total,bio,notes,preferences,address,phone,deleted_at,legacy_crm_id,merged_into_id,referrer_code,vat_number,cancelled_at,website,trial_ends_at,last_ticket_at}:\n  3000,3000,3000,3000,3000,2000"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "always-NULL columns",
+      "correct": true,
+      "answer": "deleted_at, legacy_crm_id, merged_into_id",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 3284,
+      "inputTokens": 6,
+      "cacheCreationTokens": 6288,
+      "cacheReadTokens": 15551,
+      "outputTokens": 1176,
+      "costUsd": 0.0020017100000000003,
+      "durationMs": 7968,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi describe profiles",
+          "outputChars": 3039,
+          "isError": false,
+          "preview": "table:\n  name: shop.profiles\n  rows_est: 2061\n  size: 13 MB\ncolumns[66]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  handle,varchar(20),false,UNI,null,null\n  email,varchar(120"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT COUNT(*) AS total_rows FROM profiles\"",
+          "outputChars": 29,
+          "isError": false,
+          "preview": "result[1]{total_rows}:\n  3000"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT COUNT(bio) AS bio, COUNT(notes) AS notes, COUNT(preferences) AS preferences, COUNT(address) AS address, COUNT(phone) AS phone, COUNT(deleted_at) AS deleted_at, COUNT(legacy_crm_id) AS legacy_crm_id, COUNT(merged_into_id) AS merged_into_id, COUNT(referrer_code) AS referrer_code, COUNT(vat_number) AS vat_number, COUNT(cancelled_at) AS cancelled_at, COUNT(website) AS web",
+          "outputChars": 216,
+          "isError": false,
+          "preview": "result[1]{bio,notes,preferences,address,phone,deleted_at,legacy_crm_id,merged_into_id,referrer_code,vat_number,cancelled_at,website,trial_ends_at,last_ticket_at}:\n  3000,3000,3000,3000,2000,0,0,0,6,12"
+        }
+      ]
+    },
+    {
+      "arm": "mcp",
+      "task": "always-NULL columns",
+      "correct": true,
+      "answer": "deleted_at, legacy_crm_id, merged_into_id",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 9046,
+      "inputTokens": 6,
+      "cacheCreationTokens": 8513,
+      "cacheReadTokens": 15106,
+      "outputTokens": 936,
+      "costUsd": 0.00232226,
+      "durationMs": 6605,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "describe_table {\"table\":\"profiles\",\"database\":\"shop\"}",
+          "outputChars": 8631,
+          "isError": false,
+          "preview": "[\n  {\n    \"Field\": \"id\",\n    \"Type\": \"int\",\n    \"Null\": \"NO\",\n    \"Key\": \"PRI\",\n    \"Default\": null,\n    \"Extra\": \"\"\n  },\n  {\n    \"Field\": \"handle\",\n    \"Type\": \"varchar(20)\",\n    \"Null\": \"NO\",\n    \"K"
+        },
+        {
+          "command": "execute_query {\"query\":\"SELECT COUNT(*) AS total_rows FROM profiles\",\"database\":\"shop\"}",
+          "outputChars": 36,
+          "isError": false,
+          "preview": "[\n  {\n    \"total_rows\": \"3000\"\n  }\n]"
+        },
+        {
+          "command": "execute_query {\"query\":\"SELECT COUNT(bio) AS bio, COUNT(notes) AS notes, COUNT(preferences) AS preferences, COUNT(address) AS address, COUNT(phone) AS phone, COUNT(deleted_at) AS deleted_at, COUNT(legacy_crm_id) AS legacy_crm_id, COUNT(merged_into_id) AS merged_into_id, COUNT(referrer_code) AS referrer_code, COUNT(vat_number) AS vat_number, COUNT(cancelled_at) AS cancelled_at, COUNT(website) AS we",
+          "outputChars": 379,
+          "isError": false,
+          "preview": "[\n  {\n    \"bio\": \"3000\",\n    \"notes\": \"3000\",\n    \"preferences\": \"3000\",\n    \"address\": \"3000\",\n    \"phone\": \"2000\",\n    \"deleted_at\": \"0\",\n    \"legacy_crm_id\": \"0\",\n    \"merged_into_id\": \"0\",\n    \"re"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "largest tables",
+      "correct": true,
+      "answer": "events (1000000 rows), orders (10000), profiles (3000)",
+      "turns": 5,
+      "toolCalls": 4,
+      "toolOutputChars": 1547,
+      "inputTokens": 10,
+      "cacheCreationTokens": 5585,
+      "cacheReadTokens": 27814,
+      "outputTokens": 1537,
+      "costUsd": 0.0021646400000000002,
+      "durationMs": 129645,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SELECT table_name FROM information_schema.tables WHERE table_schema='shop' AND table_type='BASE TABLE';\"",
+          "outputChars": 928,
+          "isError": false,
+          "preview": "TABLE_NAME\nanalytics_log\nanalytics_notes\nanalytics_settings\nanalytics_snapshots\nanalytics_tags\naudit_log\naudit_notes\naudit_settings\naudit_snapshots\naudit_tags\nauth_log\nauth_notes\nauth_settings\nauth_sn"
+        },
+        {
+          "command": "cd /tmp && Q=$(mysql -h 127.0.0.1 -P 63471 -u bench shop -N -B -e \"SELECT GROUP_CONCAT(CONCAT('SELECT ''',table_name,''' AS t, COUNT(*) AS n FROM \\`',table_name,'\\`') SEPARATOR ' UNION ALL ') FROM information_schema.tables WHERE table_schema='shop' AND table_type='BASE TABLE';\") && mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SELECT t, n FROM ($Q) x ORDER BY n DESC LIMIT 10;\"",
+          "outputChars": 228,
+          "isError": true,
+          "preview": "cd in '/private/tmp' was blocked. For security, Claude Code may only change directories to the allowed working directories for this session: '/private$TMPDIR/mysql-axi-tokens-cwd-ZjfjZN'."
+        },
+        {
+          "command": "Q=$(mysql -h 127.0.0.1 -P 63471 -u bench shop -N -B -e \"SELECT GROUP_CONCAT(CONCAT('SELECT ''',table_name,''' AS t, COUNT(*) AS n FROM \\`',table_name,'\\`') SEPARATOR ' UNION ALL ') FROM information_schema.tables WHERE table_schema='shop' AND table_type='BASE TABLE';\") && mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SELECT t, n FROM ($Q) x ORDER BY n DESC LIMIT 10;\"",
+          "outputChars": 229,
+          "isError": true,
+          "preview": "Exit code 1\nERROR 1064 (42000) at line 1: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '`auth_snapsho) x ORDER "
+        },
+        {
+          "command": "Q=$(mysql -h 127.0.0.1 -P 63471 -u bench shop -N -B -e \"SET SESSION group_concat_max_len=1000000; SELECT GROUP_CONCAT(CONCAT('SELECT ''',table_name,''' AS t, COUNT(*) AS n FROM \\`',table_name,'\\`') SEPARATOR ' UNION ALL ') FROM information_schema.tables WHERE table_schema='shop' AND table_type='BASE TABLE';\") && mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SELECT t, n FROM ($Q) x ORDER BY n DESC ",
+          "outputChars": 162,
+          "isError": false,
+          "preview": "t\tn\nevents\t1000000\norders\t10000\nprofiles\t3000\ncustomers\t1000\nanalytics_tags\t94\nshipping_notes\t93\naudit_snapshots\t92\npayroll_log\t88\nauth_tags\t87\nmarketing_notes\t86"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "largest tables",
+      "correct": true,
+      "answer": "events (1000000 rows), orders (10000 rows), profiles (3000 rows)",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 2731,
+      "inputTokens": 8,
+      "cacheCreationTokens": 5552,
+      "cacheReadTokens": 20465,
+      "outputTokens": 1457,
+      "costUsd": 0.00204435,
+      "durationMs": 12857,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi tables 2>&1 | head -80",
+          "outputChars": 2201,
+          "isError": false,
+          "preview": "database: shop\ntotal: 65 tables; 0 views; 124 MB\ntables[65]{name,kind,rows_est,size}:\n  analytics_log,table,81,16 KB\n  analytics_notes,table,17,16 KB\n  analytics_settings,table,68,16 KB\n  analytics_sn"
+        },
+        {
+          "command": "mysql-axi query \"SELECT 'events' AS t, COUNT(*) AS n FROM events UNION ALL SELECT 'orders', COUNT(*) FROM orders UNION ALL SELECT 'profiles', COUNT(*) FROM profiles UNION ALL SELECT 'customers', COUNT(*) FROM customers ORDER BY n DESC\" 2>&1",
+          "outputChars": 80,
+          "isError": false,
+          "preview": "result[4]{t,n}:\n  events,1000000\n  orders,10000\n  profiles,3000\n  customers,1000"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "largest tables",
+      "correct": true,
+      "answer": "events (1000000 rows), orders (10000), profiles (3000)",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 2281,
+      "inputTokens": 6,
+      "cacheCreationTokens": 5576,
+      "cacheReadTokens": 15106,
+      "outputTokens": 1013,
+      "costUsd": 0.00177336,
+      "durationMs": 8100,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi tables",
+          "outputChars": 2201,
+          "isError": false,
+          "preview": "database: shop\ntotal: 65 tables; 0 views; 124 MB\ntables[65]{name,kind,rows_est,size}:\n  analytics_log,table,81,16 KB\n  analytics_notes,table,17,16 KB\n  analytics_settings,table,68,16 KB\n  analytics_sn"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT 'events' AS t, COUNT(*) AS n FROM events UNION ALL SELECT 'orders', COUNT(*) FROM orders UNION ALL SELECT 'profiles', COUNT(*) FROM profiles UNION ALL SELECT 'customers', COUNT(*) FROM customers ORDER BY n DESC\"",
+          "outputChars": 80,
+          "isError": false,
+          "preview": "result[4]{t,n}:\n  events,1000000\n  orders,10000\n  profiles,3000\n  customers,1000"
+        }
+      ]
+    },
+    {
+      "arm": "mcp",
+      "task": "largest tables",
+      "correct": true,
+      "answer": "events (1000000 rows), orders (10000 rows), profiles (3000 rows)",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 6041,
+      "inputTokens": 8,
+      "cacheCreationTokens": 9381,
+      "cacheReadTokens": 21465,
+      "outputTokens": 3046,
+      "costUsd": 0.0036146499999999996,
+      "durationMs": 12510,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "list_tables {\"database\":\"shop\"}",
+          "outputChars": 5145,
+          "isError": false,
+          "preview": "[\n  {\n    \"Tables_in_shop\": \"analytics_log\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"analytics_notes\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"analytics_s"
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT TABLE_NAME, TABLE_ROWS FROM information_schema.TABLES WHERE TABLE_SCHEMA = 'shop' AND TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_ROWS DESC LIMIT 10\"}",
+          "outputChars": 659,
+          "isError": false,
+          "preview": "[\n  {\n    \"TABLE_NAME\": \"events\",\n    \"TABLE_ROWS\": \"975033\"\n  },\n  {\n    \"TABLE_NAME\": \"orders\",\n    \"TABLE_ROWS\": \"9869\"\n  },\n  {\n    \"TABLE_NAME\": \"profiles\",\n    \"TABLE_ROWS\": \"2061\"\n  },\n  {\n    "
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT 'analytics_log' t, COUNT(*) c FROM analytics_log UNION ALL SELECT 'analytics_notes', COUNT(*) FROM analytics_notes UNION ALL SELECT 'analytics_settings', COUNT(*) FROM analytics_settings UNION ALL SELECT 'analytics_snapshots', COUNT(*) FROM analytics_snapshots UNION ALL SELECT 'analytics_tags', COUNT(*) FROM analytics_tags UNION ALL SELECT 'audit_lo",
+          "outputChars": 237,
+          "isError": false,
+          "preview": "[\n  {\n    \"t\": \"events\",\n    \"c\": \"1000000\"\n  },\n  {\n    \"t\": \"orders\",\n    \"c\": \"10000\"\n  },\n  {\n    \"t\": \"profiles\",\n    \"c\": \"3000\"\n  },\n  {\n    \"t\": \"customers\",\n    \"c\": \"1000\"\n  },\n  {\n    \"t\": "
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "largest tables",
+      "correct": true,
+      "answer": "events, orders, profiles",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 1201,
+      "inputTokens": 6,
+      "cacheCreationTokens": 4761,
+      "cacheReadTokens": 14039,
+      "outputTokens": 837,
+      "costUsd": 0.00151169,
+      "durationMs": 9604,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SELECT TABLE_NAME, TABLE_ROWS FROM information_schema.TABLES WHERE TABLE_SCHEMA = 'shop' AND TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_ROWS DESC;\"",
+          "outputChars": 1141,
+          "isError": false,
+          "preview": "TABLE_NAME\tTABLE_ROWS\nevents\t975033\norders\t9869\nprofiles\t2061\ncustomers\t1000\nanalytics_tags\t94\nshipping_notes\t93\naudit_snapshots\t92\npayroll_log\t88\nauth_tags\t87\nmarketing_notes\t86\nsupport_snapshots\t85\n"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SELECT 'events' t, COUNT(*) n FROM events UNION ALL SELECT 'orders', COUNT(*) FROM orders UNION ALL SELECT 'profiles', COUNT(*) FROM profiles UNION ALL SELECT 'customers', COUNT(*) FROM customers ORDER BY n DESC;\"",
+          "outputChars": 60,
+          "isError": false,
+          "preview": "t\tn\nevents\t1000000\norders\t10000\nprofiles\t3000\ncustomers\t1000"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "largest tables",
+      "correct": true,
+      "answer": "events (1000000 rows), orders (10000 rows), profiles (3000 rows)",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 2772,
+      "inputTokens": 8,
+      "cacheCreationTokens": 5877,
+      "cacheReadTokens": 20454,
+      "outputTokens": 1693,
+      "costUsd": 0.00222724,
+      "durationMs": 13275,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi tables 2>&1",
+          "outputChars": 2201,
+          "isError": false,
+          "preview": "database: shop\ntotal: 65 tables; 0 views; 124 MB\ntables[65]{name,kind,rows_est,size}:\n  analytics_log,table,81,16 KB\n  analytics_notes,table,17,16 KB\n  analytics_settings,table,68,16 KB\n  analytics_sn"
+        },
+        {
+          "command": "mysql-axi query \"SELECT 'events' AS t, COUNT(*) AS n FROM shop.events UNION ALL SELECT 'orders', COUNT(*) FROM shop.orders UNION ALL SELECT 'profiles', COUNT(*) FROM shop.profiles UNION ALL SELECT 'customers', COUNT(*) FROM shop.customers UNION ALL SELECT 'analytics_tags', COUNT(*) FROM shop.analytics_tags UNION ALL SELECT 'audit_snapshots', COUNT(*) FROM shop.audit_snapshots ORDER BY n DESC\" 2>&1",
+          "outputChars": 121,
+          "isError": false,
+          "preview": "result[6]{t,n}:\n  events,1000000\n  orders,10000\n  profiles,3000\n  customers,1000\n  analytics_tags,94\n  audit_snapshots,92"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "largest tables",
+      "correct": true,
+      "answer": "events (1000000 rows), orders (10000 rows), profiles (3000 rows)",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 2281,
+      "inputTokens": 6,
+      "cacheCreationTokens": 5603,
+      "cacheReadTokens": 15101,
+      "outputTokens": 944,
+      "costUsd": 0.0017442100000000004,
+      "durationMs": 7931,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi tables",
+          "outputChars": 2201,
+          "isError": false,
+          "preview": "database: shop\ntotal: 65 tables; 0 views; 124 MB\ntables[65]{name,kind,rows_est,size}:\n  analytics_log,table,81,16 KB\n  analytics_notes,table,17,16 KB\n  analytics_settings,table,68,16 KB\n  analytics_sn"
+        },
+        {
+          "command": "M=<bin>/mysql-axi; $M query \"SELECT 'events' AS t, COUNT(*) AS n FROM events UNION ALL SELECT 'orders', COUNT(*) FROM orders UNION ALL SELECT 'profiles', COUNT(*) FROM profiles UNION ALL SELECT 'customers', COUNT(*) FROM customers ORDER BY n DESC\"",
+          "outputChars": 80,
+          "isError": false,
+          "preview": "result[4]{t,n}:\n  events,1000000\n  orders,10000\n  profiles,3000\n  customers,1000"
+        }
+      ]
+    },
+    {
+      "arm": "mcp",
+      "task": "largest tables",
+      "correct": true,
+      "answer": "events (1000000 rows), orders (10000), profiles (3000)",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 4559,
+      "inputTokens": 6,
+      "cacheCreationTokens": 6552,
+      "cacheReadTokens": 13346,
+      "outputTokens": 832,
+      "costUsd": 0.0018604600000000002,
+      "durationMs": 6386,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT TABLE_NAME, TABLE_ROWS FROM information_schema.TABLES WHERE TABLE_SCHEMA = 'shop' ORDER BY TABLE_ROWS DESC\"}",
+          "outputChars": 4372,
+          "isError": false,
+          "preview": "[\n  {\n    \"TABLE_NAME\": \"events\",\n    \"TABLE_ROWS\": \"975033\"\n  },\n  {\n    \"TABLE_NAME\": \"orders\",\n    \"TABLE_ROWS\": \"9869\"\n  },\n  {\n    \"TABLE_NAME\": \"profiles\",\n    \"TABLE_ROWS\": \"2061\"\n  },\n  {\n    "
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT 'events' AS t, COUNT(*) AS n FROM events UNION ALL SELECT 'orders', COUNT(*) FROM orders UNION ALL SELECT 'profiles', COUNT(*) FROM profiles UNION ALL SELECT 'customers', COUNT(*) FROM customers ORDER BY n DESC\"}",
+          "outputChars": 187,
+          "isError": false,
+          "preview": "[\n  {\n    \"t\": \"events\",\n    \"n\": \"1000000\"\n  },\n  {\n    \"t\": \"orders\",\n    \"n\": \"10000\"\n  },\n  {\n    \"t\": \"profiles\",\n    \"n\": \"3000\"\n  },\n  {\n    \"t\": \"customers\",\n    \"n\": \"1000\"\n  }\n]"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "largest tables",
+      "correct": true,
+      "answer": "events (1000000), orders (10000), profiles (3000)",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 1201,
+      "inputTokens": 6,
+      "cacheCreationTokens": 4684,
+      "cacheReadTokens": 14041,
+      "outputTokens": 866,
+      "costUsd": 0.00151081,
+      "durationMs": 6664,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SELECT TABLE_NAME, TABLE_ROWS FROM information_schema.TABLES WHERE TABLE_SCHEMA='shop' AND TABLE_TYPE='BASE TABLE' ORDER BY TABLE_ROWS DESC;\"",
+          "outputChars": 1141,
+          "isError": false,
+          "preview": "TABLE_NAME\tTABLE_ROWS\nevents\t975033\norders\t9869\nprofiles\t2061\ncustomers\t1000\nanalytics_tags\t94\nshipping_notes\t93\naudit_snapshots\t92\npayroll_log\t88\nauth_tags\t87\nmarketing_notes\t86\nsupport_snapshots\t85\n"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SELECT 'events' t, COUNT(*) n FROM events UNION ALL SELECT 'orders', COUNT(*) FROM orders UNION ALL SELECT 'profiles', COUNT(*) FROM profiles UNION ALL SELECT 'customers', COUNT(*) FROM customers ORDER BY n DESC;\"",
+          "outputChars": 60,
+          "isError": false,
+          "preview": "t\tn\nevents\t1000000\norders\t10000\nprofiles\t3000\ncustomers\t1000"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "largest tables",
+      "correct": true,
+      "answer": "events (1000000 rows), orders (10000), profiles (3000)",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 3191,
+      "inputTokens": 8,
+      "cacheCreationTokens": 5608,
+      "cacheReadTokens": 20669,
+      "outputTokens": 919,
+      "costUsd": 0.0017885899999999998,
+      "durationMs": 8444,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi tables --help 2>&1 | head -30; echo ---; mysql-axi tables 2>&1 | head -80",
+          "outputChars": 2661,
+          "isError": false,
+          "preview": "usage: mysql-axi tables [-d <database>] [flags]\nTables and views of one database with estimated rows and size.\nflags:\n  --profile <name>, -d/--database <name>, --sort name|size|rows (default name), --"
+        },
+        {
+          "command": "mysql-axi query \"SELECT 'events' AS t, COUNT(*) AS n FROM shop.events UNION ALL SELECT 'orders', COUNT(*) FROM shop.orders UNION ALL SELECT 'profiles', COUNT(*) FROM shop.profiles UNION ALL SELECT 'customers', COUNT(*) FROM shop.customers ORDER BY n DESC\" 2>&1",
+          "outputChars": 80,
+          "isError": false,
+          "preview": "result[4]{t,n}:\n  events,1000000\n  orders,10000\n  profiles,3000\n  customers,1000"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "largest tables",
+      "correct": true,
+      "answer": "events (1000000 rows), orders (10000), profiles (3000)",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 2281,
+      "inputTokens": 6,
+      "cacheCreationTokens": 5518,
+      "cacheReadTokens": 15106,
+      "outputTokens": 1237,
+      "costUsd": 0.00187376,
+      "durationMs": 9853,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi tables",
+          "outputChars": 2201,
+          "isError": false,
+          "preview": "database: shop\ntotal: 65 tables; 0 views; 124 MB\ntables[65]{name,kind,rows_est,size}:\n  analytics_log,table,81,16 KB\n  analytics_notes,table,17,16 KB\n  analytics_settings,table,68,16 KB\n  analytics_sn"
+        },
+        {
+          "command": "B=<bin>/mysql-axi; $B query \"SELECT 'events' AS t, COUNT(*) AS n FROM events UNION ALL SELECT 'orders', COUNT(*) FROM orders UNION ALL SELECT 'profiles', COUNT(*) FROM profiles UNION ALL SELECT 'customers', COUNT(*) FROM customers ORDER BY n DESC\"",
+          "outputChars": 80,
+          "isError": false,
+          "preview": "result[4]{t,n}:\n  events,1000000\n  orders,10000\n  profiles,3000\n  customers,1000"
+        }
+      ]
+    },
+    {
+      "arm": "mcp",
+      "task": "largest tables",
+      "correct": true,
+      "answer": "events (1000000 rows), orders (10000 rows), profiles (3000 rows)",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 6373,
+      "inputTokens": 8,
+      "cacheCreationTokens": 7572,
+      "cacheReadTokens": 21716,
+      "outputTokens": 1510,
+      "costUsd": 0.00248736,
+      "durationMs": 10186,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "list_tables {\"database\":\"shop\"}",
+          "outputChars": 5145,
+          "isError": false,
+          "preview": "[\n  {\n    \"Tables_in_shop\": \"analytics_log\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"analytics_notes\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"analytics_s"
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT TABLE_NAME, TABLE_ROWS FROM information_schema.TABLES WHERE TABLE_SCHEMA = 'shop' AND TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_ROWS DESC LIMIT 15\"}",
+          "outputChars": 999,
+          "isError": false,
+          "preview": "[\n  {\n    \"TABLE_NAME\": \"events\",\n    \"TABLE_ROWS\": \"975033\"\n  },\n  {\n    \"TABLE_NAME\": \"orders\",\n    \"TABLE_ROWS\": \"9869\"\n  },\n  {\n    \"TABLE_NAME\": \"profiles\",\n    \"TABLE_ROWS\": \"2061\"\n  },\n  {\n    "
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT 'events' AS t, COUNT(*) AS n FROM events UNION ALL SELECT 'orders', COUNT(*) FROM orders UNION ALL SELECT 'profiles', COUNT(*) FROM profiles UNION ALL SELECT 'customers', COUNT(*) FROM customers UNION ALL SELECT 'digits', COUNT(*) FROM digits ORDER BY n DESC\"}",
+          "outputChars": 229,
+          "isError": false,
+          "preview": "[\n  {\n    \"t\": \"events\",\n    \"n\": \"1000000\"\n  },\n  {\n    \"t\": \"orders\",\n    \"n\": \"10000\"\n  },\n  {\n    \"t\": \"profiles\",\n    \"n\": \"3000\"\n  },\n  {\n    \"t\": \"customers\",\n    \"n\": \"1000\"\n  },\n  {\n    \"t\": "
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "events per kind",
+      "correct": true,
+      "answer": "add_to_cart=100000, checkout=60000, click=250000, error=10000, page_view=400000, refund=30000, search=150000",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 111,
+      "inputTokens": 4,
+      "cacheCreationTokens": 3610,
+      "cacheReadTokens": 7653,
+      "outputTokens": 231,
+      "costUsd": 0.0009144300000000001,
+      "durationMs": 4149,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SELECT kind, COUNT(*) AS cnt FROM events GROUP BY kind ORDER BY kind;\"",
+          "outputChars": 111,
+          "isError": false,
+          "preview": "kind\tcnt\nadd_to_cart\t100000\ncheckout\t60000\nclick\t250000\nerror\t10000\npage_view\t400000\nrefund\t30000\nsearch\t150000"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "events per kind",
+      "correct": true,
+      "answer": "page_view=400000, click=250000, search=150000, add_to_cart=100000, checkout=60000, refund=30000, error=10000",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 1035,
+      "inputTokens": 6,
+      "cacheCreationTokens": 4117,
+      "cacheReadTokens": 13415,
+      "outputTokens": 556,
+      "costUsd": 0.00123615,
+      "durationMs": 6609,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi describe events 2>&1 | head -60; echo ---; mysql-axi query \"SELECT kind, COUNT(*) AS cnt FROM events GROUP BY kind ORDER BY kind\" 2>&1",
+          "outputChars": 585,
+          "isError": false,
+          "preview": "table:\n  name: shop.events\n  rows_est: 975033\n  size: 108 MB\ncolumns[6]{name,type,nullable,key,default,extra}:\n  id,int unsigned,false,PRI,null,null\n  customer_id,bigint unsigned,false,MUL,null,null\n "
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "events per kind",
+      "correct": true,
+      "answer": "page_view=400000, click=250000, search=150000, add_to_cart=100000, checkout=60000, refund=30000, error=10000",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 580,
+      "inputTokens": 4,
+      "cacheCreationTokens": 4347,
+      "cacheReadTokens": 7969,
+      "outputTokens": 624,
+      "costUsd": 0.00126149,
+      "durationMs": 4604,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi describe events",
+          "outputChars": 443,
+          "isError": false,
+          "preview": "table:\n  name: shop.events\n  rows_est: 975033\n  size: 108 MB\ncolumns[6]{name,type,nullable,key,default,extra}:\n  id,int unsigned,false,PRI,null,null\n  customer_id,bigint unsigned,false,MUL,null,null\n "
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT kind, COUNT(*) AS cnt FROM events GROUP BY kind ORDER BY kind\"",
+          "outputChars": 137,
+          "isError": false,
+          "preview": "result[7]{kind,cnt}:\n  add_to_cart,100000\n  checkout,60000\n  click,250000\n  error,10000\n  page_view,400000\n  refund,30000\n  search,150000"
+        }
+      ]
+    },
+    {
+      "arm": "mcp",
+      "task": "events per kind",
+      "correct": true,
+      "answer": "add_to_cart: 100000, checkout: 60000, click: 250000, error: 10000, page_view: 400000, refund: 30000, search: 150000",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 1202,
+      "inputTokens": 6,
+      "cacheCreationTokens": 3978,
+      "cacheReadTokens": 10977,
+      "outputTokens": 496,
+      "costUsd": 0.0011539700000000003,
+      "durationMs": 4776,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "describe_table {\"table\":\"events\",\"database\":\"shop\"}",
+          "outputChars": 782,
+          "isError": false,
+          "preview": "[\n  {\n    \"Field\": \"id\",\n    \"Type\": \"int unsigned\",\n    \"Null\": \"NO\",\n    \"Key\": \"PRI\",\n    \"Default\": null,\n    \"Extra\": \"\"\n  },\n  {\n    \"Field\": \"customer_id\",\n    \"Type\": \"bigint unsigned\",\n    \"N"
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT kind, COUNT(*) AS event_count FROM events GROUP BY kind ORDER BY kind\"}",
+          "outputChars": 420,
+          "isError": false,
+          "preview": "[\n  {\n    \"kind\": \"add_to_cart\",\n    \"event_count\": \"100000\"\n  },\n  {\n    \"kind\": \"checkout\",\n    \"event_count\": \"60000\"\n  },\n  {\n    \"kind\": \"click\",\n    \"event_count\": \"250000\"\n  },\n  {\n    \"kind\": "
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "events per kind",
+      "correct": true,
+      "answer": "add_to_cart=100000, checkout=60000, click=250000, error=10000, page_view=400000, refund=30000, search=150000",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 111,
+      "inputTokens": 4,
+      "cacheCreationTokens": 3610,
+      "cacheReadTokens": 7653,
+      "outputTokens": 309,
+      "costUsd": 0.0009534300000000001,
+      "durationMs": 4624,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SELECT kind, COUNT(*) AS cnt FROM events GROUP BY kind ORDER BY kind;\"",
+          "outputChars": 111,
+          "isError": false,
+          "preview": "kind\tcnt\nadd_to_cart\t100000\ncheckout\t60000\nclick\t250000\nerror\t10000\npage_view\t400000\nrefund\t30000\nsearch\t150000"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "events per kind",
+      "correct": true,
+      "answer": "add_to_cart=100000, checkout=60000, click=250000, error=10000, page_view=400000, refund=30000, search=150000",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 1031,
+      "inputTokens": 6,
+      "cacheCreationTokens": 4099,
+      "cacheReadTokens": 13405,
+      "outputTokens": 509,
+      "costUsd": 0.0012089499999999999,
+      "durationMs": 6036,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi describe events 2>&1; mysql-axi query \"SELECT kind, COUNT(*) AS cnt FROM events GROUP BY kind ORDER BY kind\" 2>&1",
+          "outputChars": 581,
+          "isError": false,
+          "preview": "table:\n  name: shop.events\n  rows_est: 975033\n  size: 108 MB\ncolumns[6]{name,type,nullable,key,default,extra}:\n  id,int unsigned,false,PRI,null,null\n  customer_id,bigint unsigned,false,MUL,null,null\n "
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "events per kind",
+      "correct": true,
+      "answer": "add_to_cart=100000, checkout=60000, click=250000, error=10000, page_view=400000, refund=30000, search=150000",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 578,
+      "inputTokens": 4,
+      "cacheCreationTokens": 4343,
+      "cacheReadTokens": 7969,
+      "outputTokens": 614,
+      "costUsd": 0.00125569,
+      "durationMs": 4689,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi describe events",
+          "outputChars": 443,
+          "isError": false,
+          "preview": "table:\n  name: shop.events\n  rows_est: 975033\n  size: 108 MB\ncolumns[6]{name,type,nullable,key,default,extra}:\n  id,int unsigned,false,PRI,null,null\n  customer_id,bigint unsigned,false,MUL,null,null\n "
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT kind, COUNT(*) AS n FROM events GROUP BY kind ORDER BY kind\"",
+          "outputChars": 135,
+          "isError": false,
+          "preview": "result[7]{kind,n}:\n  add_to_cart,100000\n  checkout,60000\n  click,250000\n  error,10000\n  page_view,400000\n  refund,30000\n  search,150000"
+        }
+      ]
+    },
+    {
+      "arm": "mcp",
+      "task": "events per kind",
+      "correct": true,
+      "answer": "add_to_cart=100000, checkout=60000, click=250000, error=10000, page_view=400000, refund=30000, search=150000",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 1202,
+      "inputTokens": 6,
+      "cacheCreationTokens": 3978,
+      "cacheReadTokens": 10977,
+      "outputTokens": 459,
+      "costUsd": 0.0011354700000000002,
+      "durationMs": 4404,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "describe_table {\"table\":\"events\",\"database\":\"shop\"}",
+          "outputChars": 782,
+          "isError": false,
+          "preview": "[\n  {\n    \"Field\": \"id\",\n    \"Type\": \"int unsigned\",\n    \"Null\": \"NO\",\n    \"Key\": \"PRI\",\n    \"Default\": null,\n    \"Extra\": \"\"\n  },\n  {\n    \"Field\": \"customer_id\",\n    \"Type\": \"bigint unsigned\",\n    \"N"
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT kind, COUNT(*) AS event_count FROM events GROUP BY kind ORDER BY kind\"}",
+          "outputChars": 420,
+          "isError": false,
+          "preview": "[\n  {\n    \"kind\": \"add_to_cart\",\n    \"event_count\": \"100000\"\n  },\n  {\n    \"kind\": \"checkout\",\n    \"event_count\": \"60000\"\n  },\n  {\n    \"kind\": \"click\",\n    \"event_count\": \"250000\"\n  },\n  {\n    \"kind\": "
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "events per kind",
+      "correct": true,
+      "answer": "add_to_cart=100000, checkout=60000, click=250000, error=10000, page_view=400000, refund=30000, search=150000",
+      "turns": 2,
+      "toolCalls": 1,
+      "toolOutputChars": 111,
+      "inputTokens": 4,
+      "cacheCreationTokens": 3610,
+      "cacheReadTokens": 7653,
+      "outputTokens": 231,
+      "costUsd": 0.0009144300000000001,
+      "durationMs": 3708,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SELECT kind, COUNT(*) AS cnt FROM events GROUP BY kind ORDER BY kind;\"",
+          "outputChars": 111,
+          "isError": false,
+          "preview": "kind\tcnt\nadd_to_cart\t100000\ncheckout\t60000\nclick\t250000\nerror\t10000\npage_view\t400000\nrefund\t30000\nsearch\t150000"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "events per kind",
+      "correct": true,
+      "answer": "add_to_cart=100000, checkout=60000, click=250000, error=10000, page_view=400000, refund=30000, search=150000",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 1030,
+      "inputTokens": 6,
+      "cacheCreationTokens": 4220,
+      "cacheReadTokens": 13406,
+      "outputTokens": 564,
+      "costUsd": 0.00126066,
+      "durationMs": 6746,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi describe events 2>&1 | head -60",
+          "outputChars": 443,
+          "isError": false,
+          "preview": "table:\n  name: shop.events\n  rows_est: 975033\n  size: 108 MB\ncolumns[6]{name,type,nullable,key,default,extra}:\n  id,int unsigned,false,PRI,null,null\n  customer_id,bigint unsigned,false,MUL,null,null\n "
+        },
+        {
+          "command": "mysql-axi query \"SELECT kind, COUNT(*) AS cnt FROM events GROUP BY kind ORDER BY kind\" 2>&1",
+          "outputChars": 137,
+          "isError": false,
+          "preview": "result[7]{kind,cnt}:\n  add_to_cart,100000\n  checkout,60000\n  click,250000\n  error,10000\n  page_view,400000\n  refund,30000\n  search,150000"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "events per kind",
+      "correct": true,
+      "answer": "add_to_cart=100000, checkout=60000, click=250000, error=10000, page_view=400000, refund=30000, search=150000",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 580,
+      "inputTokens": 4,
+      "cacheCreationTokens": 4346,
+      "cacheReadTokens": 7969,
+      "outputTokens": 491,
+      "costUsd": 0.0011947899999999998,
+      "durationMs": 5638,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi describe events",
+          "outputChars": 443,
+          "isError": false,
+          "preview": "table:\n  name: shop.events\n  rows_est: 975033\n  size: 108 MB\ncolumns[6]{name,type,nullable,key,default,extra}:\n  id,int unsigned,false,PRI,null,null\n  customer_id,bigint unsigned,false,MUL,null,null\n "
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT kind, COUNT(*) AS cnt FROM events GROUP BY kind ORDER BY kind\"",
+          "outputChars": 137,
+          "isError": false,
+          "preview": "result[7]{kind,cnt}:\n  add_to_cart,100000\n  checkout,60000\n  click,250000\n  error,10000\n  page_view,400000\n  refund,30000\n  search,150000"
+        }
+      ]
+    },
+    {
+      "arm": "mcp",
+      "task": "events per kind",
+      "correct": true,
+      "answer": "add_to_cart=100000, checkout=60000, click=250000, error=10000, page_view=400000, refund=30000, search=150000",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 1146,
+      "inputTokens": 6,
+      "cacheCreationTokens": 3978,
+      "cacheReadTokens": 10977,
+      "outputTokens": 351,
+      "costUsd": 0.0010814700000000002,
+      "durationMs": 4404,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "describe_table {\"table\":\"events\",\"database\":\"shop\"}",
+          "outputChars": 782,
+          "isError": false,
+          "preview": "[\n  {\n    \"Field\": \"id\",\n    \"Type\": \"int unsigned\",\n    \"Null\": \"NO\",\n    \"Key\": \"PRI\",\n    \"Default\": null,\n    \"Extra\": \"\"\n  },\n  {\n    \"Field\": \"customer_id\",\n    \"Type\": \"bigint unsigned\",\n    \"N"
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT kind, COUNT(*) AS cnt FROM events GROUP BY kind ORDER BY kind\"}",
+          "outputChars": 364,
+          "isError": false,
+          "preview": "[\n  {\n    \"kind\": \"add_to_cart\",\n    \"cnt\": \"100000\"\n  },\n  {\n    \"kind\": \"checkout\",\n    \"cnt\": \"60000\"\n  },\n  {\n    \"kind\": \"click\",\n    \"cnt\": \"250000\"\n  },\n  {\n    \"kind\": \"error\",\n    \"cnt\": \"100"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "all enterprise handles in Norway",
+      "correct": true,
+      "answer": "member_00019, member_00054, member_00089, member_00124, member_00159, member_00194, member_00229, member_00264, member_00299, member_00334, member_00369, member_00404, member_00439, member_00474, member_00509, member_00544, member_00579, member_00614, member_00649, member_00684, member_00719, member_00754, member_00789, member_00824, member_00859, member_00894, member_00929, member_00964, member_00999, member_01034, member_01069, member_01104, member_01139, member_01174, member_01209, member_01244, member_01279, member_01314, member_01349, member_01384, member_01419, member_01454, member_01489, member_01524, member_01559, member_01594, member_01629, member_01664, member_01699, member_01734, member_01769, member_01804, member_01839, member_01874, member_01909, member_01944, member_01979, member_02014, member_02049, member_02084, member_02119, member_02154, member_02189, member_02224, member_02259, member_02294, member_02329, member_02364, member_02399, member_02434, member_02469, member_02504, member_02539, member_02574, member_02609, member_02644, member_02679, member_02714, member_02749, member_02784, member_02819, member_02854, member_02889, member_02924, member_02959, member_02994",
+      "turns": 4,
+      "toolCalls": 3,
+      "toolOutputChars": 6652,
+      "inputTokens": 8,
+      "cacheCreationTokens": 7727,
+      "cacheReadTokens": 22752,
+      "outputTokens": 2373,
+      "costUsd": 0.0029602200000000004,
+      "durationMs": 14155,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SHOW TABLES; SHOW COLUMNS FROM profiles;\" 2>&1",
+          "outputChars": 2994,
+          "isError": false,
+          "preview": "Tables_in_shop\nanalytics_log\nanalytics_notes\nanalytics_settings\nanalytics_snapshots\nanalytics_tags\naudit_log\naudit_notes\naudit_settings\naudit_snapshots\naudit_tags\nauth_log\nauth_notes\nauth_settings\naut"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SELECT plan, COUNT(*) FROM profiles GROUP BY plan; SELECT DISTINCT country, HEX(country) FROM profiles WHERE country LIKE '%norw%' OR country LIKE '%NO%' OR country LIKE '%nor%';\" 2>&1",
+          "outputChars": 108,
+          "isError": false,
+          "preview": "plan\tCOUNT(*)\nfree\t600\nstarter\t600\npro\t600\nenterprise\t600\ntrial\t600\ncountry\tHEX(country)\nNorway\t4E6F72776179"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SELECT id, handle, status, deleted_at, merged_into_id, cancelled_at FROM profiles WHERE plan='enterprise' AND country='Norway' ORDER BY handle;\" 2>&1",
+          "outputChars": 3550,
+          "isError": false,
+          "preview": "id\thandle\tstatus\tdeleted_at\tmerged_into_id\tcancelled_at\n19\tmember_00019\tactive\tNULL\tNULL\tNULL\n54\tmember_00054\tsuspended\tNULL\tNULL\tNULL\n89\tmember_00089\tactive\tNULL\tNULL\tNULL\n124\tmember_00124\tactive\tNUL"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "all enterprise handles in Norway",
+      "correct": true,
+      "answer": "member_00019, member_00054, member_00089, member_00124, member_00159, member_00194, member_00229, member_00264, member_00299, member_00334, member_00369, member_00404, member_00439, member_00474, member_00509, member_00544, member_00579, member_00614, member_00649, member_00684, member_00719, member_00754, member_00789, member_00824, member_00859, member_00894, member_00929, member_00964, member_00999, member_01034, member_01069, member_01104, member_01139, member_01174, member_01209, member_01244, member_01279, member_01314, member_01349, member_01384, member_01419, member_01454, member_01489, member_01524, member_01559, member_01594, member_01629, member_01664, member_01699, member_01734, member_01769, member_01804, member_01839, member_01874, member_01909, member_01944, member_01979, member_02014, member_02049, member_02084, member_02119, member_02154, member_02189, member_02224, member_02259, member_02294, member_02329, member_02364, member_02399, member_02434, member_02469, member_02504, member_02539, member_02574, member_02609, member_02644, member_02679, member_02714, member_02749, member_02784, member_02819, member_02854, member_02889, member_02924, member_02959, member_02994",
+      "turns": 7,
+      "toolCalls": 6,
+      "toolOutputChars": 7906,
+      "inputTokens": 12,
+      "cacheCreationTokens": 8007,
+      "cacheReadTokens": 39023,
+      "outputTokens": 1658,
+      "costUsd": 0.00282183,
+      "durationMs": 12054,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi \"SHOW TABLES\" 2>&1 | head -50",
+          "outputChars": 819,
+          "isError": false,
+          "preview": "rows: 50 of 65 shown\nresult[50]{Tables_in_shop}:\n  analytics_log\n  analytics_notes\n  analytics_settings\n  analytics_snapshots\n  analytics_tags\n  audit_log\n  audit_notes\n  audit_settings\n  audit_snapsh"
+        },
+        {
+          "command": "mysql-axi query \"SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA='shop' AND TABLE_NAME LIKE '%profile%'\" 2>&1; mysql-axi describe profiles 2>&1 | head -60",
+          "outputChars": 2503,
+          "isError": false,
+          "preview": "result[1]{TABLE_NAME}:\n  profiles\ntable:\n  name: shop.profiles\n  rows_est: 2061\n  size: 13 MB\ncolumns[66]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  handle,varchar(20),false"
+        },
+        {
+          "command": "mysql-axi query \"SELECT plan, COUNT(*) n FROM profiles GROUP BY plan\" 2>&1; mysql-axi query \"SELECT country, COUNT(*) n FROM profiles WHERE country LIKE '%nor%' OR country LIKE '%NO%' GROUP BY country\" 2>&1",
+          "outputChars": 117,
+          "isError": false,
+          "preview": "result[5]{plan,n}:\n  free,600\n  starter,600\n  pro,600\n  enterprise,600\n  trial,600\nresult[1]{country,n}:\n  Norway,428"
+        },
+        {
+          "command": "mysql-axi query \"SELECT handle, plan, country, status, deleted_at, merged_into_id FROM profiles WHERE plan='enterprise' AND country='Norway' ORDER BY handle\" 2>&1",
+          "outputChars": 2708,
+          "isError": false,
+          "preview": "rows: 50 of 86 shown\nresult[50]{handle,plan,country,status,deleted_at,merged_into_id}:\n  member_00019,enterprise,Norway,active,null,null\n  member_00054,enterprise,Norway,suspended,null,null\n  member_0"
+        },
+        {
+          "command": "mysql-axi query \"SELECT handle FROM profiles WHERE plan='enterprise' AND country='Norway' ORDER BY handle\" --limit 100 2>&1",
+          "outputChars": 1309,
+          "isError": false,
+          "preview": "result[86]{handle}:\n  member_00019\n  member_00054\n  member_00089\n  member_00124\n  member_00159\n  member_00194\n  member_00229\n  member_00264\n  member_00299\n  member_00334\n  member_00369\n  member_00404\n"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "all enterprise handles in Norway",
+      "correct": true,
+      "answer": "member_00019, member_00054, member_00089, member_00124, member_00159, member_00194, member_00229, member_00264, member_00299, member_00334, member_00369, member_00404, member_00439, member_00474, member_00509, member_00544, member_00579, member_00614, member_00649, member_00684, member_00719, member_00754, member_00789, member_00824, member_00859, member_00894, member_00929, member_00964, member_00999, member_01034, member_01069, member_01104, member_01139, member_01174, member_01209, member_01244, member_01279, member_01314, member_01349, member_01384, member_01419, member_01454, member_01489, member_01524, member_01559, member_01594, member_01629, member_01664, member_01699, member_01734, member_01769, member_01804, member_01839, member_01874, member_01909, member_01944, member_01979, member_02014, member_02049, member_02084, member_02119, member_02154, member_02189, member_02224, member_02259, member_02294, member_02329, member_02364, member_02399, member_02434, member_02469, member_02504, member_02539, member_02574, member_02609, member_02644, member_02679, member_02714, member_02749, member_02784, member_02819, member_02854, member_02889, member_02924, member_02959, member_02994",
+      "turns": 7,
+      "toolCalls": 6,
+      "toolOutputChars": 7290,
+      "inputTokens": 12,
+      "cacheCreationTokens": 8960,
+      "cacheReadTokens": 42553,
+      "outputTokens": 2315,
+      "costUsd": 0.0033762300000000005,
+      "durationMs": 18009,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi tables",
+          "outputChars": 2201,
+          "isError": false,
+          "preview": "database: shop\ntotal: 65 tables; 0 views; 124 MB\ntables[65]{name,kind,rows_est,size}:\n  analytics_log,table,81,16 KB\n  analytics_notes,table,17,16 KB\n  analytics_settings,table,68,16 KB\n  analytics_sn"
+        },
+        {
+          "command": "<bin>/mysql-axi describe profiles",
+          "outputChars": 3039,
+          "isError": false,
+          "preview": "table:\n  name: shop.profiles\n  rows_est: 2061\n  size: 13 MB\ncolumns[66]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  handle,varchar(20),false,UNI,null,null\n  email,varchar(120"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT plan, country, COUNT(*) AS n FROM profiles WHERE plan LIKE '%enterprise%' OR country LIKE '%norw%' OR country LIKE '%NO%' GROUP BY plan, country ORDER BY plan, country\"",
+          "outputChars": 265,
+          "isError": false,
+          "preview": "result[11]{plan,country,n}:\n  enterprise,Austria,86\n  enterprise,France,86\n  enterprise,Germany,85\n  enterprise,Netherlands,86\n  enterprise,Norway,86\n  enterprise,Poland,85\n  enterprise,Spain,86\n  fre"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT COUNT(*) AS total, SUM(deleted_at IS NOT NULL) AS deleted, SUM(status='active') AS active, COUNT(DISTINCT status) AS statuses FROM profiles WHERE plan='enterprise' AND country='Norway'\"",
+          "outputChars": 53,
+          "isError": false,
+          "preview": "result[1]{total,deleted,active,statuses}:\n  86,0,57,2"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT id, handle FROM profiles WHERE plan='enterprise' AND country='Norway' ORDER BY id LIMIT 50 OFFSET 0\"",
+          "outputChars": 990,
+          "isError": false,
+          "preview": "result[50]{id,handle}:\n  19,member_00019\n  54,member_00054\n  89,member_00089\n  124,member_00124\n  159,member_00159\n  194,member_00194\n  229,member_00229\n  264,member_00264\n  299,member_00299\n  334,mem"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT id, handle FROM profiles WHERE plan='enterprise' AND country='Norway' ORDER BY id LIMIT 50 OFFSET 50\"",
+          "outputChars": 742,
+          "isError": false,
+          "preview": "result[36]{id,handle}:\n  1769,member_01769\n  1804,member_01804\n  1839,member_01839\n  1874,member_01874\n  1909,member_01909\n  1944,member_01944\n  1979,member_01979\n  2014,member_02014\n  2049,member_020"
+        }
+      ]
+    },
+    {
+      "arm": "mcp",
+      "task": "all enterprise handles in Norway",
+      "correct": true,
+      "answer": "member_00019, member_00054, member_00089, member_00124, member_00159, member_00194, member_00229, member_00264, member_00299, member_00334, member_00369, member_00404, member_00439, member_00474, member_00509, member_00544, member_00579, member_00614, member_00649, member_00684, member_00719, member_00754, member_00789, member_00824, member_00859, member_00894, member_00929, member_00964, member_00999, member_01034, member_01069, member_01104, member_01139, member_01174, member_01209, member_01244, member_01279, member_01314, member_01349, member_01384, member_01419, member_01454, member_01489, member_01524, member_01559, member_01594, member_01629, member_01664, member_01699, member_01734, member_01769, member_01804, member_01839, member_01874, member_01909, member_01944, member_01979, member_02014, member_02049, member_02084, member_02119, member_02154, member_02189, member_02224, member_02259, member_02294, member_02329, member_02364, member_02399, member_02434, member_02469, member_02504, member_02539, member_02574, member_02609, member_02644, member_02679, member_02714, member_02749, member_02784, member_02819, member_02854, member_02889, member_02924, member_02959, member_02994",
+      "turns": 6,
+      "toolCalls": 5,
+      "toolOutputChars": 26111,
+      "inputTokens": 12,
+      "cacheCreationTokens": 16790,
+      "cacheReadTokens": 50288,
+      "outputTokens": 1988,
+      "costUsd": 0.0048560800000000005,
+      "durationMs": 13678,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "list_tables {\"database\":\"shop\"}",
+          "outputChars": 5145,
+          "isError": false,
+          "preview": "[\n  {\n    \"Tables_in_shop\": \"analytics_log\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"analytics_notes\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"analytics_s"
+        },
+        {
+          "command": "describe_table {\"database\":\"shop\",\"table\":\"profiles\"}",
+          "outputChars": 8631,
+          "isError": false,
+          "preview": "[\n  {\n    \"Field\": \"id\",\n    \"Type\": \"int\",\n    \"Null\": \"NO\",\n    \"Key\": \"PRI\",\n    \"Default\": null,\n    \"Extra\": \"\"\n  },\n  {\n    \"Field\": \"handle\",\n    \"Type\": \"varchar(20)\",\n    \"Null\": \"NO\",\n    \"K"
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT DISTINCT CONCAT('[', plan, ']') AS plan_val, CONCAT('[', country, ']') AS country_val, COUNT(*) AS n FROM profiles WHERE plan LIKE '%enterprise%' OR country LIKE '%norw%' OR country IN ('NO','nor','Nor') GROUP BY plan, country ORDER BY plan, country\"}",
+          "outputChars": 165,
+          "isError": true,
+          "preview": "Error: Expression #1 of ORDER BY clause is not in SELECT list, references column 'shop.profiles.plan' which is not in SELECT list; this is incompatible with DISTINCT"
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT CONCAT('[', plan, ']') AS plan_val, CONCAT('[', country, ']') AS country_val, COUNT(*) AS n FROM profiles WHERE plan LIKE '%enterprise%' OR country LIKE '%norw%' OR country IN ('NO','nor','Nor') GROUP BY plan, country ORDER BY plan, country\"}",
+          "outputChars": 933,
+          "isError": false,
+          "preview": "[\n  {\n    \"plan_val\": \"[enterprise]\",\n    \"country_val\": \"[Austria]\",\n    \"n\": \"86\"\n  },\n  {\n    \"plan_val\": \"[enterprise]\",\n    \"country_val\": \"[France]\",\n    \"n\": \"86\"\n  },\n  {\n    \"plan_val\": \"[ent"
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT id, handle, status, deleted_at, merged_into_id FROM profiles WHERE plan = 'enterprise' AND country = 'Norway' ORDER BY handle\"}",
+          "outputChars": 11237,
+          "isError": false,
+          "preview": "[\n  {\n    \"id\": 19,\n    \"handle\": \"member_00019\",\n    \"status\": \"active\",\n    \"deleted_at\": null,\n    \"merged_into_id\": null\n  },\n  {\n    \"id\": 54,\n    \"handle\": \"member_00054\",\n    \"status\": \"suspend"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "all enterprise handles in Norway",
+      "correct": true,
+      "answer": "member_00019, member_00054, member_00089, member_00124, member_00159, member_00194, member_00229, member_00264, member_00299, member_00334, member_00369, member_00404, member_00439, member_00474, member_00509, member_00544, member_00579, member_00614, member_00649, member_00684, member_00719, member_00754, member_00789, member_00824, member_00859, member_00894, member_00929, member_00964, member_00999, member_01034, member_01069, member_01104, member_01139, member_01174, member_01209, member_01244, member_01279, member_01314, member_01349, member_01384, member_01419, member_01454, member_01489, member_01524, member_01559, member_01594, member_01629, member_01664, member_01699, member_01734, member_01769, member_01804, member_01839, member_01874, member_01909, member_01944, member_01979, member_02014, member_02049, member_02084, member_02119, member_02154, member_02189, member_02224, member_02259, member_02294, member_02329, member_02364, member_02399, member_02434, member_02469, member_02504, member_02539, member_02574, member_02609, member_02644, member_02679, member_02714, member_02749, member_02784, member_02819, member_02854, member_02889, member_02924, member_02959, member_02994",
+      "turns": 5,
+      "toolCalls": 4,
+      "toolOutputChars": 6753,
+      "inputTokens": 10,
+      "cacheCreationTokens": 8397,
+      "cacheReadTokens": 32833,
+      "outputTokens": 1908,
+      "costUsd": 0.0029627300000000002,
+      "durationMs": 13457,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SHOW TABLES; SHOW COLUMNS FROM profiles;\" 2>&1",
+          "outputChars": 2994,
+          "isError": false,
+          "preview": "Tables_in_shop\nanalytics_log\nanalytics_notes\nanalytics_settings\nanalytics_snapshots\nanalytics_tags\naudit_log\naudit_notes\naudit_settings\naudit_snapshots\naudit_tags\nauth_log\nauth_notes\nauth_settings\naut"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SELECT CONCAT('[',plan,']') p, COUNT(*) FROM profiles GROUP BY plan; SELECT CONCAT('[',country,']') c, COUNT(*) FROM profiles GROUP BY country ORDER BY c;\" 2>&1",
+          "outputChars": 182,
+          "isError": false,
+          "preview": "p\tCOUNT(*)\n[free]\t600\n[starter]\t600\n[pro]\t600\n[enterprise]\t600\n[trial]\t600\nc\tCOUNT(*)\n[Austria]\t429\n[France]\t429\n[Germany]\t429\n[Netherlands]\t429\n[Norway]\t428\n[Poland]\t428\n[Spain]\t428"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SELECT id, handle, status, deleted_at, merged_into_id, cancelled_at FROM profiles WHERE plan='enterprise' AND country='Norway' ORDER BY handle;\" 2>&1",
+          "outputChars": 3550,
+          "isError": false,
+          "preview": "id\thandle\tstatus\tdeleted_at\tmerged_into_id\tcancelled_at\n19\tmember_00019\tactive\tNULL\tNULL\tNULL\n54\tmember_00054\tsuspended\tNULL\tNULL\tNULL\n89\tmember_00089\tactive\tNULL\tNULL\tNULL\n124\tmember_00124\tactive\tNUL"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SELECT COUNT(*) total, SUM(deleted_at IS NOT NULL) deleted, SUM(merged_into_id IS NOT NULL) merged FROM profiles WHERE plan='enterprise' AND country='Norway';\" 2>&1",
+          "outputChars": 27,
+          "isError": false,
+          "preview": "total\tdeleted\tmerged\n86\t0\t0"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "all enterprise handles in Norway",
+      "correct": true,
+      "answer": "member_00019, member_00054, member_00089, member_00124, member_00159, member_00194, member_00229, member_00264, member_00299, member_00334, member_00369, member_00404, member_00439, member_00474, member_00509, member_00544, member_00579, member_00614, member_00649, member_00684, member_00719, member_00754, member_00789, member_00824, member_00859, member_00894, member_00929, member_00964, member_00999, member_01034, member_01069, member_01104, member_01139, member_01174, member_01209, member_01244, member_01279, member_01314, member_01349, member_01384, member_01419, member_01454, member_01489, member_01524, member_01559, member_01594, member_01629, member_01664, member_01699, member_01734, member_01769, member_01804, member_01839, member_01874, member_01909, member_01944, member_01979, member_02014, member_02049, member_02084, member_02119, member_02154, member_02189, member_02224, member_02259, member_02294, member_02329, member_02364, member_02399, member_02434, member_02469, member_02504, member_02539, member_02574, member_02609, member_02644, member_02679, member_02714, member_02749, member_02784, member_02819, member_02854, member_02889, member_02924, member_02959, member_02994",
+      "turns": 7,
+      "toolCalls": 6,
+      "toolOutputChars": 8559,
+      "inputTokens": 12,
+      "cacheCreationTokens": 8086,
+      "cacheReadTokens": 38272,
+      "outputTokens": 2232,
+      "costUsd": 0.00311712,
+      "durationMs": 14821,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi \"SHOW TABLES\" 2>&1 | head -50",
+          "outputChars": 819,
+          "isError": false,
+          "preview": "rows: 50 of 65 shown\nresult[50]{Tables_in_shop}:\n  analytics_log\n  analytics_notes\n  analytics_settings\n  analytics_snapshots\n  analytics_tags\n  audit_log\n  audit_notes\n  audit_settings\n  audit_snapsh"
+        },
+        {
+          "command": "mysql-axi describe profiles 2>&1 | head -60",
+          "outputChars": 2469,
+          "isError": false,
+          "preview": "table:\n  name: shop.profiles\n  rows_est: 2061\n  size: 13 MB\ncolumns[66]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  handle,varchar(20),false,UNI,null,null\n  email,varchar(120"
+        },
+        {
+          "command": "mysql-axi query \"SELECT plan, COUNT(*) FROM profiles GROUP BY plan\" 2>&1; mysql-axi query \"SELECT country, COUNT(*) FROM profiles WHERE country LIKE '%nor%' OR country LIKE '%NO%' GROUP BY country\" 2>&1",
+          "outputChars": 135,
+          "isError": false,
+          "preview": "result[5]{plan,\"COUNT(*)\"}:\n  free,600\n  starter,600\n  pro,600\n  enterprise,600\n  trial,600\nresult[1]{country,\"COUNT(*)\"}:\n  Norway,428"
+        },
+        {
+          "command": "mysql-axi query \"SELECT handle, status, deleted_at, merged_into_id FROM profiles WHERE plan='enterprise' AND country='Norway' ORDER BY handle\" 2>&1",
+          "outputChars": 1795,
+          "isError": false,
+          "preview": "rows: 50 of 86 shown\nresult[50]{handle,status,deleted_at,merged_into_id}:\n  member_00019,active,null,null\n  member_00054,suspended,null,null\n  member_00089,active,null,null\n  member_00124,active,null,"
+        },
+        {
+          "command": "mysql-axi query \"SELECT handle, status, deleted_at, merged_into_id FROM profiles WHERE plan='enterprise' AND country='Norway' ORDER BY handle\" --limit 100 2>&1",
+          "outputChars": 2891,
+          "isError": false,
+          "preview": "result[86]{handle,status,deleted_at,merged_into_id}:\n  member_00019,active,null,null\n  member_00054,suspended,null,null\n  member_00089,active,null,null\n  member_00124,active,null,null\n  member_00159,s"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "all enterprise handles in Norway",
+      "correct": true,
+      "answer": "member_00019, member_00054, member_00089, member_00124, member_00159, member_00194, member_00229, member_00264, member_00299, member_00334, member_00369, member_00404, member_00439, member_00474, member_00509, member_00544, member_00579, member_00614, member_00649, member_00684, member_00719, member_00754, member_00789, member_00824, member_00859, member_00894, member_00929, member_00964, member_00999, member_01034, member_01069, member_01104, member_01139, member_01174, member_01209, member_01244, member_01279, member_01314, member_01349, member_01384, member_01419, member_01454, member_01489, member_01524, member_01559, member_01594, member_01629, member_01664, member_01699, member_01734, member_01769, member_01804, member_01839, member_01874, member_01909, member_01944, member_01979, member_02014, member_02049, member_02084, member_02119, member_02154, member_02189, member_02224, member_02259, member_02294, member_02329, member_02364, member_02399, member_02434, member_02469, member_02504, member_02539, member_02574, member_02609, member_02644, member_02679, member_02714, member_02749, member_02784, member_02819, member_02854, member_02889, member_02924, member_02959, member_02994",
+      "turns": 6,
+      "toolCalls": 5,
+      "toolOutputChars": 9333,
+      "inputTokens": 12,
+      "cacheCreationTokens": 9324,
+      "cacheReadTokens": 43112,
+      "outputTokens": 2017,
+      "costUsd": 0.0033056200000000004,
+      "durationMs": 16874,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi tables",
+          "outputChars": 2201,
+          "isError": false,
+          "preview": "database: shop\ntotal: 65 tables; 0 views; 124 MB\ntables[65]{name,kind,rows_est,size}:\n  analytics_log,table,81,16 KB\n  analytics_notes,table,17,16 KB\n  analytics_settings,table,68,16 KB\n  analytics_sn"
+        },
+        {
+          "command": "<bin>/mysql-axi describe profiles",
+          "outputChars": 3039,
+          "isError": false,
+          "preview": "table:\n  name: shop.profiles\n  rows_est: 2061\n  size: 13 MB\ncolumns[66]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  handle,varchar(20),false,UNI,null,null\n  email,varchar(120"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT plan, COUNT(*) AS n FROM profiles GROUP BY plan ORDER BY n DESC\"; <bin>/mysql-axi query \"SELECT country, COUNT(*) AS n FROM profiles WHERE country LIKE '%norw%' OR country LIKE '%NO%' OR country LIKE '%nor%' GROUP BY country\"",
+          "outputChars": 117,
+          "isError": false,
+          "preview": "result[5]{plan,n}:\n  free,600\n  starter,600\n  pro,600\n  enterprise,600\n  trial,600\nresult[1]{country,n}:\n  Norway,428"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT handle, status, deleted_at FROM profiles WHERE plan = 'enterprise' AND country = 'Norway' ORDER BY handle\"",
+          "outputChars": 1530,
+          "isError": false,
+          "preview": "rows: 50 of 86 shown\nresult[50]{handle,status,deleted_at}:\n  member_00019,active,null\n  member_00054,suspended,null\n  member_00089,active,null\n  member_00124,active,null\n  member_00159,suspended,null\n"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT handle, status, deleted_at FROM profiles WHERE plan = 'enterprise' AND country = 'Norway' ORDER BY handle\" --limit 86",
+          "outputChars": 2446,
+          "isError": false,
+          "preview": "result[86]{handle,status,deleted_at}:\n  member_00019,active,null\n  member_00054,suspended,null\n  member_00089,active,null\n  member_00124,active,null\n  member_00159,suspended,null\n  member_00194,active"
+        }
+      ]
+    },
+    {
+      "arm": "mcp",
+      "task": "all enterprise handles in Norway",
+      "correct": true,
+      "answer": "member_00019, member_00054, member_00089, member_00124, member_00159, member_00194, member_00229, member_00264, member_00299, member_00334, member_00369, member_00404, member_00439, member_00474, member_00509, member_00544, member_00579, member_00614, member_00649, member_00684, member_00719, member_00754, member_00789, member_00824, member_00859, member_00894, member_00929, member_00964, member_00999, member_01034, member_01069, member_01104, member_01139, member_01174, member_01209, member_01244, member_01279, member_01314, member_01349, member_01384, member_01419, member_01454, member_01489, member_01524, member_01559, member_01594, member_01629, member_01664, member_01699, member_01734, member_01769, member_01804, member_01839, member_01874, member_01909, member_01944, member_01979, member_02014, member_02049, member_02084, member_02119, member_02154, member_02189, member_02224, member_02259, member_02294, member_02329, member_02364, member_02399, member_02434, member_02469, member_02504, member_02539, member_02574, member_02609, member_02644, member_02679, member_02714, member_02749, member_02784, member_02819, member_02854, member_02889, member_02924, member_02959, member_02994",
+      "turns": 5,
+      "toolCalls": 4,
+      "toolOutputChars": 26644,
+      "inputTokens": 10,
+      "cacheCreationTokens": 16602,
+      "cacheReadTokens": 37630,
+      "outputTokens": 1974,
+      "costUsd": 0.0046847,
+      "durationMs": 12201,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "list_tables {\"database\":\"shop\"}",
+          "outputChars": 5145,
+          "isError": false,
+          "preview": "[\n  {\n    \"Tables_in_shop\": \"analytics_log\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"analytics_notes\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"analytics_s"
+        },
+        {
+          "command": "describe_table {\"table\":\"profiles\",\"database\":\"shop\"}",
+          "outputChars": 8631,
+          "isError": false,
+          "preview": "[\n  {\n    \"Field\": \"id\",\n    \"Type\": \"int\",\n    \"Null\": \"NO\",\n    \"Key\": \"PRI\",\n    \"Default\": null,\n    \"Extra\": \"\"\n  },\n  {\n    \"Field\": \"handle\",\n    \"Type\": \"varchar(20)\",\n    \"Null\": \"NO\",\n    \"K"
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT DISTINCT CONCAT('[', plan, ']') AS plan_val, NULL AS country_val FROM profiles UNION SELECT NULL, CONCAT('[', country, ']') FROM profiles ORDER BY 1, 2\"}",
+          "outputChars": 739,
+          "isError": false,
+          "preview": "[\n  {\n    \"plan_val\": null,\n    \"country_val\": \"[Austria]\"\n  },\n  {\n    \"plan_val\": null,\n    \"country_val\": \"[France]\"\n  },\n  {\n    \"plan_val\": null,\n    \"country_val\": \"[Germany]\"\n  },\n  {\n    \"plan"
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT handle, status, deleted_at, merged_into_id, cancelled_at FROM profiles WHERE plan = 'enterprise' AND country = 'Norway' ORDER BY handle\"}",
+          "outputChars": 12129,
+          "isError": false,
+          "preview": "[\n  {\n    \"handle\": \"member_00019\",\n    \"status\": \"active\",\n    \"deleted_at\": null,\n    \"merged_into_id\": null,\n    \"cancelled_at\": null\n  },\n  {\n    \"handle\": \"member_00054\",\n    \"status\": \"suspended"
+        }
+      ]
+    },
+    {
+      "arm": "plain",
+      "task": "all enterprise handles in Norway",
+      "correct": true,
+      "answer": "member_00019, member_00054, member_00089, member_00124, member_00159, member_00194, member_00229, member_00264, member_00299, member_00334, member_00369, member_00404, member_00439, member_00474, member_00509, member_00544, member_00579, member_00614, member_00649, member_00684, member_00719, member_00754, member_00789, member_00824, member_00859, member_00894, member_00929, member_00964, member_00999, member_01034, member_01069, member_01104, member_01139, member_01174, member_01209, member_01244, member_01279, member_01314, member_01349, member_01384, member_01419, member_01454, member_01489, member_01524, member_01559, member_01594, member_01629, member_01664, member_01699, member_01734, member_01769, member_01804, member_01839, member_01874, member_01909, member_01944, member_01979, member_02014, member_02049, member_02084, member_02119, member_02154, member_02189, member_02224, member_02259, member_02294, member_02329, member_02364, member_02399, member_02434, member_02469, member_02504, member_02539, member_02574, member_02609, member_02644, member_02679, member_02714, member_02749, member_02784, member_02819, member_02854, member_02889, member_02924, member_02959, member_02994",
+      "turns": 6,
+      "toolCalls": 5,
+      "toolOutputChars": 9069,
+      "inputTokens": 12,
+      "cacheCreationTokens": 9345,
+      "cacheReadTokens": 43469,
+      "outputTokens": 1831,
+      "costUsd": 0.00322039,
+      "durationMs": 14111,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SHOW TABLES; SHOW COLUMNS FROM profiles;\" 2>&1",
+          "outputChars": 2994,
+          "isError": false,
+          "preview": "Tables_in_shop\nanalytics_log\nanalytics_notes\nanalytics_settings\nanalytics_snapshots\nanalytics_tags\naudit_log\naudit_notes\naudit_settings\naudit_snapshots\naudit_tags\nauth_log\nauth_notes\nauth_settings\naut"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SELECT DISTINCT plan, CONCAT('[',plan,']') FROM profiles; SELECT country, CONCAT('[',country,']'), COUNT(*) FROM profiles GROUP BY country ORDER BY country;\" 2>&1",
+          "outputChars": 296,
+          "isError": false,
+          "preview": "plan\tCONCAT('[',plan,']')\nfree\t[free]\nstarter\t[starter]\npro\t[pro]\nenterprise\t[enterprise]\ntrial\t[trial]\ncountry\tCONCAT('[',country,']')\tCOUNT(*)\nAustria\t[Austria]\t429\nFrance\t[France]\t429\nGermany\t[Germ"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 63471 -u bench shop -e \"SELECT id, handle, status, deleted_at, merged_into_id, cancelled_at FROM profiles WHERE plan='enterprise' AND country='Norway' ORDER BY handle;\" 2>&1",
+          "outputChars": 3550,
+          "isError": false,
+          "preview": "id\thandle\tstatus\tdeleted_at\tmerged_into_id\tcancelled_at\n19\tmember_00019\tactive\tNULL\tNULL\tNULL\n54\tmember_00054\tsuspended\tNULL\tNULL\tNULL\n89\tmember_00089\tactive\tNULL\tNULL\tNULL\n124\tmember_00124\tactive\tNUL"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 63471 -u bench shop -N -e \"SELECT COUNT(*) FROM profiles WHERE plan='enterprise' AND country='Norway'; SELECT GROUP_CONCAT(handle ORDER BY handle SEPARATOR ', ') FROM profiles WHERE plan='enterprise' AND country='Norway';\" 2>&1",
+          "outputChars": 1027,
+          "isError": false,
+          "preview": "86\nmember_00019, member_00054, member_00089, member_00124, member_00159, member_00194, member_00229, member_00264, member_00299, member_00334, member_00369, member_00404, member_00439, member_00474, m"
+        },
+        {
+          "command": "mysql -h 127.0.0.1 -P 63471 -u bench shop -N -e \"SET SESSION group_concat_max_len=100000; SELECT GROUP_CONCAT(handle ORDER BY handle SEPARATOR ', ') FROM profiles WHERE plan='enterprise' AND country='Norway';\" 2>&1",
+          "outputChars": 1202,
+          "isError": false,
+          "preview": "member_00019, member_00054, member_00089, member_00124, member_00159, member_00194, member_00229, member_00264, member_00299, member_00334, member_00369, member_00404, member_00439, member_00474, memb"
+        }
+      ]
+    },
+    {
+      "arm": "axi",
+      "task": "all enterprise handles in Norway",
+      "correct": true,
+      "answer": "member_00019, member_00054, member_00089, member_00124, member_00159, member_00194, member_00229, member_00264, member_00299, member_00334, member_00369, member_00404, member_00439, member_00474, member_00509, member_00544, member_00579, member_00614, member_00649, member_00684, member_00719, member_00754, member_00789, member_00824, member_00859, member_00894, member_00929, member_00964, member_00999, member_01034, member_01069, member_01104, member_01139, member_01174, member_01209, member_01244, member_01279, member_01314, member_01349, member_01384, member_01419, member_01454, member_01489, member_01524, member_01559, member_01594, member_01629, member_01664, member_01699, member_01734, member_01769, member_01804, member_01839, member_01874, member_01909, member_01944, member_01979, member_02014, member_02049, member_02084, member_02119, member_02154, member_02189, member_02224, member_02259, member_02294, member_02329, member_02364, member_02399, member_02434, member_02469, member_02504, member_02539, member_02574, member_02609, member_02644, member_02679, member_02714, member_02749, member_02784, member_02819, member_02854, member_02889, member_02924, member_02959, member_02994",
+      "turns": 8,
+      "toolCalls": 7,
+      "toolOutputChars": 8197,
+      "inputTokens": 14,
+      "cacheCreationTokens": 8482,
+      "cacheReadTokens": 49105,
+      "outputTokens": 1914,
+      "costUsd": 0.0031458500000000004,
+      "durationMs": 16394,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi \"SHOW TABLES FROM shop\" 2>&1 | head -50",
+          "outputChars": 819,
+          "isError": false,
+          "preview": "rows: 50 of 65 shown\nresult[50]{Tables_in_shop}:\n  analytics_log\n  analytics_notes\n  analytics_settings\n  analytics_snapshots\n  analytics_tags\n  audit_log\n  audit_notes\n  audit_settings\n  audit_snapsh"
+        },
+        {
+          "command": "mysql-axi query \"SELECT table_name FROM information_schema.tables WHERE table_schema='shop' AND (table_name LIKE '%profile%' OR table_name LIKE '%plan%' OR table_name LIKE '%countr%' OR table_name LIKE '%location%')\" 2>&1; mysql-axi describe profiles 2>&1 | head -60",
+          "outputChars": 2503,
+          "isError": false,
+          "preview": "result[1]{TABLE_NAME}:\n  profiles\ntable:\n  name: shop.profiles\n  rows_est: 2061\n  size: 13 MB\ncolumns[66]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  handle,varchar(20),false"
+        },
+        {
+          "command": "mysql-axi query \"SELECT plan, COUNT(*) n FROM profiles GROUP BY plan\"; mysql-axi query \"SELECT country, COUNT(*) n FROM profiles WHERE country LIKE '%norw%' OR country LIKE '%NO%' OR country IN ('NO','nor','Nrg') GROUP BY country\"",
+          "outputChars": 117,
+          "isError": false,
+          "preview": "result[5]{plan,n}:\n  free,600\n  starter,600\n  pro,600\n  enterprise,600\n  trial,600\nresult[1]{country,n}:\n  Norway,428"
+        },
+        {
+          "command": "mysql-axi query \"SELECT handle, plan, country, status, deleted_at, merged_into_id FROM profiles WHERE plan='enterprise' AND country='Norway' ORDER BY handle\" 2>&1 | head -100; mysql-axi query \"SELECT COUNT(*) n FROM profiles WHERE plan='enterprise' AND country='Norway'\"",
+          "outputChars": 2727,
+          "isError": false,
+          "preview": "rows: 50 of 86 shown\nresult[50]{handle,plan,country,status,deleted_at,merged_into_id}:\n  member_00019,enterprise,Norway,active,null,null\n  member_00054,enterprise,Norway,suspended,null,null\n  member_0"
+        },
+        {
+          "command": "mysql-axi query \"SELECT COUNT(*) n, SUM(deleted_at IS NOT NULL) deleted, SUM(merged_into_id IS NOT NULL) merged, GROUP_CONCAT(handle ORDER BY handle SEPARATOR ', ') handles FROM profiles WHERE plan='enterprise' AND country='Norway'\" 2>&1",
+          "outputChars": 272,
+          "isError": false,
+          "preview": "result[1]{n,deleted,merged,handles}:\n  86,0,0,\"member_00019, member_00054, member_00089, member_00124, member_00159, member_00194, member_00229, member_00264, member_00299, member_00334, member_00369,"
+        },
+        {
+          "command": "mysql-axi query \"SELECT handle FROM profiles WHERE plan='enterprise' AND country='Norway' ORDER BY handle\" --limit 100 2>&1",
+          "outputChars": 1309,
+          "isError": false,
+          "preview": "result[86]{handle}:\n  member_00019\n  member_00054\n  member_00089\n  member_00124\n  member_00159\n  member_00194\n  member_00229\n  member_00264\n  member_00299\n  member_00334\n  member_00369\n  member_00404\n"
+        }
+      ]
+    },
+    {
+      "arm": "axi_home",
+      "task": "all enterprise handles in Norway",
+      "correct": true,
+      "answer": "member_00019, member_00054, member_00089, member_00124, member_00159, member_00194, member_00229, member_00264, member_00299, member_00334, member_00369, member_00404, member_00439, member_00474, member_00509, member_00544, member_00579, member_00614, member_00649, member_00684, member_00719, member_00754, member_00789, member_00824, member_00859, member_00894, member_00929, member_00964, member_00999, member_01034, member_01069, member_01104, member_01139, member_01174, member_01209, member_01244, member_01279, member_01314, member_01349, member_01384, member_01419, member_01454, member_01489, member_01524, member_01559, member_01594, member_01629, member_01664, member_01699, member_01734, member_01769, member_01804, member_01839, member_01874, member_01909, member_01944, member_01979, member_02014, member_02049, member_02084, member_02119, member_02154, member_02189, member_02224, member_02259, member_02294, member_02329, member_02364, member_02399, member_02434, member_02469, member_02504, member_02539, member_02574, member_02609, member_02644, member_02679, member_02714, member_02749, member_02784, member_02819, member_02854, member_02889, member_02924, member_02959, member_02994",
+      "turns": 6,
+      "toolCalls": 5,
+      "toolOutputChars": 10081,
+      "inputTokens": 12,
+      "cacheCreationTokens": 9509,
+      "cacheReadTokens": 43133,
+      "outputTokens": 1899,
+      "costUsd": 0.00328383,
+      "durationMs": 13696,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "<bin>/mysql-axi tables",
+          "outputChars": 2201,
+          "isError": false,
+          "preview": "database: shop\ntotal: 65 tables; 0 views; 124 MB\ntables[65]{name,kind,rows_est,size}:\n  analytics_log,table,81,16 KB\n  analytics_notes,table,17,16 KB\n  analytics_settings,table,68,16 KB\n  analytics_sn"
+        },
+        {
+          "command": "<bin>/mysql-axi describe profiles",
+          "outputChars": 3039,
+          "isError": false,
+          "preview": "table:\n  name: shop.profiles\n  rows_est: 2061\n  size: 13 MB\ncolumns[66]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  handle,varchar(20),false,UNI,null,null\n  email,varchar(120"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT 'plan' AS col, CONCAT('[', plan, ']') AS val, COUNT(*) AS n FROM profiles GROUP BY plan UNION ALL SELECT 'country', CONCAT('[', country, ']'), COUNT(*) FROM profiles WHERE country LIKE '%orw%' OR country LIKE '%NO%' GROUP BY country\"",
+          "outputChars": 155,
+          "isError": false,
+          "preview": "result[6]{col,val,n}:\n  plan,\"[free]\",600\n  plan,\"[starter]\",600\n  plan,\"[pro]\",600\n  plan,\"[enterprise]\",600\n  plan,\"[trial]\",600\n  country,\"[Norway]\",428"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT handle, status, deleted_at, merged_into_id FROM profiles WHERE plan = 'enterprise' AND country = 'Norway' ORDER BY handle\"",
+          "outputChars": 1795,
+          "isError": false,
+          "preview": "rows: 50 of 86 shown\nresult[50]{handle,status,deleted_at,merged_into_id}:\n  member_00019,active,null,null\n  member_00054,suspended,null,null\n  member_00089,active,null,null\n  member_00124,active,null,"
+        },
+        {
+          "command": "<bin>/mysql-axi query \"SELECT handle, status, deleted_at, merged_into_id FROM profiles WHERE plan = 'enterprise' AND country = 'Norway' ORDER BY handle\" --limit 86",
+          "outputChars": 2891,
+          "isError": false,
+          "preview": "result[86]{handle,status,deleted_at,merged_into_id}:\n  member_00019,active,null,null\n  member_00054,suspended,null,null\n  member_00089,active,null,null\n  member_00124,active,null,null\n  member_00159,s"
+        }
+      ]
+    },
+    {
+      "arm": "mcp",
+      "task": "all enterprise handles in Norway",
+      "correct": true,
+      "answer": "member_00019, member_00054, member_00089, member_00124, member_00159, member_00194, member_00229, member_00264, member_00299, member_00334, member_00369, member_00404, member_00439, member_00474, member_00509, member_00544, member_00579, member_00614, member_00649, member_00684, member_00719, member_00754, member_00789, member_00824, member_00859, member_00894, member_00929, member_00964, member_00999, member_01034, member_01069, member_01104, member_01139, member_01174, member_01209, member_01244, member_01279, member_01314, member_01349, member_01384, member_01419, member_01454, member_01489, member_01524, member_01559, member_01594, member_01629, member_01664, member_01699, member_01734, member_01769, member_01804, member_01839, member_01874, member_01909, member_01944, member_01979, member_02014, member_02049, member_02084, member_02119, member_02154, member_02189, member_02224, member_02259, member_02294, member_02329, member_02364, member_02399, member_02434, member_02469, member_02504, member_02539, member_02574, member_02609, member_02644, member_02679, member_02714, member_02749, member_02784, member_02819, member_02854, member_02889, member_02924, member_02959, member_02994",
+      "turns": 6,
+      "toolCalls": 5,
+      "toolOutputChars": 23951,
+      "inputTokens": 10,
+      "cacheCreationTokens": 15569,
+      "cacheReadTokens": 37592,
+      "outputTokens": 1978,
+      "costUsd": 0.0044797199999999995,
+      "durationMs": 13339,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "list_tables {\"database\":\"shop\"}",
+          "outputChars": 5145,
+          "isError": false,
+          "preview": "[\n  {\n    \"Tables_in_shop\": \"analytics_log\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"analytics_notes\",\n    \"Table_type\": \"BASE TABLE\"\n  },\n  {\n    \"Tables_in_shop\": \"analytics_s"
+        },
+        {
+          "command": "describe_table {\"database\":\"shop\",\"table\":\"profiles\"}",
+          "outputChars": 8631,
+          "isError": false,
+          "preview": "[\n  {\n    \"Field\": \"id\",\n    \"Type\": \"int\",\n    \"Null\": \"NO\",\n    \"Key\": \"PRI\",\n    \"Default\": null,\n    \"Extra\": \"\"\n  },\n  {\n    \"Field\": \"handle\",\n    \"Type\": \"varchar(20)\",\n    \"Null\": \"NO\",\n    \"K"
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT plan, COUNT(*) AS n FROM profiles GROUP BY plan ORDER BY plan;\"}",
+          "outputChars": 231,
+          "isError": false,
+          "preview": "[\n  {\n    \"plan\": \"enterprise\",\n    \"n\": \"600\"\n  },\n  {\n    \"plan\": \"free\",\n    \"n\": \"600\"\n  },\n  {\n    \"plan\": \"pro\",\n    \"n\": \"600\"\n  },\n  {\n    \"plan\": \"starter\",\n    \"n\": \"600\"\n  },\n  {\n    \"plan\""
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT country, COUNT(*) AS n FROM profiles WHERE country LIKE '%nor%' OR country LIKE '%NO%' GROUP BY country ORDER BY country;\"}",
+          "outputChars": 51,
+          "isError": false,
+          "preview": "[\n  {\n    \"country\": \"Norway\",\n    \"n\": \"428\"\n  }\n]"
+        },
+        {
+          "command": "execute_query {\"database\":\"shop\",\"query\":\"SELECT handle, status, deleted_at, merged_into_id FROM profiles WHERE plan = 'enterprise' AND country = 'Norway' ORDER BY handle;\"}",
+          "outputChars": 9893,
+          "isError": false,
+          "preview": "[\n  {\n    \"handle\": \"member_00019\",\n    \"status\": \"active\",\n    \"deleted_at\": null,\n    \"merged_into_id\": null\n  },\n  {\n    \"handle\": \"member_00054\",\n    \"status\": \"suspended\",\n    \"deleted_at\": null,"
+        }
+      ]
+    },
+    {
+      "arm": "axi_skill",
+      "task": "wide table columns",
+      "correct": true,
+      "answer": "66 columns; TEXT: bio, notes; JSON: preferences, address",
+      "turns": 5,
+      "toolCalls": 3,
+      "toolOutputChars": 3632,
+      "inputTokens": 8,
+      "cacheCreationTokens": 8176,
+      "cacheReadTokens": 29975,
+      "outputTokens": 1042,
+      "costUsd": 0.00245675,
+      "durationMs": 9427,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "Skill {\"skill\":\"mysql-axi\"}",
+          "outputChars": 26,
+          "isError": false,
+          "preview": "Launching skill: mysql-axi"
+        },
+        {
+          "command": "npx -y mysql-axi --help",
+          "outputChars": 503,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' --help\nusage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\n"
+        },
+        {
+          "command": "npx -y mysql-axi describe profiles",
+          "outputChars": 3103,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' describe profiles\ntable:\n  name: shop.profiles\n  rows_est: 1961\n  size: 13 MB\ncolumns[66]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,n"
+        }
+      ]
+    },
+    {
+      "arm": "axi_skill",
+      "task": "wide table columns",
+      "correct": true,
+      "answer": "66 columns; TEXT: bio, notes; JSON: preferences, address",
+      "turns": 5,
+      "toolCalls": 3,
+      "toolOutputChars": 3568,
+      "inputTokens": 8,
+      "cacheCreationTokens": 8271,
+      "cacheReadTokens": 30209,
+      "outputTokens": 545,
+      "costUsd": 0.00222959,
+      "durationMs": 7746,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "Skill {\"skill\":\"mysql-axi\"}",
+          "outputChars": 26,
+          "isError": false,
+          "preview": "Launching skill: mysql-axi"
+        },
+        {
+          "command": "npx -y mysql-axi --help",
+          "outputChars": 503,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' --help\nusage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\n"
+        },
+        {
+          "command": "npx -y mysql-axi describe profiles 2>/dev/null",
+          "outputChars": 3039,
+          "isError": false,
+          "preview": "table:\n  name: shop.profiles\n  rows_est: 1961\n  size: 13 MB\ncolumns[66]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  handle,varchar(20),false,UNI,null,null\n  email,varchar(120"
+        }
+      ]
+    },
+    {
+      "arm": "axi_skill",
+      "task": "wide table columns",
+      "correct": true,
+      "answer": "66 columns; TEXT/JSON columns are bio, notes, preferences, address",
+      "turns": 3,
+      "toolCalls": 2,
+      "toolOutputChars": 3489,
+      "inputTokens": 6,
+      "cacheCreationTokens": 7667,
+      "cacheReadTokens": 20377,
+      "outputTokens": 407,
+      "costUsd": 0.0019412700000000001,
+      "durationMs": 6490,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "mysql-axi --help 2>&1 | head -50",
+          "outputChars": 450,
+          "isError": false,
+          "preview": "usage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\nexamples:\n  mysql-axi tables --sort size\n  mysql-axi "
+        },
+        {
+          "command": "mysql-axi describe profiles 2>&1",
+          "outputChars": 3039,
+          "isError": false,
+          "preview": "table:\n  name: shop.profiles\n  rows_est: 1961\n  size: 13 MB\ncolumns[66]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  handle,varchar(20),false,UNI,null,null\n  email,varchar(120"
+        }
+      ]
+    },
+    {
+      "arm": "axi_skill",
+      "task": "one wide row",
+      "correct": true,
+      "answer": "Plan: pro; Country: France; Bio: writes about cycling",
+      "turns": 7,
+      "toolCalls": 5,
+      "toolOutputChars": 8820,
+      "inputTokens": 12,
+      "cacheCreationTokens": 11106,
+      "cacheReadTokens": 54151,
+      "outputTokens": 863,
+      "costUsd": 0.00319541,
+      "durationMs": 11996,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "Skill {\"skill\":\"mysql-axi\"}",
+          "outputChars": 26,
+          "isError": false,
+          "preview": "Launching skill: mysql-axi"
+        },
+        {
+          "command": "npx -y mysql-axi --help",
+          "outputChars": 503,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' --help\nusage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\n"
+        },
+        {
+          "command": "npx -y mysql-axi tables 2>/dev/null",
+          "outputChars": 2201,
+          "isError": false,
+          "preview": "database: shop\ntotal: 65 tables; 0 views; 124 MB\ntables[65]{name,kind,rows_est,size}:\n  analytics_log,table,81,16 KB\n  analytics_notes,table,17,16 KB\n  analytics_settings,table,68,16 KB\n  analytics_sn"
+        },
+        {
+          "command": "npx -y mysql-axi describe profiles 2>/dev/null; npx -y mysql-axi query \"SELECT * FROM profiles WHERE handle = 'member_02718'\" 2>/dev/null",
+          "outputChars": 5001,
+          "isError": false,
+          "preview": "table:\n  name: shop.profiles\n  rows_est: 1961\n  size: 13 MB\ncolumns[66]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  handle,varchar(20),false,UNI,null,null\n  email,varchar(120"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT bio FROM profiles WHERE handle = 'member_02718'\" --full 2>/dev/null",
+          "outputChars": 1089,
+          "isError": false,
+          "preview": "result[1]{bio}:\n  \"Member 2718 writes about cycling. Longer biography text with several sentences about hobbies and work. Longer biography text with several sentences about hobbies and work. Longer bi"
+        }
+      ]
+    },
+    {
+      "arm": "axi_skill",
+      "task": "one wide row",
+      "correct": true,
+      "answer": "Plan: pro; Country: France; Bio: writes about cycling",
+      "turns": 8,
+      "toolCalls": 6,
+      "toolOutputChars": 8802,
+      "inputTokens": 12,
+      "cacheCreationTokens": 11151,
+      "cacheReadTokens": 56011,
+      "outputTokens": 837,
+      "costUsd": 0.0032100100000000006,
+      "durationMs": 12352,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "Skill {\"skill\":\"mysql-axi\",\"args\":\"Find the profile with handle member_02718 and its plan, country, and bio in the shop database\"}",
+          "outputChars": 26,
+          "isError": false,
+          "preview": "Launching skill: mysql-axi"
+        },
+        {
+          "command": "npx -y mysql-axi --help",
+          "outputChars": 503,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' --help\nusage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\n"
+        },
+        {
+          "command": "npx -y mysql-axi",
+          "outputChars": 734,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi'\nbin: /private$TMPDIR/mysql-axi-tokens-cwd-pFLShJ/node_modules/.bin/mysql-axi\ndescription: \"READ-ONLY MySQL CLI for agents - explore schemas and run capped"
+        },
+        {
+          "command": "npx -y mysql-axi tables; npx -y mysql-axi query --help",
+          "outputChars": 3166,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' tables\ndatabase: shop\ntotal: 65 tables; 0 views; 124 MB\ntables[65]{name,kind,rows_est,size}:\n  analytics_log,table,81,16 KB\n  analytics_notes,table,17,16 "
+        },
+        {
+          "command": "npx -y mysql-axi describe profiles",
+          "outputChars": 3103,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' describe profiles\ntable:\n  name: shop.profiles\n  rows_est: 1961\n  size: 13 MB\ncolumns[66]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,n"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT handle, plan, country, bio FROM profiles WHERE handle = 'member_02718'\" --full",
+          "outputChars": 1270,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' query SELECT handle, plan, country, bio FROM profiles WHERE handle = 'member_02718' --full\nresult[1]{handle,plan,country,bio}:\n  member_02718,pro,France,\""
+        }
+      ]
+    },
+    {
+      "arm": "axi_skill",
+      "task": "one wide row",
+      "correct": true,
+      "answer": "Plan: pro; Country: France; Bio: writes about cycling",
+      "turns": 7,
+      "toolCalls": 5,
+      "toolOutputChars": 5427,
+      "inputTokens": 12,
+      "cacheCreationTokens": 9332,
+      "cacheReadTokens": 52526,
+      "outputTokens": 827,
+      "costUsd": 0.002806360000000001,
+      "durationMs": 11340,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "Skill {\"skill\":\"mysql-axi\"}",
+          "outputChars": 26,
+          "isError": false,
+          "preview": "Launching skill: mysql-axi"
+        },
+        {
+          "command": "npx -y mysql-axi --help",
+          "outputChars": 503,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' --help\nusage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\n"
+        },
+        {
+          "command": "npx -y mysql-axi tables shop 2>&1; npx -y mysql-axi describe profiles 2>&1 || true",
+          "outputChars": 3269,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' tables shop\nerror: unexpected argument 'shop'\ncode: VALIDATION_ERROR\nhelp[1]:\n  usage: mysql-axi tables [-d <database>]\nnpm notice run npx\nnpm notice run "
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT handle, plan, country, bio FROM shop.profiles WHERE handle = 'member_02718'\" 2>&1",
+          "outputChars": 421,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' query SELECT handle, plan, country, bio FROM shop.profiles WHERE handle = 'member_02718'\nresult[1]{handle,plan,country,bio}:\n  member_02718,pro,France,Mem"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT bio FROM shop.profiles WHERE handle = 'member_02718'\" --full 2>&1",
+          "outputChars": 1208,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' query SELECT bio FROM shop.profiles WHERE handle = 'member_02718' --full\nresult[1]{bio}:\n  \"Member 2718 writes about cycling. Longer biography text with s"
+        }
+      ]
+    },
+    {
+      "arm": "axi_skill",
+      "task": "always-NULL columns",
+      "correct": true,
+      "answer": "deleted_at, legacy_crm_id, merged_into_id",
+      "turns": 6,
+      "toolCalls": 4,
+      "toolOutputChars": 4551,
+      "inputTokens": 10,
+      "cacheCreationTokens": 9425,
+      "cacheReadTokens": 41749,
+      "outputTokens": 1301,
+      "costUsd": 0.0029539900000000005,
+      "durationMs": 12459,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "Skill {\"skill\":\"mysql-axi\"}",
+          "outputChars": 26,
+          "isError": false,
+          "preview": "Launching skill: mysql-axi"
+        },
+        {
+          "command": "npx -y mysql-axi 2>&1 | head -50; npx -y mysql-axi --help 2>&1 | head -80",
+          "outputChars": 1238,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi'\nbin: /private$TMPDIR/mysql-axi-tokens-cwd-cvsjL2/node_modules/.bin/mysql-axi\ndescription: \"READ-ONLY MySQL CLI for agents - explore schemas and run capped"
+        },
+        {
+          "command": "npx -y mysql-axi describe profiles 2>&1 | grep -v \"npm notice\"; npx -y mysql-axi query \"SELECT COUNT(*) AS n FROM profiles\" 2>&1 | grep -v \"npm notice\"",
+          "outputChars": 3060,
+          "isError": false,
+          "preview": "table:\n  name: shop.profiles\n  rows_est: 1961\n  size: 13 MB\ncolumns[66]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  handle,varchar(20),false,UNI,null,null\n  email,varchar(120"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT COUNT(*) AS total, COUNT(bio) AS bio, COUNT(notes) AS notes, COUNT(preferences) AS preferences, COUNT(address) AS address, COUNT(phone) AS phone, COUNT(deleted_at) AS deleted_at, COUNT(legacy_crm_id) AS legacy_crm_id, COUNT(merged_into_id) AS merged_into_id, COUNT(referrer_code) AS referrer_code, COUNT(vat_number) AS vat_number, COUNT(cancelled_at) AS cancelled_at, C",
+          "outputChars": 227,
+          "isError": false,
+          "preview": "result[1]{total,bio,notes,preferences,address,phone,deleted_at,legacy_crm_id,merged_into_id,referrer_code,vat_number,cancelled_at,website,trial_ends_at,last_ticket_at}:\n  3000,3000,3000,3000,3000,2000"
+        }
+      ]
+    },
+    {
+      "arm": "axi_skill",
+      "task": "always-NULL columns",
+      "correct": true,
+      "answer": "deleted_at, legacy_crm_id, merged_into_id",
+      "turns": 7,
+      "toolCalls": 5,
+      "toolOutputChars": 4798,
+      "inputTokens": 10,
+      "cacheCreationTokens": 9543,
+      "cacheReadTokens": 41788,
+      "outputTokens": 1194,
+      "costUsd": 0.0029244800000000006,
+      "durationMs": 11517,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "Skill {\"skill\":\"mysql-axi\"}",
+          "outputChars": 26,
+          "isError": false,
+          "preview": "Launching skill: mysql-axi"
+        },
+        {
+          "command": "npx -y mysql-axi --help",
+          "outputChars": 503,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' --help\nusage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\n"
+        },
+        {
+          "command": "npx -y mysql-axi describe --help",
+          "outputChars": 382,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' describe --help\nusage: mysql-axi describe <table|database.table> [flags]\nColumns, indexes, foreign keys (with ON DELETE/UPDATE), CHECK constraints, trigge"
+        },
+        {
+          "command": "npx -y mysql-axi describe shop.profiles",
+          "outputChars": 3108,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' describe shop.profiles\ntable:\n  name: shop.profiles\n  rows_est: 1961\n  size: 13 MB\ncolumns[66]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,n"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT COUNT(*) AS total, COUNT(bio) AS bio, COUNT(notes) AS notes, COUNT(preferences) AS preferences, COUNT(address) AS address, COUNT(phone) AS phone, COUNT(deleted_at) AS deleted_at, COUNT(legacy_crm_id) AS legacy_crm_id, COUNT(merged_into_id) AS merged_into_id, COUNT(referrer_code) AS referrer_code, COUNT(vat_number) AS vat_number, COUNT(cancelled_at) AS cancelled_at, C",
+          "outputChars": 779,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' query SELECT COUNT(*) AS total, COUNT(bio) AS bio, COUNT(notes) AS notes, COUNT(preferences) AS preferences, COUNT(address) AS address, COUNT(phone) AS ph"
+        }
+      ]
+    },
+    {
+      "arm": "axi_skill",
+      "task": "always-NULL columns",
+      "correct": true,
+      "answer": "deleted_at, legacy_crm_id, merged_into_id",
+      "turns": 6,
+      "toolCalls": 4,
+      "toolOutputChars": 4652,
+      "inputTokens": 10,
+      "cacheCreationTokens": 9449,
+      "cacheReadTokens": 41680,
+      "outputTokens": 1189,
+      "costUsd": 0.0029021,
+      "durationMs": 11811,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "Skill {\"skill\":\"mysql-axi\"}",
+          "outputChars": 26,
+          "isError": false,
+          "preview": "Launching skill: mysql-axi"
+        },
+        {
+          "command": "npx -y mysql-axi --help",
+          "outputChars": 503,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' --help\nusage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\n"
+        },
+        {
+          "command": "npx -y mysql-axi describe profiles 2>/dev/null; echo ---; npx -y mysql-axi query --help 2>/dev/null",
+          "outputChars": 3896,
+          "isError": false,
+          "preview": "table:\n  name: shop.profiles\n  rows_est: 1961\n  size: 13 MB\ncolumns[66]{name,type,nullable,key,default,extra}:\n  id,int,false,PRI,null,null\n  handle,varchar(20),false,UNI,null,null\n  email,varchar(120"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT COUNT(*) AS total, COUNT(bio) AS bio, COUNT(notes) AS notes, COUNT(preferences) AS preferences, COUNT(address) AS address, COUNT(phone) AS phone, COUNT(deleted_at) AS deleted_at, COUNT(legacy_crm_id) AS legacy_crm_id, COUNT(merged_into_id) AS merged_into_id, COUNT(referrer_code) AS referrer_code, COUNT(vat_number) AS vat_number, COUNT(cancelled_at) AS cancelled_at, C",
+          "outputChars": 227,
+          "isError": false,
+          "preview": "result[1]{total,bio,notes,preferences,address,phone,deleted_at,legacy_crm_id,merged_into_id,referrer_code,vat_number,cancelled_at,website,trial_ends_at,last_ticket_at}:\n  3000,3000,3000,3000,3000,2000"
+        }
+      ]
+    },
+    {
+      "arm": "axi_skill",
+      "task": "largest tables",
+      "correct": true,
+      "answer": "events (1000000 rows), orders (10000 rows), profiles (3000 rows)",
+      "turns": 6,
+      "toolCalls": 4,
+      "toolOutputChars": 3855,
+      "inputTokens": 10,
+      "cacheCreationTokens": 9184,
+      "cacheReadTokens": 41589,
+      "outputTokens": 1444,
+      "costUsd": 0.00297569,
+      "durationMs": 13409,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "Skill {\"skill\":\"mysql-axi\"}",
+          "outputChars": 26,
+          "isError": false,
+          "preview": "Launching skill: mysql-axi"
+        },
+        {
+          "command": "npx -y mysql-axi 2>&1 | head -80",
+          "outputChars": 734,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi'\nbin: /private$TMPDIR/mysql-axi-tokens-cwd-1cWEw8/node_modules/.bin/mysql-axi\ndescription: \"READ-ONLY MySQL CLI for agents - explore schemas and run capped"
+        },
+        {
+          "command": "npx -y mysql-axi tables 2>&1; echo ---; npx -y mysql-axi --help 2>&1 | head -60",
+          "outputChars": 2761,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' tables\ndatabase: shop\ntotal: 65 tables; 0 views; 124 MB\ntables[65]{name,kind,rows_est,size}:\n  analytics_log,table,81,16 KB\n  analytics_notes,table,17,16 "
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT 'events' AS t, COUNT(*) AS n FROM events UNION ALL SELECT 'orders', COUNT(*) FROM orders UNION ALL SELECT 'profiles', COUNT(*) FROM profiles UNION ALL SELECT 'customers', COUNT(*) FROM customers\" 2>&1",
+          "outputChars": 334,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' query SELECT 'events' AS t, COUNT(*) AS n FROM events UNION ALL SELECT 'orders', COUNT(*) FROM orders UNION ALL SELECT 'profiles', COUNT(*) FROM profiles "
+        }
+      ]
+    },
+    {
+      "arm": "axi_skill",
+      "task": "largest tables",
+      "correct": true,
+      "answer": "events (1000000 rows), orders (10000), profiles (3000)",
+      "turns": 6,
+      "toolCalls": 4,
+      "toolOutputChars": 3325,
+      "inputTokens": 10,
+      "cacheCreationTokens": 8771,
+      "cacheReadTokens": 40958,
+      "outputTokens": 1007,
+      "costUsd": 0.0026682800000000003,
+      "durationMs": 12427,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "Skill {\"skill\":\"mysql-axi\"}",
+          "outputChars": 26,
+          "isError": false,
+          "preview": "Launching skill: mysql-axi"
+        },
+        {
+          "command": "npx -y mysql-axi --help",
+          "outputChars": 503,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' --help\nusage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\n"
+        },
+        {
+          "command": "npx -y mysql-axi tables --help; npx -y mysql-axi tables --sort rows 2>/dev/null || npx -y mysql-axi tables",
+          "outputChars": 2716,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' tables --help\nusage: mysql-axi tables [-d <database>] [flags]\nTables and views of one database with estimated rows and size.\nflags:\n  --profile <name>, -d"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT 'events' AS t, COUNT(*) AS n FROM shop.events UNION ALL SELECT 'orders', COUNT(*) FROM shop.orders UNION ALL SELECT 'profiles', COUNT(*) FROM shop.profiles UNION ALL SELECT 'customers', COUNT(*) FROM shop.customers ORDER BY n DESC\" 2>/dev/null",
+          "outputChars": 80,
+          "isError": false,
+          "preview": "result[4]{t,n}:\n  events,1000000\n  orders,10000\n  profiles,3000\n  customers,1000"
+        }
+      ]
+    },
+    {
+      "arm": "axi_skill",
+      "task": "largest tables",
+      "correct": true,
+      "answer": "events (1000000 rows), orders (10000), profiles (3000)",
+      "turns": 6,
+      "toolCalls": 4,
+      "toolOutputChars": 3748,
+      "inputTokens": 10,
+      "cacheCreationTokens": 9009,
+      "cacheReadTokens": 41162,
+      "outputTokens": 1008,
+      "costUsd": 0.00271842,
+      "durationMs": 10404,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "Skill {\"skill\":\"mysql-axi\"}",
+          "outputChars": 26,
+          "isError": false,
+          "preview": "Launching skill: mysql-axi"
+        },
+        {
+          "command": "npx -y mysql-axi --help",
+          "outputChars": 503,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' --help\nusage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\n"
+        },
+        {
+          "command": "npx -y mysql-axi tables --help; echo ---; npx -y mysql-axi tables --sort rows 2>&1 | head -100",
+          "outputChars": 2785,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' tables --help\nusage: mysql-axi tables [-d <database>] [flags]\nTables and views of one database with estimated rows and size.\nflags:\n  --profile <name>, -d"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT 'events' AS t, COUNT(*) AS n FROM events UNION ALL SELECT 'orders', COUNT(*) FROM orders UNION ALL SELECT 'profiles', COUNT(*) FROM profiles UNION ALL SELECT 'customers', COUNT(*) FROM customers UNION ALL SELECT 'analytics_tags', COUNT(*) FROM analytics_tags ORDER BY n DESC\" 2>&1",
+          "outputChars": 434,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' query SELECT 'events' AS t, COUNT(*) AS n FROM events UNION ALL SELECT 'orders', COUNT(*) FROM orders UNION ALL SELECT 'profiles', COUNT(*) FROM profiles "
+        }
+      ]
+    },
+    {
+      "arm": "axi_skill",
+      "task": "events per kind",
+      "correct": true,
+      "answer": "page_view 400000, click 250000, search 150000, add_to_cart 100000, checkout 60000, refund 30000, error 10000",
+      "turns": 7,
+      "toolCalls": 5,
+      "toolOutputChars": 2244,
+      "inputTokens": 10,
+      "cacheCreationTokens": 7979,
+      "cacheReadTokens": 41056,
+      "outputTokens": 801,
+      "costUsd": 0.00240786,
+      "durationMs": 9552,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "Skill {\"skill\":\"mysql-axi\"}",
+          "outputChars": 26,
+          "isError": false,
+          "preview": "Launching skill: mysql-axi"
+        },
+        {
+          "command": "npx -y mysql-axi --help",
+          "outputChars": 503,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' --help\nusage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\n"
+        },
+        {
+          "command": "npx -y mysql-axi query --help",
+          "outputChars": 911,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' query --help\nusage: mysql-axi query \"<sql>\" [flags]\nRuns ONE read statement: SELECT, WITH ... SELECT, SHOW, DESC, EXPLAIN or TABLE. `mysql-axi \"<sql>\"` is"
+        },
+        {
+          "command": "npx -y mysql-axi describe events",
+          "outputChars": 505,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' describe events\ntable:\n  name: shop.events\n  rows_est: 999476\n  size: 108 MB\ncolumns[6]{name,type,nullable,key,default,extra}:\n  id,int unsigned,false,PRI"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT kind, COUNT(*) AS event_count FROM events GROUP BY kind ORDER BY event_count DESC\" --limit 1000",
+          "outputChars": 299,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' query SELECT kind, COUNT(*) AS event_count FROM events GROUP BY kind ORDER BY event_count DESC --limit 1000\nresult[7]{kind,event_count}:\n  page_view,40000"
+        }
+      ]
+    },
+    {
+      "arm": "axi_skill",
+      "task": "events per kind",
+      "correct": true,
+      "answer": "page_view 400000, click 250000, search 150000, add_to_cart 100000, checkout 60000, refund 30000, error 10000",
+      "turns": 6,
+      "toolCalls": 4,
+      "toolOutputChars": 2227,
+      "inputTokens": 10,
+      "cacheCreationTokens": 7879,
+      "cacheReadTokens": 40448,
+      "outputTokens": 781,
+      "costUsd": 0.00237178,
+      "durationMs": 10303,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "Skill {\"skill\":\"mysql-axi\"}",
+          "outputChars": 26,
+          "isError": false,
+          "preview": "Launching skill: mysql-axi"
+        },
+        {
+          "command": "npx -y mysql-axi --help",
+          "outputChars": 503,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' --help\nusage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\n"
+        },
+        {
+          "command": "npx -y mysql-axi query --help; echo ---; npx -y mysql-axi describe events",
+          "outputChars": 1421,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' query --help\nusage: mysql-axi query \"<sql>\" [flags]\nRuns ONE read statement: SELECT, WITH ... SELECT, SHOW, DESC, EXPLAIN or TABLE. `mysql-axi \"<sql>\"` is"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT kind, COUNT(*) AS n FROM events GROUP BY kind ORDER BY n DESC\" -d shop --limit 1000",
+          "outputChars": 277,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' query SELECT kind, COUNT(*) AS n FROM events GROUP BY kind ORDER BY n DESC -d shop --limit 1000\nresult[7]{kind,n}:\n  page_view,400000\n  click,250000\n  sea"
+        }
+      ]
+    },
+    {
+      "arm": "axi_skill",
+      "task": "events per kind",
+      "correct": true,
+      "answer": "page_view=400000, click=250000, search=150000, add_to_cart=100000, checkout=60000, refund=30000, error=10000",
+      "turns": 5,
+      "toolCalls": 3,
+      "toolOutputChars": 1293,
+      "inputTokens": 8,
+      "cacheCreationTokens": 7289,
+      "cacheReadTokens": 30078,
+      "outputTokens": 639,
+      "costUsd": 0.0020788800000000004,
+      "durationMs": 8237,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "Skill {\"skill\":\"mysql-axi\"}",
+          "outputChars": 26,
+          "isError": false,
+          "preview": "Launching skill: mysql-axi"
+        },
+        {
+          "command": "npx -y mysql-axi --help",
+          "outputChars": 503,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' --help\nusage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\n"
+        },
+        {
+          "command": "npx -y mysql-axi describe events 2>&1; npx -y mysql-axi query \"SELECT kind, COUNT(*) AS cnt FROM events GROUP BY kind ORDER BY kind\" 2>&1",
+          "outputChars": 764,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' describe events\ntable:\n  name: shop.events\n  rows_est: 999476\n  size: 108 MB\ncolumns[6]{name,type,nullable,key,default,extra}:\n  id,int unsigned,false,PRI"
+        }
+      ]
+    },
+    {
+      "arm": "axi_skill",
+      "task": "all enterprise handles in Norway",
+      "correct": true,
+      "answer": "member_00019, member_00054, member_00089, member_00124, member_00159, member_00194, member_00229, member_00264, member_00299, member_00334, member_00369, member_00404, member_00439, member_00474, member_00509, member_00544, member_00579, member_00614, member_00649, member_00684, member_00719, member_00754, member_00789, member_00824, member_00859, member_00894, member_00929, member_00964, member_00999, member_01034, member_01069, member_01104, member_01139, member_01174, member_01209, member_01244, member_01279, member_01314, member_01349, member_01384, member_01419, member_01454, member_01489, member_01524, member_01559, member_01594, member_01629, member_01664, member_01699, member_01734, member_01769, member_01804, member_01839, member_01874, member_01909, member_01944, member_01979, member_02014, member_02049, member_02084, member_02119, member_02154, member_02189, member_02224, member_02259, member_02294, member_02329, member_02364, member_02399, member_02434, member_02469, member_02504, member_02539, member_02574, member_02609, member_02644, member_02679, member_02714, member_02749, member_02784, member_02819, member_02854, member_02889, member_02924, member_02959, member_02994",
+      "turns": 8,
+      "toolCalls": 6,
+      "toolOutputChars": 8394,
+      "inputTokens": 14,
+      "cacheCreationTokens": 11295,
+      "cacheReadTokens": 68428,
+      "outputTokens": 1696,
+      "costUsd": 0.0037926800000000005,
+      "durationMs": 13820,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "Skill {\"skill\":\"mysql-axi\"}",
+          "outputChars": 26,
+          "isError": false,
+          "preview": "Launching skill: mysql-axi"
+        },
+        {
+          "command": "npx -y mysql-axi --help",
+          "outputChars": 503,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' --help\nusage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\n"
+        },
+        {
+          "command": "npx -y mysql-axi tables; npx -y mysql-axi describe profiles 2>&1; npx -y mysql-axi describe plans 2>&1",
+          "outputChars": 5524,
+          "isError": true,
+          "preview": "Exit code 1\nnpm notice run npx\nnpm notice run 'mysql-axi' tables\ndatabase: shop\ntotal: 65 tables; 0 views; 124 MB\ntables[65]{name,kind,rows_est,size}:\n  analytics_log,table,81,16 KB\n  analytics_notes,"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT plan, COUNT(*) AS n FROM profiles GROUP BY plan\" 2>/dev/null; npx -y mysql-axi query \"SELECT DISTINCT country FROM profiles ORDER BY country\" 2>/dev/null",
+          "outputChars": 171,
+          "isError": false,
+          "preview": "result[5]{plan,n}:\n  free,600\n  starter,600\n  pro,600\n  enterprise,600\n  trial,600\nresult[7]{country}:\n  Austria\n  France\n  Germany\n  Netherlands\n  Norway\n  Poland\n  Spain"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT handle FROM profiles WHERE plan = 'enterprise' AND country = 'Norway' ORDER BY handle\" 2>/dev/null",
+          "outputChars": 861,
+          "isError": false,
+          "preview": "rows: 50 of 86 shown\nresult[50]{handle}:\n  member_00019\n  member_00054\n  member_00089\n  member_00124\n  member_00159\n  member_00194\n  member_00229\n  member_00264\n  member_00299\n  member_00334\n  member_"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT handle FROM profiles WHERE plan = 'enterprise' AND country = 'Norway' ORDER BY handle\" --limit 86 2>/dev/null",
+          "outputChars": 1309,
+          "isError": false,
+          "preview": "result[86]{handle}:\n  member_00019\n  member_00054\n  member_00089\n  member_00124\n  member_00159\n  member_00194\n  member_00229\n  member_00264\n  member_00299\n  member_00334\n  member_00369\n  member_00404\n"
+        }
+      ]
+    },
+    {
+      "arm": "axi_skill",
+      "task": "all enterprise handles in Norway",
+      "correct": true,
+      "answer": "member_00019, member_00054, member_00089, member_00124, member_00159, member_00194, member_00229, member_00264, member_00299, member_00334, member_00369, member_00404, member_00439, member_00474, member_00509, member_00544, member_00579, member_00614, member_00649, member_00684, member_00719, member_00754, member_00789, member_00824, member_00859, member_00894, member_00929, member_00964, member_00999, member_01034, member_01069, member_01104, member_01139, member_01174, member_01209, member_01244, member_01279, member_01314, member_01349, member_01384, member_01419, member_01454, member_01489, member_01524, member_01559, member_01594, member_01629, member_01664, member_01699, member_01734, member_01769, member_01804, member_01839, member_01874, member_01909, member_01944, member_01979, member_02014, member_02049, member_02084, member_02119, member_02154, member_02189, member_02224, member_02259, member_02294, member_02329, member_02364, member_02399, member_02434, member_02469, member_02504, member_02539, member_02574, member_02609, member_02644, member_02679, member_02714, member_02749, member_02784, member_02819, member_02854, member_02889, member_02924, member_02959, member_02994",
+      "turns": 9,
+      "toolCalls": 7,
+      "toolOutputChars": 10580,
+      "inputTokens": 16,
+      "cacheCreationTokens": 12443,
+      "cacheReadTokens": 83148,
+      "outputTokens": 1913,
+      "costUsd": 0.00427818,
+      "durationMs": 17979,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "Skill {\"skill\":\"mysql-axi\"}",
+          "outputChars": 26,
+          "isError": false,
+          "preview": "Launching skill: mysql-axi"
+        },
+        {
+          "command": "npx -y mysql-axi --help",
+          "outputChars": 503,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' --help\nusage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\n"
+        },
+        {
+          "command": "npx -y mysql-axi tables; echo ---; npx -y mysql-axi describe profiles 2>&1",
+          "outputChars": 5361,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' tables\ndatabase: shop\ntotal: 65 tables; 0 views; 124 MB\ntables[65]{name,kind,rows_est,size}:\n  analytics_log,table,81,16 KB\n  analytics_notes,table,17,16 "
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT plan, country, COUNT(*) AS n FROM profiles WHERE plan LIKE '%enterprise%' OR country LIKE '%norw%' OR country IN ('NO','Norge','NOR') GROUP BY plan, country ORDER BY plan, country\"",
+          "outputChars": 504,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' query SELECT plan, country, COUNT(*) AS n FROM profiles WHERE plan LIKE '%enterprise%' OR country LIKE '%norw%' OR country IN ('NO','Norge','NOR') GROUP B"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT handle, status, deleted_at FROM profiles WHERE plan = 'enterprise' AND country = 'Norway' ORDER BY handle LIMIT 500\"",
+          "outputChars": 1705,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' query SELECT handle, status, deleted_at FROM profiles WHERE plan = 'enterprise' AND country = 'Norway' ORDER BY handle LIMIT 500\nrows: 50 of 86 shown\nresu"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT handle FROM profiles WHERE plan = 'enterprise' AND country = 'Norway' ORDER BY handle LIMIT 100\"",
+          "outputChars": 1016,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' query SELECT handle FROM profiles WHERE plan = 'enterprise' AND country = 'Norway' ORDER BY handle LIMIT 100\nrows: 50 of 86 shown\nresult[50]{handle}:\n  me"
+        },
+        {
+          "command": "npx -y mysql-axi query --limit 86 \"SELECT handle FROM profiles WHERE plan = 'enterprise' AND country = 'Norway' ORDER BY handle\"",
+          "outputChars": 1465,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' query --limit 86 SELECT handle FROM profiles WHERE plan = 'enterprise' AND country = 'Norway' ORDER BY handle\nresult[86]{handle}:\n  member_00019\n  member_"
+        }
+      ]
+    },
+    {
+      "arm": "axi_skill",
+      "task": "all enterprise handles in Norway",
+      "correct": true,
+      "answer": "member_00019, member_00054, member_00089, member_00124, member_00159, member_00194, member_00229, member_00264, member_00299, member_00334, member_00369, member_00404, member_00439, member_00474, member_00509, member_00544, member_00579, member_00614, member_00649, member_00684, member_00719, member_00754, member_00789, member_00824, member_00859, member_00894, member_00929, member_00964, member_00999, member_01034, member_01069, member_01104, member_01139, member_01174, member_01209, member_01244, member_01279, member_01314, member_01349, member_01384, member_01419, member_01454, member_01489, member_01524, member_01559, member_01594, member_01629, member_01664, member_01699, member_01734, member_01769, member_01804, member_01839, member_01874, member_01909, member_01944, member_01979, member_02014, member_02049, member_02084, member_02119, member_02154, member_02189, member_02224, member_02259, member_02294, member_02329, member_02364, member_02399, member_02434, member_02469, member_02504, member_02539, member_02574, member_02609, member_02644, member_02679, member_02714, member_02749, member_02784, member_02819, member_02854, member_02889, member_02924, member_02959, member_02994",
+      "turns": 8,
+      "toolCalls": 6,
+      "toolOutputChars": 8717,
+      "inputTokens": 14,
+      "cacheCreationTokens": 11636,
+      "cacheReadTokens": 67266,
+      "outputTokens": 1832,
+      "costUsd": 0.0039172600000000005,
+      "durationMs": 16013,
+      "model": "claude-haiku-5-5",
+      "calls": [
+        {
+          "command": "Skill {\"skill\":\"mysql-axi\"}",
+          "outputChars": 26,
+          "isError": false,
+          "preview": "Launching skill: mysql-axi"
+        },
+        {
+          "command": "npx -y mysql-axi --help",
+          "outputChars": 503,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' --help\nusage: mysql-axi [command] [args] [flags]\ncommands[9]:\n  (none)=overview, databases, tables, describe, sample, query, explain, doctor, auth, setup\n"
+        },
+        {
+          "command": "npx -y mysql-axi tables; echo ---; npx -y mysql-axi describe profiles 2>&1 | head -50",
+          "outputChars": 4251,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' tables\ndatabase: shop\ntotal: 65 tables; 0 views; 124 MB\ntables[65]{name,kind,rows_est,size}:\n  analytics_log,table,81,16 KB\n  analytics_notes,table,17,16 "
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT plan, country, COUNT(*) AS n FROM profiles WHERE plan LIKE '%enterprise%' OR country LIKE '%norw%' OR country LIKE '%NO%' GROUP BY plan, country ORDER BY plan, country LIMIT 200\"",
+          "outputChars": 502,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' query SELECT plan, country, COUNT(*) AS n FROM profiles WHERE plan LIKE '%enterprise%' OR country LIKE '%norw%' OR country LIKE '%NO%' GROUP BY plan, coun"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT handle, status, deleted_at FROM profiles WHERE plan = 'enterprise' AND country = 'Norway' ORDER BY handle LIMIT 500\"",
+          "outputChars": 1705,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' query SELECT handle, status, deleted_at FROM profiles WHERE plan = 'enterprise' AND country = 'Norway' ORDER BY handle LIMIT 500\nrows: 50 of 86 shown\nresu"
+        },
+        {
+          "command": "npx -y mysql-axi query \"SELECT handle FROM profiles WHERE plan = 'enterprise' AND country = 'Norway' ORDER BY handle\" --limit 100; echo ---; npx -y mysql-axi query \"SELECT status, COUNT(*) AS n, SUM(deleted_at IS NOT NULL) AS deleted FROM profiles WHERE plan = 'enterprise' AND country = 'Norway' GROUP BY status\"",
+          "outputChars": 1730,
+          "isError": false,
+          "preview": "npm notice run npx\nnpm notice run 'mysql-axi' query SELECT handle FROM profiles WHERE plan = 'enterprise' AND country = 'Norway' ORDER BY handle --limit 100\nresult[86]{handle}:\n  member_00019\n  member"
+        }
+      ]
+    }
+  ]
+}

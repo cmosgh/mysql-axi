@@ -1,5 +1,5 @@
 import { bool, enumFlag, expectPositionals, flag, intFlag, parseArgs, parseFields, type ParsedArgs } from "../args.js";
-import { records, rowsBlock } from "../cells.js";
+import { records, rowsBlock, truncationHelp } from "../cells.js";
 import { withSession, type RowsOutcome, type Session } from "../connection.js";
 import { axiError, usageError } from "../errors.js";
 import { block, fenced, helpBlock, humanBytes, out, type Obj } from "../render.js";
@@ -292,7 +292,7 @@ export async function sampleCommand(args: string[]): Promise<string> {
 // --- query ---
 
 export const queryHelp = (): string => `usage: ${tool().name} query "<sql>" [flags]
-Runs ONE read statement: SELECT, WITH ... SELECT, SHOW, DESC, EXPLAIN or TABLE.
+Runs ONE read statement: SELECT, WITH ... SELECT, SHOW, DESC, EXPLAIN or TABLE. \`${tool().name} "<sql>"\` is short for this.
 It runs in a read-only session and transaction; INTO, FOR UPDATE/SHARE, LOCK, SLEEP, GET_LOCK, LOAD_FILE, executable comments and optimizer hints are refused.
 flags:
   ${CONNECTION_FLAGS_HELP}, --limit <n> (rows; default 50; max ${MAX_ROWS}), --full (no 200-char cell truncation), --file <path> (SQL from a file; or pass - for stdin), --timeout <seconds> (default 30)
@@ -314,12 +314,11 @@ export async function queryCommand(args: string[]): Promise<string> {
   const limit = intFlag(parsed, "--limit", 50, { min: 1, max: MAX_ROWS });
   assertReadOnly(sql, tool().writeHint ? { writeHint: tool().writeHint } : {});
   const target = await targetFrom(parsed);
-  const outcome = await read(target, parsed, (s) => s.run(sql, limit));
+  const outcome = await read(target, parsed, (s) => s.run(sql, limit, [], MAX_ROWS));
   if (outcome.kind !== "rows") return block({ result: "ok - no rows", elapsed_ms: outcome.elapsedMs });
   const raw = rawTextColumns(statements(tokenize(sql).tokens)[0] ?? [], outcome);
   if (raw.size > 0 && outcome.rows.length > 0) return rawTextOutput(outcome, raw, bool(parsed, "--full"));
-  const help = outcome.truncated ? [`Add WHERE or LIMIT to the query, or raise --limit (max ${MAX_ROWS})`] : [];
-  return out(rowsBlock(outcome, bool(parsed, "--full"), limit), helpBlock(help));
+  return out(rowsBlock(outcome, bool(parsed, "--full"), limit), helpBlock(truncationHelp(outcome, MAX_ROWS)));
 }
 
 /** Columns that hold one large text (DDL, InnoDB status, JSON plans): printed fenced and untruncated. */

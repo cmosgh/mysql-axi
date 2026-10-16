@@ -1,8 +1,8 @@
 // Shared by the token suite (writes results/<suite>/<model>.json) and scripts/tokens-readme.ts (writes the README).
 import { readFileSync, writeFileSync } from "node:fs";
 
-export type Arm = "plain" | "axi" | "axi_home";
-export type Suite = "efficiency" | "accuracy";
+export type Arm = "plain" | "axi" | "axi_home" | "axi_skill" | "mcp";
+export type Suite = "efficiency" | "accuracy" | "large";
 
 /** One results file per suite and model: test/tokens/results/<suite>/<model>.json. */
 export interface Results {
@@ -52,7 +52,7 @@ const totalTokens = (r: Run) => r.inputTokens + r.cacheCreationTokens + r.cacheR
 const fmt = (n: number) => Math.round(n).toLocaleString("en-US");
 const pct = (value: number, base: number) => (base === 0 ? "" : ` (${value <= base ? "−" : "+"}${Math.abs(Math.round((1 - value / base) * 100))}%)`);
 
-export const ARM_LABELS: Record<Arm, string> = { plain: "plain", axi: "axi", axi_home: "axi+home" };
+export const ARM_LABELS: Record<Arm, string> = { plain: "mysql", axi: "mysql-axi", axi_home: "mysql-axi + hook", axi_skill: "mysql-axi + skill", mcp: "MCP server" };
 
 interface Stat {
   correct: number;
@@ -104,14 +104,16 @@ export function renderTable(results: Results): string {
 }
 
 const ARMS_TEXT = [
-  "- **plain**: the `mysql` command-line client, which the model already knows.",
-  "- **axi**: `mysql-axi` with no prior context, so the agent first discovers it (`--help`).",
-  "- **axi+home**: `mysql-axi` with its home view in the system prompt, as `mysql-axi setup hooks` does at session start.",
+  "- **mysql**: the `mysql` command-line client, which the model already knows.",
+  "- **mysql-axi**: `mysql-axi` with no prior context, so the agent first discovers it (`--help`).",
+  "- **mysql-axi + hook**: `mysql-axi` installed with `mysql-axi setup hooks`, so the agent starts the session already knowing the tool, its limits and the connection (see [Session hook](#session-hook)).",
+  "- **mysql-axi + skill**: `mysql-axi` installed in the project (`npm i -D mysql-axi`) with its skill in `.claude/skills/`, so Claude Code lists the skill and loads it on demand. The skill points the agent at `npx -y mysql-axi` for current guidance. Enabling skills also brings the Skill tool and Claude Code's bundled skill list into every turn, about 2,000 tokens the other arms do not carry; compare turns for the skill itself.",
+  "- **MCP server**: the read-only [`mysql-mcp-server`](https://www.npmjs.com/package/mysql-mcp-server) 0.1.4 MCP server, started with npx, and no Bash. Results come back as pretty-printed JSON. Without the Bash tool its system prompt is about 1,000-2,200 tokens smaller per turn, which lowers its total tokens. These runs were added later on the same data (see `laterArms` in the results files).",
 ];
 
 const INTRO: Record<Suite, string[]> = {
   efficiency: [
-    "Headless Claude Code (Bash only, no MCP servers or user settings), each model in its own run against its own throwaway MySQL with the same seeded data (about 1k customers, 10k orders, long-text articles) and the same account. Totals sum the per-task medians over all tasks; percentages compare with plain for the same model.",
+    "Headless Claude Code (Bash only, no MCP servers or user settings), each model in its own run against its own throwaway MySQL with the same seeded data (about 1k customers, 10k orders, long-text articles) and the same account. Totals sum the per-task medians over all tasks; percentages compare with `mysql` for the same model.",
     "",
     ...ARMS_TEXT,
     "",
@@ -121,6 +123,11 @@ const INTRO: Record<Suite, string[]> = {
     "Same setup as above, with tasks built as traps where a tool's output can lead to a wrong answer: more matching rows than the 50-row cap, the deciding sentence at the end of a long text, the text 'NULL' next to SQL NULL, ids above 2^53 that lose precision as doubles, and an exact money total. Answers are checked strictly against values computed from the database.",
     "",
     "Runs are in `test/tokens/results/accuracy/`. Reproduce with `TOKENS_SUITE=accuracy TOKENS_MODEL=<model> pnpm run test:tokens`, then `pnpm run tokens:readme`.",
+  ],
+  large: [
+    "Same setup, on a database shaped like a real one: a 1M-row events table, a 66-column profiles table with long TEXT and JSON cells, and 60 more small tables (65 in all). Tasks are everyday work on such a database - describe a wide table, look up one wide row, find the always-NULL columns, rank tables by rows, aggregate the big table, list every match of a filter (86 rows) - with answers checked against values computed from the data. The MCP server returns up to 1,000 rows as pretty-printed JSON with no cell truncation; mysql-axi shows 50 rows and 200 characters per cell by default and reports what was cut.",
+    "",
+    "Runs are in `test/tokens/results/large/`. Reproduce with `TOKENS_SUITE=large TOKENS_MODEL=<model> pnpm run test:tokens`, then `pnpm run tokens:readme`.",
   ],
 };
 
@@ -146,7 +153,7 @@ export function renderReadme(suite: Suite, all: Results[]): string {
   ].join("\n");
 }
 
-const MARKER: Record<Suite, string> = { efficiency: "token-usage", accuracy: "accuracy" };
+const MARKER: Record<Suite, string> = { efficiency: "token-usage", accuracy: "accuracy", large: "large" };
 
 /** Replaces the text between the suite's README markers. */
 export function updateReadme(file: string, suite: Suite, content: string): void {

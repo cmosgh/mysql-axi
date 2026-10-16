@@ -1,18 +1,21 @@
-// Local-only token benchmark: the same model, tasks and database, once with the plain
-// `mysql` client and with mysql-axi. TOKENS_MODEL picks the model (default sonnet), TOKENS_SUITE the task set
-// (efficiency, or accuracy: traps where the output format can cause a wrong answer). Each run gets its own
+// Local-only token benchmark: the same model, tasks and database, with the plain `mysql` client, with
+// mysql-axi and with a read-only MySQL MCP server. TOKENS_MODEL picks the model (default sonnet), TOKENS_SUITE the task set
+// (efficiency; accuracy: traps where the output format can cause a wrong answer; large: a 1M-row table, a
+// 66-column table and 60 small tables, where output caps matter). Each run gets its own
 // container and writes test/tokens/results/<suite>/<model>.json. `pnpm run tokens:readme` publishes them.
+// TOKENS_ARMS=mcp runs only those arms and replaces their runs in an existing results file.
 // Needs Docker, a logged-in `claude` CLI and a `mysql` client on PATH. Never runs in CI.
 import { spawn, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { scalar, serverPort, sql } from "../integration/db.js";
 import { SHOP_FIXTURE } from "../integration/fixtures.js";
-import { renderTable, type Arm, type Call, type Results, type Run } from "./report.js";
+import { LARGE_FIXTURE, PROFILE_COLUMN_NAMES } from "./large.js";
+import { renderTable, type Arm, type Call, type Results, type Run, type Suite } from "./report.js";
 
 const RUNS = Number(process.env["TOKENS_RUNS"] ?? 3);
 const MODEL = process.env["TOKENS_MODEL"] ?? "sonnet";
@@ -21,8 +24,9 @@ const MAX_TURNS = 25;
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
 const slug = MODEL.replace(/[^\w.-]+/g, "-");
-const SUITE = process.env["TOKENS_SUITE"] ?? "efficiency";
-if (SUITE !== "efficiency" && SUITE !== "accuracy") throw new Error(`TOKENS_SUITE must be efficiency or accuracy, not ${SUITE}`);
+const SUITES: Suite[] = ["efficiency", "accuracy", "large"];
+const SUITE = (process.env["TOKENS_SUITE"] ?? "efficiency") as Suite;
+if (!SUITES.includes(SUITE)) throw new Error(`TOKENS_SUITE must be one of ${SUITES.join(", ")}, not ${SUITE}`);
 const runsDir = join(root, "test/tokens/.runs", SUITE, slug);
 const DB = "shop";
 const USER = "bench";
@@ -127,6 +131,53 @@ const ACCURACY_TASKS: Task[] = [
   },
 ];
 
+/** Identifiers in an answer line: `a, b and c` or a markdown list. */
+const idents = (a: string): Set<string> => new Set(a.toLowerCase().match(/[a-z_][a-z0-9_]*/g) ?? []);
+
+const WIDE_ROW_HANDLE = "member_02718";
+
+const LARGE_TASKS: Task[] = [
+  {
+    id: "wide table columns",
+    prompt: "How many columns does the profiles table have, and which of them are TEXT or JSON columns? The ANSWER line gives the count and those column names.",
+    check: (a) => new RegExp(`\\b${expected["profileColumns"]}\\b`).test(a) && expected["textColumns"]!.split(",").every((c) => idents(a).has(c)),
+  },
+  {
+    id: "one wide row",
+    prompt: `Which plan is the profile with handle ${WIDE_ROW_HANDLE} on, which country is it in, and what does its bio say it writes about?`,
+    check: (a) => [expected["rowPlan"]!, expected["rowCountry"]!, expected["rowTopic"]!].every((v) => a.toLowerCase().includes(v.toLowerCase())),
+  },
+  {
+    id: "always-NULL columns",
+    prompt: "Which columns of the profiles table are NULL in every row? The ANSWER line lists only those column names, comma-separated.",
+    check: (a) => {
+      const got = idents(a);
+      const want = expected["nullColumns"]!.split(",");
+      // Other column names with an underscore cannot be ordinary words, so none of them may appear.
+      const others = PROFILE_COLUMN_NAMES.filter((c) => c.includes("_") && !want.includes(c));
+      return want.every((c) => got.has(c)) && !others.some((c) => got.has(c));
+    },
+  },
+  {
+    id: "largest tables",
+    prompt: "Which three tables in the database have the most rows? The ANSWER line names them, largest first.",
+    check: (a) => {
+      const positions = expected["largestTables"]!.split(",").map((t) => a.toLowerCase().indexOf(t));
+      return positions.every((p, i) => p !== -1 && (i === 0 || p > positions[i - 1]!));
+    },
+  },
+  {
+    id: "events per kind",
+    prompt: "How many events are there per kind in the events table? The ANSWER line lists each kind with its count.",
+    check: (a) => expected["eventCounts"]!.split(",").every((n) => new RegExp(`\\b${n}\\b`).test(a)),
+  },
+  {
+    id: "all enterprise handles in Norway",
+    prompt: "List the handle of every profile on the enterprise plan located in Norway. The ANSWER line must list all of them, comma-separated.",
+    check: (a) => [...new Set(a.match(/member_\d{5}/g) ?? [])].sort().join(",") === expected["handles"],
+  },
+];
+
 const EFFICIENCY_FIXTURE = [
   "CREATE TABLE reviews (id INT PRIMARY KEY, order_id BIGINT UNSIGNED NOT NULL, stars TINYINT)",
   "INSERT INTO reviews SELECT d + 1, IF(d + 1 IN (7, 13), 990000 + d, (d + 1) * 10), 1 + d % 5 FROM (SELECT a.d * 10 + b.d AS d FROM digits a, digits b) s WHERE d < 20",
@@ -165,9 +216,14 @@ const ACCURACY_FIXTURE = [
 
 // TOKENS_ONLY="orders per status" runs a subset as a smoke test; it never touches the README.
 const ONLY = process.env["TOKENS_ONLY"]?.split(",").map((t) => t.trim());
-const SUITE_TASKS = SUITE === "accuracy" ? ACCURACY_TASKS : EFFICIENCY_TASKS;
+const SUITE_TASKS = { efficiency: EFFICIENCY_TASKS, accuracy: ACCURACY_TASKS, large: LARGE_TASKS }[SUITE];
+const SUITE_FIXTURE = { efficiency: EFFICIENCY_FIXTURE, accuracy: ACCURACY_FIXTURE, large: LARGE_FIXTURE }[SUITE];
 const TASKS = ONLY ? SUITE_TASKS.filter((t) => ONLY.includes(t.id)) : SUITE_TASKS;
-const ARMS: Arm[] = ["plain", "axi", "axi_home"];
+const ALL_ARMS: Arm[] = ["plain", "axi", "axi_home", "axi_skill", "mcp"];
+const ARMS = (process.env["TOKENS_ARMS"]?.split(",").map((a) => a.trim()) ?? ALL_ARMS) as Arm[];
+for (const arm of ARMS) if (!ALL_ARMS.includes(arm)) throw new Error(`TOKENS_ARMS: unknown arm ${arm} (${ALL_ARMS.join(", ")})`);
+/** The MCP server the mcp arm talks to, pinned so runs stay comparable. */
+const MCP_PACKAGE = "mysql-mcp-server@0.1.4";
 /** The home view, as `mysql-axi setup hooks` injects it at session start (axi_home arm). */
 let homeView = "";
 let setup: Record<string, unknown> = {};
@@ -177,17 +233,20 @@ function prompt(arm: Arm, task: Task): string {
   const how =
     arm === "plain"
       ? `Use the \`mysql\` command-line client through Bash: \`mysql -h 127.0.0.1 -P ${serverPort()} -u ${USER} ${DB}\` (the password is already in MYSQL_PWD).`
-      : "Use the `mysql-axi` CLI through Bash; the connection is already configured.";
+      : arm === "mcp"
+        ? "Use the tools of the `mysql` MCP server; the connection is already configured."
+        : "Use the `mysql-axi` CLI through Bash; the connection is already configured.";
   return `You have a local MySQL 8 database named ${DB}. ${how}\nTask: ${task.prompt}\nEnd your reply with one line: ANSWER: <short answer>`;
 }
 
 function envFor(arm: Arm, bin: string): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {};
   for (const [key, value] of Object.entries(process.env)) {
-    // Nothing from this test run or an outer Claude Code session leaks into the agent.
-    if (!/^(CLAUDECODE|CLAUDE_CODE_|MYSQL_|VITEST|NODE_ENV)/.test(key)) env[key] = value;
+    // Nothing from this test run, pnpm (npm_config_* makes npx warn) or an outer Claude Code session leaks into the agent.
+    if (!/^(CLAUDECODE|CLAUDE_CODE_|MYSQL_|VITEST|NODE_ENV|npm_|PNPM_)/i.test(key)) env[key] = value;
   }
   if (arm === "plain") return { ...env, MYSQL_PWD: PASSWORD };
+  if (arm === "mcp") return env;
   return {
     ...env,
     PATH: `${bin}:${env["PATH"]}`,
@@ -197,20 +256,49 @@ function envFor(arm: Arm, bin: string): NodeJS.ProcessEnv {
   };
 }
 
+/** An MCP config for the mcp arm, the way such servers are usually registered: npx plus MYSQL_* env. */
+function mcpConfig(): string {
+  const env = { MYSQL_HOST: "127.0.0.1", MYSQL_PORT: String(serverPort()), MYSQL_USER: USER, MYSQL_PASSWORD: PASSWORD, MYSQL_DATABASE: DB };
+  return JSON.stringify({ mcpServers: { mysql: { command: "npx", args: ["-y", MCP_PACKAGE], env } } });
+}
+
+function toolArgs(arm: Arm): string[] {
+  if (arm === "mcp") return ["--tools", "", "--allowedTools", "mcp__mysql", "--mcp-config", mcpConfig()];
+  if (arm === "axi_skill") {
+    // The skill tells agents to run `npx -y mysql-axi`; the cwd's node_modules makes npx resolve the local build.
+    return ["--tools", "Bash,Skill", "--allowedTools", `Skill Bash(npx -y mysql-axi:*) Bash(npx mysql-axi:*) Bash(mysql-axi:*) Bash(${binPath}:*)`];
+  }
+  return ["--tools", "Bash", "--allowedTools", arm === "plain" ? "Bash(mysql:*)" : `Bash(mysql-axi:*) Bash(${binPath}:*)`];
+}
+
+/** An empty project, or for axi_skill one with the skill and mysql-axi installed, as `npm i -D mysql-axi` plus the skill would leave it. */
+function projectDir(arm: Arm): string {
+  const cwd = mkdtempSync(join(tmpdir(), "mysql-axi-tokens-cwd-"));
+  if (arm !== "axi_skill") return cwd;
+  const pkg = join(root, "packages/mysql-axi");
+  mkdirSync(join(cwd, ".claude/skills/mysql-axi"), { recursive: true });
+  writeFileSync(join(cwd, ".claude/skills/mysql-axi/SKILL.md"), readFileSync(join(pkg, "skills/mysql-axi/SKILL.md")));
+  writeFileSync(join(cwd, "package.json"), `${JSON.stringify({ name: "app", private: true, devDependencies: { "mysql-axi": "*" } })}\n`);
+  mkdirSync(join(cwd, "node_modules/.bin"), { recursive: true });
+  symlinkSync(pkg, join(cwd, "node_modules/mysql-axi"));
+  symlinkSync(join(pkg, "dist/mysql-axi.js"), join(cwd, "node_modules/.bin/mysql-axi"));
+  return cwd;
+}
+
 function runAgent(arm: Arm, task: Task, bin: string, index: number): Promise<Run> {
   const args = [
     "-p", prompt(arm, task),
     "--model", MODEL,
     "--output-format", "stream-json", "--verbose",
-    "--tools", "Bash",
-    "--allowedTools", arm === "plain" ? "Bash(mysql:*)" : `Bash(mysql-axi:*) Bash(${binPath}:*)`,
+    ...toolArgs(arm),
     ...(arm === "axi_home" ? ["--append-system-prompt", homeView] : []),
     "--strict-mcp-config",
-    "--setting-sources", "local",
+    // Project settings only for axi_skill, whose project holds nothing but the skill.
+    "--setting-sources", arm === "axi_skill" ? "project,local" : "local",
     "--no-session-persistence",
     "--max-turns", String(MAX_TURNS),
   ];
-  const cwd = mkdtempSync(join(tmpdir(), "mysql-axi-tokens-cwd-"));
+  const cwd = projectDir(arm);
   return new Promise((resolve, reject) => {
     const child = spawn("claude", args, { cwd, env: envFor(arm, bin), stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "";
@@ -223,6 +311,11 @@ function runAgent(arm: Arm, task: Task, bin: string, index: number): Promise<Run
       const events = stdout.split("\n").filter(Boolean).map((line) => JSON.parse(line) as Record<string, any>);
       const result = events.find((e) => e["type"] === "result");
       if (!result) return reject(new Error(`no result from claude (${arm}, ${task.id}): ${stderr.slice(0, 500)}`));
+      const init = events.find((e) => e["type"] === "system" && e["subtype"] === "init");
+      const mcp = (init?.["mcp_servers"] ?? []) as Array<{ name: string; status: string }>;
+      if (arm === "mcp" && mcp.find((s) => s.name === "mysql")?.status !== "connected") {
+        return reject(new Error(`the mysql MCP server did not connect (${task.id}): ${JSON.stringify(mcp)}`));
+      }
       const calls: Call[] = [];
       const byId = new Map<string, Call>();
       for (const event of events) {
@@ -230,14 +323,15 @@ function runAgent(arm: Arm, task: Task, bin: string, index: number): Promise<Run
         if (!Array.isArray(content)) continue;
         for (const part of content) {
           if (part?.type === "tool_use") {
-            const call: Call = { command: scrub(String(part.input?.command ?? "")).slice(0, 400), outputChars: 0, isError: false, preview: "" };
+            const command = part.name === "Bash" ? String(part.input?.command ?? "") : `${String(part.name).replace(/^mcp__mysql__/, "")} ${JSON.stringify(part.input ?? {})}`;
+            const call: Call = { command: scrub(command).slice(0, 400), outputChars: 0, isError: false, preview: "" };
             calls.push(call);
             byId.set(String(part.id), call);
           }
           if (part?.type !== "tool_result") continue;
           const output = typeof part.content === "string" ? part.content : (part.content ?? []).map((c: any) => String(c?.text ?? "")).join("");
           const call = byId.get(String(part.tool_use_id));
-          if (call) Object.assign(call, { outputChars: output.length, isError: Boolean(part.is_error), preview: scrub(output.slice(0, 200)) });
+          if (call) Object.assign(call, { outputChars: output.length, isError: Boolean(part.is_error), preview: scrub(output).slice(0, 200) });
         }
       }
       const toolOutputChars = calls.reduce((n, c) => n + c.outputChars, 0);
@@ -298,9 +392,7 @@ beforeAll(async () => {
   }
   await sql(`DROP DATABASE IF EXISTS ${DB}`);
   await sql(`CREATE DATABASE ${DB}`);
-  for (const statement of [...SHOP_FIXTURE, ...(SUITE === "accuracy" ? ACCURACY_FIXTURE : EFFICIENCY_FIXTURE)]) {
-    await sql(statement, DB);
-  }
+  for (const statement of [...SHOP_FIXTURE, ...SUITE_FIXTURE]) await sql(statement, DB);
   // The 5.7 clients still common on dev machines cannot speak caching_sha2_password.
   await sql(`CREATE USER ${USER} IDENTIFIED WITH mysql_native_password BY '${PASSWORD}'`);
   await sql(`GRANT ALL ON ${DB}.* TO ${USER}`);
@@ -315,6 +407,23 @@ beforeAll(async () => {
     if (!top || top.total === second?.total) throw new Error("the March top spender must be unique");
     expected["spenderName"] = top.name;
     expected["spenderTotal"] = Number(top.total).toFixed(2);
+  } else if (SUITE === "large") {
+    const columns = await sql<{ name: string; type: string }>(
+      "SELECT COLUMN_NAME AS name, DATA_TYPE AS type FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'profiles' ORDER BY ORDINAL_POSITION",
+      undefined,
+      [DB],
+    );
+    expected["profileColumns"] = String(columns.length);
+    expected["textColumns"] = columns.filter((c) => ["text", "json"].includes(c.type)).map((c) => c.name).join(",");
+    const [counts] = await sql<Record<string, number>>(`SELECT ${columns.map((c) => `COUNT(\`${c.name}\`) AS \`${c.name}\``).join(", ")} FROM profiles`, DB);
+    expected["nullColumns"] = columns.filter((c) => Number(counts![c.name]) === 0).map((c) => c.name).join(",");
+    const [row] = await sql<{ plan: string; country: string; bio: string }>("SELECT plan, country, bio FROM profiles WHERE handle = ?", DB, [WIDE_ROW_HANDLE]);
+    Object.assign(expected, { rowPlan: row!.plan, rowCountry: row!.country, rowTopic: /writes about (\w+)/.exec(row!.bio)![1]! });
+    const tables = await sql<{ name: string }>("SELECT TABLE_NAME AS name FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_TYPE = 'BASE TABLE'", undefined, [DB]);
+    const exact = await Promise.all(tables.map(async (t) => ({ name: t.name, rows: Number(await scalar(`SELECT COUNT(*) FROM \`${t.name}\``, DB)) })));
+    expected["largestTables"] = exact.sort((a, b) => b.rows - a.rows).slice(0, 3).map((t) => t.name).join(",");
+    expected["eventCounts"] = (await sql<{ n: number }>("SELECT COUNT(*) AS n FROM events GROUP BY kind", DB)).map((r) => String(r.n)).join(",");
+    expected["handles"] = (await sql<{ handle: string }>("SELECT handle FROM profiles WHERE plan = 'enterprise' AND country = 'Norway' ORDER BY handle", DB)).map((r) => r.handle).join(",");
   } else {
     expected["country"] = String(
       await scalar("SELECT meta->>'$.ship.country' FROM orders WHERE status = 'paid' GROUP BY 1 ORDER BY SUM(total) DESC LIMIT 1", DB),
@@ -335,6 +444,11 @@ beforeAll(async () => {
   const axi = spawnSync("mysql-axi", ["query", "SELECT COUNT(*) AS n FROM orders"], { env: envFor("axi", bin), encoding: "utf-8" });
   if (axi.status !== 0) throw new Error(`mysql-axi cannot connect (run pnpm run build first): ${axi.stdout}${axi.stderr}`);
   homeView = spawnSync("mysql-axi", [], { env: envFor("axi", bin), encoding: "utf-8" }).stdout;
+  if (ARMS.includes("mcp")) {
+    // Fills the npx cache so the first agent does not wait on a download; the server exits when stdin closes.
+    const warm = spawnSync("npx", ["-y", MCP_PACKAGE], { input: "", encoding: "utf-8", timeout: 180_000, env: { ...process.env, MYSQL_HOST: "127.0.0.1", MYSQL_USER: USER } });
+    if (warm.error) throw new Error(`cannot start ${MCP_PACKAGE}: ${warm.error.message}`);
+  }
   const git = (...args: string[]) => spawnSync("git", args, { cwd: root, encoding: "utf-8" }).stdout.trim();
   setup = {
     claude: spawnSync("claude", ["--version"], { encoding: "utf-8" }).stdout.trim(),
@@ -345,6 +459,7 @@ beforeAll(async () => {
     concurrency: CONCURRENCY,
     prompts: Object.fromEntries(ARMS.map((arm) => [arm, prompt(arm, { id: "<task>", prompt: "<task prompt>", check: () => true })])),
     homeView: scrub(homeView),
+    mcpServer: MCP_PACKAGE,
     tasks: Object.fromEntries(TASKS.map((t) => [t.id, t.prompt])),
   };
 
@@ -359,21 +474,38 @@ afterAll(() => {
     writeFileSync(join(runsDir, "smoke.json"), `${JSON.stringify(runs, null, 2)}\n`);
     return;
   }
-  const results: Results = { suite: SUITE, model: MODEL, runs: RUNS, date: new Date().toISOString(), setup, results: runs };
-  mkdirSync(join(root, "test/tokens/results", SUITE), { recursive: true });
-  writeFileSync(join(root, `test/tokens/results/${SUITE}/${slug}.json`), `${JSON.stringify(results, null, 2)}\n`);
+  const file = join(root, `test/tokens/results/${SUITE}/${slug}.json`);
+  const date = new Date().toISOString();
+  let results: Results = { suite: SUITE, model: MODEL, runs: RUNS, date, setup, results: runs };
+  if (ARMS.length < ALL_ARMS.length && existsSync(file)) {
+    // Adds or replaces only these arms; the file records which arms ran later and with what.
+    const previous = JSON.parse(readFileSync(file, "utf-8")) as Results;
+    if (JSON.stringify(previous.setup["tasks"]) !== JSON.stringify(setup["tasks"]) || previous.runs !== RUNS) {
+      throw new Error(`${file} has other tasks or run counts; rerun every arm instead of TOKENS_ARMS`);
+    }
+    const later = { ...(previous.setup["laterArms"] as Record<string, unknown>) };
+    for (const arm of ARMS) later[arm] = { date, claude: setup["claude"], mysqlServer: setup["mysqlServer"], mysqlAxi: setup["mysqlAxi"] };
+    results = {
+      ...previous,
+      setup: { ...previous.setup, mcpServer: MCP_PACKAGE, prompts: { ...(previous.setup["prompts"] as object), ...(setup["prompts"] as object) }, laterArms: later },
+      results: [...previous.results.filter((r) => !ARMS.includes(r.arm)), ...runs],
+    };
+  }
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, `${JSON.stringify(results, null, 2)}\n`);
   writeFileSync(join(runsDir, "table.md"), `${renderTable(results)}\n`);
 });
 
 // Accuracy results are measurements, not pass/fail; efficiency tasks must be solvable with mysql-axi.
-describe("accuracy runs", () => {
-  it.runIf(SUITE === "accuracy")("recorded a result for every task, arm and run", () => {
+// This test always runs: with every test skipped vitest would skip beforeAll too.
+describe("runs", () => {
+  it("recorded a result for every task, arm and run", () => {
     expect(runs).toHaveLength(TASKS.length * ARMS.length * RUNS);
   });
 });
 
-describe.runIf(SUITE === "efficiency")("token usage: plain mysql client vs mysql-axi", () => {
-  it.each(TASKS.flatMap((t) => (["axi", "axi_home"] as const).map((arm) => [t.id, arm] as const)))("%s: the %s arm answers correctly in most runs", (id, arm) => {
+describe.runIf(SUITE === "efficiency" && ARMS.some((arm) => arm === "axi" || arm === "axi_home"))("token usage: plain mysql client vs mysql-axi", () => {
+  it.each(TASKS.flatMap((t) => (["axi", "axi_home"] as const).filter((arm) => ARMS.includes(arm)).map((arm) => [t.id, arm] as const)))("%s: the %s arm answers correctly in most runs", (id, arm) => {
     const rs = runs.filter((r) => r.task === id && r.arm === arm);
     expect(rs.filter((r) => r.correct).length, JSON.stringify(rs.map((r) => r.answer))).toBeGreaterThan(RUNS / 2);
   });

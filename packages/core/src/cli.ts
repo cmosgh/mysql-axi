@@ -41,6 +41,19 @@ export const READ_COMMANDS: Record<string, Command> = {
 
 const ALIASES: Record<string, string> = { desc: "describe", dbs: "databases" };
 
+const SQL_VERBS =
+  /^\s*\(*\s*(select|with|show|desc|describe|explain|table|values|checksum|insert|update|delete|replace|create|alter|drop|truncate|rename|set|call|do|load|grant|revoke|lock|unlock|flush|kill|analyze|optimize|repair|start|begin|commit|rollback|use)\b/i;
+
+/**
+ * `tool "SELECT 1"` runs as `tool query "SELECT 1"`, the most common agent slip.
+ * Only one argument holding whitespace counts as SQL, so `tool desc orders` stays a command; writes still meet the query guard.
+ */
+export function routeBareSql(argv: string[], commands: Record<string, Command>): string[] {
+  const [first] = argv;
+  if (first === undefined || commands[first] || !/\s/.test(first.trim()) || !SQL_VERBS.test(first)) return argv;
+  return ["query", ...argv];
+}
+
 export interface CliSpec {
   tool: Tool;
   version: string;
@@ -64,7 +77,7 @@ export async function runCli(spec: CliSpec, options: MainOptions = {}): Promise<
   const commands: Record<string, Command> = { ...spec.commands };
   for (const [alias, target] of Object.entries(ALIASES)) if (commands[target]) commands[alias] = commands[target]!;
   await runAxiCli({
-    ...(options.argv ? { argv: options.argv } : {}),
+    argv: routeBareSql(options.argv ?? process.argv.slice(2), commands),
     ...(options.stdout ? { stdout: options.stdout } : {}),
     description: spec.description,
     version: spec.version,

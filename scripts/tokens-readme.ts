@@ -5,7 +5,7 @@ import { renderReadme, updateReadme, type Results, type Suite } from "../test/to
 
 const ORDER = ["haiku", "sonnet", "opus"];
 const rank = (model: string) => (ORDER.indexOf(model) + ORDER.length + 1) % (ORDER.length + 1);
-for (const suite of ["efficiency", "accuracy"] as Suite[]) {
+for (const suite of ["efficiency", "accuracy", "large"] as Suite[]) {
   const dir = join("test/tokens/results", suite);
   if (!existsSync(dir)) continue;
   const all = readdirSync(dir)

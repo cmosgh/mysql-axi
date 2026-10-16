@@ -12,8 +12,10 @@ export interface RowsOutcome {
   kind: "rows";
   columns: Column[];
   rows: unknown[][];
-  /** More rows existed than the cap; the rest were never read. */
+  /** More rows existed than the cap. */
   truncated: boolean;
+  /** Row count past the cap: exact when the server finished first, else at least this many. */
+  total?: { rows: number; exact: boolean };
   elapsedMs: number;
 }
 
@@ -83,22 +85,25 @@ export class Session {
   }
 
   /**
-   * Streams at most `limit` rows. On overflow the connection is destroyed so
-   * the server stops sending; the session is unusable afterwards.
+   * Keeps at most `limit` rows and counts on to `countTo` without storing them.
+   * Past `countTo` the connection is destroyed so the server stops sending; the session is unusable afterwards.
    */
-  run(sql: string, limit: number, values: unknown[] = []): Promise<Outcome> {
+  run(sql: string, limit: number, values: unknown[] = [], countTo = limit): Promise<Outcome> {
     const started = Date.now();
     return new Promise((resolve, reject) => {
       let columns: Column[] | undefined;
       let header: Partial<mysql.ResultSetHeader> = {};
       const rows: unknown[][] = [];
+      let skipped = 0;
       let settled = false;
-      const finish = (truncated: boolean): void => {
+      const finish = (exact: boolean): void => {
         if (settled) return;
         settled = true;
         const elapsedMs = Date.now() - started;
         if (columns) {
-          resolve({ kind: "rows", columns, rows, truncated, elapsedMs });
+          const truncated = skipped > 0;
+          const total = truncated && countTo > limit ? { total: { rows: rows.length + skipped, exact } } : {};
+          resolve({ kind: "rows", columns, rows, truncated, ...total, elapsedMs });
         } else {
           resolve({
             kind: "ok",
@@ -128,15 +133,17 @@ export class Session {
           rows.push(row as unknown[]);
           return;
         }
+        skipped++;
+        if (rows.length + skipped <= countTo) return;
         this.destroy();
-        finish(true);
+        finish(false);
       });
       query.on("error", (error: unknown) => {
         if (settled) return;
         settled = true;
         reject(error);
       });
-      query.on("end", () => finish(false));
+      query.on("end", () => finish(true));
     });
   }
 

@@ -207,8 +207,8 @@ const DENIED_WORDS: Record<string, string> = {
   outfile: "OUTFILE writes a file on the server",
   dumpfile: "DUMPFILE writes a file on the server",
   lock: "LOCK IN SHARE MODE takes row locks",
-  analyze: "ANALYZE executes the statement or rewrites statistics",
-  analyse: "ANALYSE executes the statement",
+  analyze: "ANALYZE executes the statement - the explain --analyze command runs a SELECT read-only and time-capped",
+  analyse: "ANALYSE executes the statement - the explain --analyze command runs a SELECT read-only and time-capped",
 };
 
 /** Built-in functions refused when called; as plain names (a column called sleep) they are fine. */

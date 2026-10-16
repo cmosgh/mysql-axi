@@ -179,7 +179,13 @@ describe("rows and values", () => {
     expect(Date.now() - started).toBeLessThan(10_000);
     expect(stdout).toContain("rows: 1000 shown - more rows exist (limit 1000)");
     expect(stdout).toContain("Add WHERE or LIMIT to the query");
-    expect((await ro("query", "SELECT n FROM seq")).stdout).toContain("rows: 50 shown - more rows exist (limit 50)");
+    const all = await ro("query", "SELECT n FROM seq WHERE n <= 72");
+    expect(all.stdout).toContain("rows: 50 of 72 shown");
+    expect(all.stdout).toContain("Rerun with --limit 72 to see all rows");
+    const many = await ro("query", "SELECT a.n FROM seq a, seq b");
+    expect(many.stdout).toContain("rows: 50 of more than 1000 shown");
+    expect(many.stdout).toContain("aggregate (COUNT; GROUP BY; GROUP_CONCAT)");
+    expect(Date.now() - started).toBeLessThan(20_000);
     const over = await ro("query", "SELECT 1", "--limit", "1001");
     expect(over.exitCode).toBe(2);
   });
@@ -201,6 +207,15 @@ describe("rows and values", () => {
     const piped = spawnCli("ro", ["query", "-"], "SELECT COUNT(*) AS n FROM orders");
     expect(piped.exitCode).toBe(0);
     expect(piped.stdout).toContain("result[1]{n}:\n  3");
+  });
+
+  it("runs bare SQL from the real command line as query", () => {
+    const bare = spawnCli("ro", ["SELECT COUNT(*) AS n FROM orders;"]);
+    expect(bare.exitCode).toBe(0);
+    expect(bare.stdout).toContain("result[1]{n}:\n  3");
+    const write = spawnCli("rw", ["DELETE FROM orders"]);
+    expect(write.exitCode).toBe(2);
+    expect(write.stdout).toContain("mysql-rw-axi exec");
   });
 
   it("query maps server errors", async () => {

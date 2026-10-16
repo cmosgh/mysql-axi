@@ -12,8 +12,9 @@
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:tokens": "pnpm run build && vitest run --config vitest.tokens.config.ts",
     "tokens:readme": "tsx scripts/tokens-readme.ts",
+    "safety:readme": "tsx scripts/safety-readme.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "check": "pnpm run typecheck && pnpm run test && pnpm run build && pnpm run build:skill -- --check",
+    "check": "pnpm run typecheck && pnpm run test && pnpm run build && pnpm run build:skill -- --check && pnpm run safety:readme -- --check",
     "version": "tsx scripts/sync-version.ts && git add packages/mysql-axi/package.json packages/mysql-rw-axi/package.json"
   },
   "license": "MIT",
@@ -26,6 +27,7 @@
     "@types/node": "^26.6.5",
     "axi-sdk-js": "^0.1.13",
     "esbuild": "^0.28.2",
+    "mysql-mcp-server": "0.1.4",
     "mysql2": "^3.24.6",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",

@@ -1,5 +1,5 @@
 import { bool, intFlag, parseArgs } from "../../../core/src/args.js";
-import { rowsBlock } from "../../../core/src/cells.js";
+import { rowsBlock, truncationHelp } from "../../../core/src/cells.js";
 import { CONNECTION_FLAGS, CONNECTION_FLAGS_HELP, MAX_ROWS, sqlInput, targetFrom } from "../../../core/src/commands/common.js";
 import { withSession } from "../../../core/src/connection.js";
 import { block, helpBlock, out, snippet, type Obj } from "../../../core/src/render.js";
@@ -55,11 +55,11 @@ export async function execCommand(args: string[]): Promise<string> {
   }
 
   const { outcome, warnings } = await withSession(target, { readOnly: false }, async (s) => {
-    const outcome = await s.run(sql, limit);
+    const outcome = await s.run(sql, limit, [], MAX_ROWS);
     const warnings = outcome.kind === "ok" && outcome.warnings > 0 ? await s.all<Obj>("SHOW WARNINGS") : [];
     return { outcome, warnings };
   });
-  if (outcome.kind === "rows") return rowsBlock(outcome, bool(parsed, "--full"), limit);
+  if (outcome.kind === "rows") return out(rowsBlock(outcome, bool(parsed, "--full"), limit), helpBlock(truncationHelp(outcome, MAX_ROWS)));
 
   const result: Obj = { statement: snippet(sql), verb: verb.toUpperCase(), affected_rows: outcome.affectedRows };
   if (outcome.insertId > 0) result["insert_id"] = outcome.insertId;

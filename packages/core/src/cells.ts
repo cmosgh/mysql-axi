@@ -56,11 +56,26 @@ export function records(outcome: RowsOutcome, full: boolean): Obj[] {
 
 const SLOW_MS = 1000;
 
+function shownOf(outcome: RowsOutcome, shown: number, limit: number): string {
+  const { total } = outcome;
+  if (!total) return `${shown} shown - more rows exist (limit ${limit})`;
+  return total.exact ? `${shown} of ${total.rows} shown` : `${shown} of more than ${total.rows - 1} shown`;
+}
+
+/** What to do about a cut result; exact totals get the --limit that shows every row. */
+export function truncationHelp(outcome: RowsOutcome, maxRows: number): string[] {
+  if (!outcome.truncated) return [];
+  const { total } = outcome;
+  if (total?.exact && total.rows <= maxRows) return [`Rerun with --limit ${total.rows} to see all rows, or narrow with WHERE`];
+  if (total) return [`More than ${maxRows} rows - aggregate (COUNT; GROUP BY; GROUP_CONCAT) or narrow with WHERE`];
+  return [`Add WHERE or LIMIT to the query, or raise --limit (max ${maxRows})`];
+}
+
 /** `result[N]{...}:` table; a summary line only when rows were cut, none came back or it was slow. */
 export function rowsBlock(outcome: RowsOutcome, full: boolean, limit: number): string {
   const rows = records(outcome, full);
   const summary: Obj = {};
-  if (outcome.truncated) summary["rows"] = `${rows.length} shown - more rows exist (limit ${limit})`;
+  if (outcome.truncated) summary["rows"] = shownOf(outcome, rows.length, limit);
   if (rows.length === 0) Object.assign(summary, { rows: 0, columns: uniqueNames(outcome.columns).join("; ") });
   if (outcome.elapsedMs >= SLOW_MS) summary["elapsed_ms"] = outcome.elapsedMs;
   return [Object.keys(summary).length > 0 ? block(summary) : "", rows.length > 0 ? block({ result: rows }) : ""].filter(Boolean).join("\n");

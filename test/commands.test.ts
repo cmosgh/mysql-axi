@@ -1,4 +1,5 @@
-import { writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fake, resetFake, type Reply } from "./fake-mysql.js";
@@ -58,10 +59,26 @@ describe("query", () => {
     expect(fake.connections).toHaveLength(0);
   });
 
-  it("stops reading at the cap and says so", async () => {
+  it("counts the rows past the cap and names the --limit that shows them all", async () => {
     fake.responder = answer({ SELECT: { columns: ["id"], rows: [[1], [2], [3], [4]] } });
     const { stdout } = await ro("query", "SELECT id FROM orders", "--limit", "2");
-    expect(stdout).toContain("rows: 2 shown - more rows exist (limit 2)");
+    expect(stdout).toContain("rows: 2 of 4 shown");
+    expect(stdout).toContain("Rerun with --limit 4 to see all rows");
+    expect(stdout).toContain("result[2]{id}:\n  1\n  2\n");
+  });
+
+  it("stops counting past the maximum and suggests aggregating", async () => {
+    fake.responder = answer({ SELECT: { columns: ["id"], rows: Array.from({ length: 1200 }, (_, i) => [i]) } });
+    const { stdout } = await ro("query", "SELECT id FROM orders");
+    expect(stdout).toContain("rows: 50 of more than 1000 shown");
+    expect(stdout).toContain("aggregate (COUNT; GROUP BY; GROUP_CONCAT)");
+    expect(fake.connections[0]!.destroyed).toBe(true);
+  });
+
+  it("stops reading at --limit 1000 without a total", async () => {
+    fake.responder = answer({ SELECT: { columns: ["id"], rows: Array.from({ length: 1001 }, (_, i) => [i]) } });
+    const { stdout } = await ro("query", "SELECT id FROM orders", "--limit", "1000");
+    expect(stdout).toContain("rows: 1000 shown - more rows exist (limit 1000)");
     expect(stdout).toContain("raise --limit");
     expect(fake.connections[0]!.destroyed).toBe(true);
   });
@@ -84,6 +101,35 @@ describe("query", () => {
     const { stdout, exitCode } = await ro("query", "SELECT 1", "--max", "5");
     expect(exitCode).toBe(2);
     expect(stdout).toContain("--max is not supported here; use --limit instead");
+  });
+});
+
+describe("bare SQL", () => {
+  it("runs as query", async () => {
+    fake.responder = answer({ "SHOW TABLES": { columns: ["Tables_in_shop"], rows: [["orders"]] } });
+    const { stdout, exitCode } = await ro("SHOW TABLES;", "--limit", "5");
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("orders");
+    expect(sqls()).toContain("SHOW TABLES;");
+  });
+
+  it("still meets the read-only guard", async () => {
+    const { stdout, exitCode } = await ro("DELETE FROM orders WHERE id = 1");
+    expect(exitCode).toBe(2);
+    expect(stdout).toContain("code: READ_ONLY");
+    expect(fake.connections).toHaveLength(0);
+  });
+
+  it("points writes in the write tool to exec", async () => {
+    const { stdout, exitCode } = await rw("UPDATE orders SET status = 'paid' WHERE id = 1");
+    expect(exitCode).toBe(2);
+    expect(stdout).toContain("mysql-rw-axi exec");
+    expect(fake.connections).toHaveLength(0);
+  });
+
+  it("leaves commands and non-SQL words alone", async () => {
+    expect((await ro("hello world")).stdout).toContain("unknown command 'hello world'");
+    expect((await ro("SELECT")).stdout).toContain("unknown command 'SELECT'");
   });
 });
 
@@ -177,6 +223,42 @@ describe("doctor", () => {
     const { stdout } = await ro("doctor");
     expect(stdout).not.toContain("warning");
     expect(stdout).toContain("grants: read-only - USAGE; SELECT");
+  });
+});
+
+describe("setup --local", () => {
+  const withProject = async (execPath: string, run: (dir: string) => Promise<void>) => {
+    const dir = mkdtempSync(join(tmpdir(), "mysql-axi-setup-"));
+    const argv1 = process.argv[1];
+    process.argv[1] = execPath;
+    const cwd = vi.spyOn(process, "cwd").mockReturnValue(dir);
+    try {
+      await run(dir);
+    } finally {
+      cwd.mockRestore();
+      process.argv[1] = argv1!;
+    }
+  };
+
+  it("installs into Claude Code's settings.local.json only, idempotently, and removes it", async () => {
+    await withProject("/opt/npm/bin/mysql-axi", async (dir) => {
+      const file = join(dir, ".claude/settings.local.json");
+      expect((await ro("setup", "hooks", "--local")).stdout).toContain("status: installed\n  integrations: Claude Code");
+      expect(JSON.parse(readFileSync(file, "utf-8")).hooks.SessionStart[0].hooks[0]).toEqual({ type: "command", command: "/opt/npm/bin/mysql-axi", timeout: 10 });
+      expect((await ro("setup", "hooks", "--local")).stdout).toContain("already up to date (no-op)");
+      expect((await ro("setup", "status", "--local")).stdout).toContain("claude_code: installed");
+      expect((await ro("setup", "uninstall", "--local")).stdout).toContain("status: removed");
+      expect((await ro("setup", "status", "--local")).stdout).toContain("claude_code: not installed");
+    });
+  });
+
+  it("refuses a source checkout and --project with --local", async () => {
+    await withProject("/src/packages/mysql-axi/bin/mysql-axi.ts", async () => {
+      const dev = await ro("setup", "hooks", "--local");
+      expect(dev.exitCode).toBe(2);
+      expect(dev.stdout).toContain("not from a source checkout");
+      expect((await ro("setup", "hooks", "--local", "--project")).stdout).toContain("pass --project or --local, not both");
+    });
   });
 });
 
