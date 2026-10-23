@@ -225,6 +225,15 @@ describe("setup", () => {
     expect((await ro("setup", "hooks", "--local", "--project")).stdout).toContain("pass --project or --local, not both");
   });
 
+  it("refuses an npx copy, whose cache later sessions do not have on PATH", async () => {
+    install(join(".npm", "_npx", "3f2a"));
+    const { stdout, exitCode } = await ro("setup", "hooks");
+    expect(exitCode).toBe(2);
+    expect(stdout).toContain("runs from the npx cache");
+    expect(stdout).toContain("npx skills add cmosgh/mysql-axi --skill mysql-axi");
+    expect(existsSync(join(home, ".claude"))).toBe(false);
+  });
+
   it("refuses a source checkout", async () => {
     process.argv[1] = join(saved.cwd, "packages", "mysql-axi", "bin", "mysql-axi.ts");
     const { stdout, exitCode } = await ro("setup", "hooks");
