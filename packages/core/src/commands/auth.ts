@@ -43,12 +43,15 @@ async function authStatus(args: string[]): Promise<string> {
   expectPositionals(parseArgs(args, [], command), 0, command);
   const config = readConfig();
   const active = selectedProfile();
-  const profiles = Object.entries(config.profiles ?? {}).map(([name, p]) => ({
-    name,
-    target: profileProblem(p) ? `invalid - ${profileProblem(p)}` : describeTarget(profileTarget(name, p, "")),
-    password: p.password ? "OS keychain" : "none",
-    active: name === active,
-  }));
+  const profiles = Object.entries(config.profiles ?? {}).map(([name, p]) => {
+    const problem = profileProblem(p);
+    return {
+      name,
+      target: problem ? `invalid - ${problem}` : describeTarget(profileTarget(name, p, "")),
+      password: !problem && p.password ? "OS keychain" : "none",
+      active: name === active,
+    };
+  });
   const url = env("URL");
   return out(
     url ? block({ override: `${tool().envPrefix}_URL is set and wins over the profiles` }) : "",

@@ -405,6 +405,7 @@ describe("home", () => {
     delete process.env["MYSQL_AXI_URL"];
     const cases: Array<[unknown, string]> = [
       [5, "is not an object"],
+      [null, "is not an object"],
       [{ password: false }, "has no user"],
       [{ user: "agent", password: false }, "has no host or socket"],
       [{ user: "agent", host: "127.0.0.1", port: "3306", password: false }, "has a port outside 1-65535"],
@@ -415,6 +416,7 @@ describe("home", () => {
       expect(home.exitCode).toBe(0);
       expect(home.stdout).toContain(`live: unavailable - profile 'dev' in config.json ${problem}`);
       expect((await ro("context")).stdout).toContain(`invalid - ${problem}`);
+      expect((await ro("auth", "status")).stdout).toContain(`invalid - ${problem}`);
       expect((await ro("tables")).stdout).toContain("code: AUTH_REQUIRED");
     }
     expect(fake.connections).toHaveLength(0);

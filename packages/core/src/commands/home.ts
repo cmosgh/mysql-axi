@@ -44,11 +44,10 @@ export function connectionStatus(): { blocks: string[]; help: string[] } {
     }
   }
   const active = selectedProfile();
-  const profiles = Object.entries(readConfig().profiles ?? {}).map(([profile, p]) => ({
-    name: profile,
-    target: profileProblem(p) ? `invalid - ${profileProblem(p)}` : describeTarget(profileTarget(profile, p, "")),
-    active: !url && profile === active,
-  }));
+  const profiles = Object.entries(readConfig().profiles ?? {}).map(([profile, p]) => {
+    const problem = profileProblem(p);
+    return { name: profile, target: problem ? `invalid - ${problem}` : describeTarget(profileTarget(profile, p, "")), active: !url && profile === active };
+  });
   return { blocks: [Object.keys(status).length > 0 ? block(status) : "", profiles.length > 0 ? block({ profiles }) : ""].filter(Boolean), help: [] };
 }
 

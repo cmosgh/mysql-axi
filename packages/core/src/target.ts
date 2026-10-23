@@ -137,7 +137,7 @@ export async function resolveTarget(options: TargetOptions = {}): Promise<Target
     const profiles = readConfig().profiles ?? {};
     if (!name) throw axiError("no connection configured", "AUTH_REQUIRED", [loginHint(), `Or set ${urlVar}=mysql://user:password@host:port/database`]);
     const profile = profiles[name];
-    if (!profile) throw usageError(`no profile '${name}'`, [`profiles: ${Object.keys(profiles).join(", ") || "none"}`, loginHint()]);
+    if (profile === undefined) throw usageError(`no profile '${name}'`, [`profiles: ${Object.keys(profiles).join(", ") || "none"}`, loginHint()]);
     const problem = profileProblem(profile);
     if (problem) throw axiError(`profile '${name}' in config.json ${problem}`, "AUTH_REQUIRED", [loginHint()]);
     let password = "";
