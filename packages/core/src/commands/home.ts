@@ -4,7 +4,7 @@ import { readConfig } from "../config.js";
 import { openSession, type Session } from "../connection.js";
 import { AxiError, axiError, fromDriverError } from "../errors.js";
 import { block, helpBlock, humanBytes, out, type Obj } from "../render.js";
-import { describeTarget, isConfigured, loginHint, parseUrl, profileTarget, selectedProfile, type Target } from "../target.js";
+import { describeTarget, isConfigured, loginHint, parseUrl, profileProblem, profileTarget, selectedProfile, type Target } from "../target.js";
 import { env, tool } from "../tool.js";
 import { CONNECTION_FLAGS, followUp, SYSTEM_SCHEMAS, targetFrom } from "./common.js";
 
@@ -46,7 +46,7 @@ export function connectionStatus(): { blocks: string[]; help: string[] } {
   const active = selectedProfile();
   const profiles = Object.entries(readConfig().profiles ?? {}).map(([profile, p]) => ({
     name: profile,
-    target: describeTarget(profileTarget(profile, p, "")),
+    target: profileProblem(p) ? `invalid - ${profileProblem(p)}` : describeTarget(profileTarget(profile, p, "")),
     active: !url && profile === active,
   }));
   return { blocks: [Object.keys(status).length > 0 ? block(status) : "", profiles.length > 0 ? block({ profiles }) : ""].filter(Boolean), help: [] };

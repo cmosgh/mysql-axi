@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { homedir, tmpdir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
@@ -83,7 +83,7 @@ describe("session capture", () => {
       recordSession("/work/a", { ended: "2026-10-01", commands: { query: 1 } });
       expect(lastSession("/work/a")).toMatchObject({ commands: { query: 1 } });
     }
-    for (const entry of ["5", '{"commands": null}', '{"ended": "2026-10-01"}', "[]"]) {
+    for (const entry of ["5", '{"commands": null}', '{"ended": "2026-10-01"}', "[]", '{"ended": "2026-10-01", "commands": {"query": "x"}}', '{"ended": "2026-10-01", "commands": {}, "profile": {}}', '{"ended": "2026-10-01", "commands": {}, "database": {}}']) {
       writeFileSync(join(configDir(), "sessions.json"), `{"directories": {"/work/a": ${entry}}}`);
       expect(lastSession("/work/a")).toBeUndefined();
     }
@@ -247,6 +247,16 @@ describe("setup", () => {
     expect((await ro("setup", "uninstall")).stdout).toContain("OpenCode failed - ");
   });
 
+  it("reports a Codex config it cannot read", async () => {
+    await ro("setup", "hooks");
+    const config = join(home, ".codex", "config.toml");
+    rmSync(config);
+    mkdirSync(config);
+    const { stdout, exitCode } = await ro("setup", "status");
+    expect(exitCode).toBe(0);
+    expect(stdout).toMatch(/codex: "?session start - but ~\/\.codex\/config\.toml is unreadable - EISDIR/);
+  });
+
   it("writes project and local scopes under the working directory only", async () => {
     const project = realpathSync(mkdtempSync(join(tmpdir(), "mysql-axi-project-")));
     process.chdir(project);
@@ -389,6 +399,25 @@ describe("home", () => {
       { sql: "START TRANSACTION READ ONLY", values: [] },
     ]);
     expect(fake.calls.find((c) => c.sql.startsWith("SELECT TABLE_NAME"))!.values).toEqual(["shop"]);
+  });
+
+  it("refuses a hand-edited profile instead of connecting to a default host", async () => {
+    delete process.env["MYSQL_AXI_URL"];
+    const cases: Array<[unknown, string]> = [
+      [5, "is not an object"],
+      [{ password: false }, "has no user"],
+      [{ user: "agent", password: false }, "has no host or socket"],
+      [{ user: "agent", host: "127.0.0.1", port: "3306", password: false }, "has a port outside 1-65535"],
+    ];
+    for (const [profile, problem] of cases) {
+      saveProfiles({ dev: profile as object }, "dev");
+      const home = await ro();
+      expect(home.exitCode).toBe(0);
+      expect(home.stdout).toContain(`live: unavailable - profile 'dev' in config.json ${problem}`);
+      expect((await ro("context")).stdout).toContain(`invalid - ${problem}`);
+      expect((await ro("tables")).stdout).toContain("code: AUTH_REQUIRED");
+    }
+    expect(fake.connections).toHaveLength(0);
   });
 
   it("lists the largest databases without a default, and hints keep -p", async () => {

@@ -81,6 +81,21 @@ export function parseUrl(raw: string, label: string): Target {
   };
 }
 
+const filled = (value: unknown): boolean => typeof value === "string" && value !== "";
+
+/** Why a stored profile cannot be used: a hand-edited one must never fall back to a default host or user. */
+export function profileProblem(profile: unknown): string | undefined {
+  if (profile === null || typeof profile !== "object" || Array.isArray(profile)) return "is not an object";
+  const p = profile as Record<string, unknown>;
+  if (!filled(p["user"])) return "has no user";
+  if (!filled(p["host"]) && !filled(p["socket"])) return "has no host or socket";
+  for (const key of ["host", "socket", "database"]) if (p[key] !== undefined && typeof p[key] !== "string") return `has a ${key} that is not a string`;
+  const port = p["port"];
+  if (port !== undefined && !(Number.isInteger(port) && (port as number) >= 1 && (port as number) <= 65535)) return "has a port outside 1-65535";
+  for (const key of ["tls", "password"]) if (p[key] !== undefined && typeof p[key] !== "boolean") return `has a ${key} that is not true or false`;
+  return undefined;
+}
+
 export function profileTarget(name: string, profile: Profile, password: string): Target {
   return {
     label: name,
@@ -123,6 +138,8 @@ export async function resolveTarget(options: TargetOptions = {}): Promise<Target
     if (!name) throw axiError("no connection configured", "AUTH_REQUIRED", [loginHint(), `Or set ${urlVar}=mysql://user:password@host:port/database`]);
     const profile = profiles[name];
     if (!profile) throw usageError(`no profile '${name}'`, [`profiles: ${Object.keys(profiles).join(", ") || "none"}`, loginHint()]);
+    const problem = profileProblem(profile);
+    if (problem) throw axiError(`profile '${name}' in config.json ${problem}`, "AUTH_REQUIRED", [loginHint()]);
     let password = "";
     if (profile.password) {
       password = (await keychainEntry(name)).getPassword() ?? "";
