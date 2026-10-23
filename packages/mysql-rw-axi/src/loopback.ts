@@ -34,5 +34,6 @@ export async function loopbackOnly(target: Target): Promise<Target> {
     );
   }
   // Connect to the address that was checked, not a name that could re-resolve elsewhere.
-  return { ...target, host: addresses[0]! };
+  // IPv4 first: localhost often resolves to ::1 first, while servers are published on 127.0.0.1.
+  return { ...target, host: addresses.find((a) => a.startsWith("127.")) ?? addresses[0]! };
 }

@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { cell, uniqueNames } from "../packages/core/src/cells.js";
 import { hoistLeadingFlags, READ_COMMANDS } from "../packages/core/src/cli.js";
 import { summarizeGrants } from "../packages/core/src/grants.js";
@@ -10,6 +10,15 @@ import { ScriptSplitter, splitScript } from "../packages/mysql-rw-axi/src/script
 import { TOOL } from "../packages/mysql-rw-axi/src/cli.js";
 
 beforeAll(() => setTool(TOOL));
+
+// Scripted DNS answers for the loopback rule; unset, the real resolver answers.
+const dns = vi.hoisted(() => ({ answer: undefined as string[] | undefined }));
+vi.mock("node:dns/promises", async (importOriginal) => {
+  const real = await importOriginal<typeof import("node:dns/promises")>();
+  const lookup = (host: string, options: object) =>
+    dns.answer ? Promise.resolve(dns.answer.map((address) => ({ address, family: address.includes(":") ? 6 : 4 }))) : real.lookup(host, options);
+  return { ...real, lookup };
+});
 
 const text = { name: "c", type: 253 };
 const decimal = { name: "c", type: 246 };
@@ -169,6 +178,31 @@ describe("loopback rule", () => {
   it("pins localhost to the resolved loopback address and allows sockets", async () => {
     expect(isLoopback((await loopbackOnly({ ...target, host: "localhost" })).host!)).toBe(true);
     expect(await loopbackOnly({ ...target, socket: "/tmp/mysql.sock" })).toMatchObject({ socket: "/tmp/mysql.sock" });
+  });
+
+  describe("with scripted DNS answers", () => {
+    const resolve = async (answer: string[], host = "localhost") => {
+      dns.answer = answer;
+      try {
+        return (await loopbackOnly({ ...target, host })).host;
+      } finally {
+        dns.answer = undefined;
+      }
+    };
+
+    it("prefers 127.x when localhost resolves to ::1 first, as on macOS", async () => {
+      expect(await resolve(["::1", "127.0.0.1"])).toBe("127.0.0.1");
+      expect(await resolve(["::1", "127.0.1.1"], "devbox")).toBe("127.0.1.1");
+    });
+
+    it("keeps the first address when no IPv4 loopback is among them", async () => {
+      expect(await resolve(["::1"])).toBe("::1");
+      expect(await resolve(["::1", "::ffff:127.0.0.1"])).toBe("::1");
+    });
+
+    it("still refuses a name with any address outside loopback", async () => {
+      await expect(resolve(["::1", "127.0.0.1", "10.0.0.5"], "mixed")).rejects.toThrow(/refusing host 'mixed' \(10\.0\.0\.5\)/);
+    });
   });
 });
 

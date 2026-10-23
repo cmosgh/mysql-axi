@@ -290,6 +290,18 @@ describe("loopback only", () => {
     }
   });
 
+  it("reaches a server published on 127.0.0.1 only through localhost", async () => {
+    // The test container listens on IPv4 only; localhost resolves to ::1 first on macOS.
+    process.env["MYSQL_RW_AXI_URL"] = rootUrl(DB).replace("@127.0.0.1:", "@localhost:");
+    try {
+      const { stdout, exitCode } = await rw("query", "SELECT 1 AS ok");
+      expect(exitCode, stdout).toBe(0);
+      expect(stdout).toContain("result[1]{ok}:\n  1");
+    } finally {
+      process.env["MYSQL_RW_AXI_URL"] = rootUrl(DB);
+    }
+  });
+
   it("refuses a non-loopback profile at login and stores nothing", async () => {
     const { stdout } = await rw("auth", "login", "--profile", "remote", "--host", "10.0.0.1", "--user", "root", "--no-password");
     expect(stdout).toContain("code: FORBIDDEN");
