@@ -420,6 +420,9 @@ describe("home", () => {
       expect((await ro("tables")).stdout).toContain("code: AUTH_REQUIRED");
     }
     expect(fake.connections).toHaveLength(0);
+    saveProfiles({ dev: null as unknown as object }, "dev");
+    expect((await ro("auth", "logout", "--profile", "dev")).stdout).toContain("status: removed");
+    expect((await ro("auth", "status")).stdout).toContain("profiles: none");
   });
 
   it("lists the largest databases without a default, and hints keep -p", async () => {
