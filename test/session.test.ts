@@ -6,6 +6,7 @@ import { delimiter, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { HookSettings } from "axi-sdk-js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { configDir } from "../packages/core/src/config.js";
 import { findHooks, installHooks, ourHook, removeHooks } from "../packages/core/src/hooks.js";
 import { findInvocations, lastSession, recordSession, sessionText, shellSegments, summarizeTranscript } from "../packages/core/src/sessionlog.js";
 import { setTool } from "../packages/core/src/tool.js";
@@ -71,6 +72,17 @@ describe("session capture", () => {
     expect(lastSession("/work/c")).toBeUndefined();
     expect(statSync(join(process.env["MYSQL_AXI_CONFIG_DIR"]!, "sessions.json")).mode & 0o777).toBe(0o600);
     expect(await summarizeTranscript(transcript, () => undefined)).toMatchObject({ commands: { other: 3 } });
+  });
+  it("starts a new log when sessions.json has the wrong shape", () => {
+    useTestEnv();
+    setTool(TOOL);
+    mkdirSync(configDir(), { recursive: true });
+    for (const content of ['{"directories": null}', '{"directories": [1]}', "null", "not json"]) {
+      writeFileSync(join(configDir(), "sessions.json"), content);
+      expect(lastSession("/work/a")).toBeUndefined();
+      recordSession("/work/a", { ended: "2026-10-01", commands: { query: 1 } });
+      expect(lastSession("/work/a")).toMatchObject({ commands: { query: 1 } });
+    }
   });
 });
 
@@ -227,11 +239,26 @@ describe("setup", () => {
 
   it("refuses an npx copy, whose cache later sessions do not have on PATH", async () => {
     install(join(".npm", "_npx", "3f2a"));
-    const { stdout, exitCode } = await ro("setup", "hooks");
+    const { stdout, exitCode } = await ro("setup", "hooks", "--project");
     expect(exitCode).toBe(2);
     expect(stdout).toContain("runs from the npx cache");
+    expect(stdout).toContain("then `mysql-axi setup hooks --project`");
     expect(stdout).toContain("npx skills add cmosgh/mysql-axi --skill mysql-axi");
     expect(existsSync(join(home, ".claude"))).toBe(false);
+  });
+
+  it("refuses a pnpm dlx copy behind a symlink", async () => {
+    const binDir = join(home, "dlx-bin");
+    mkdirSync(binDir);
+    symlinkSync(install(join("Library", "Caches", "pnpm", "dlx", "9c1e")), join(binDir, "mysql-axi"));
+    process.argv[1] = join(binDir, "mysql-axi");
+    const project = realpathSync(mkdtempSync(join(tmpdir(), "mysql-axi-project-")));
+    process.chdir(project);
+    const { stdout, exitCode } = await ro("setup", "hooks", "--local");
+    expect(exitCode).toBe(2);
+    expect(stdout).toContain("runs from the pnpm dlx cache");
+    expect(stdout).toContain("then `mysql-axi setup hooks --local`");
+    expect(existsSync(join(project, ".claude"))).toBe(false);
   });
 
   it("refuses a source checkout", async () => {
