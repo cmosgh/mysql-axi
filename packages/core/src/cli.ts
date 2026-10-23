@@ -28,6 +28,11 @@ export interface Command {
   help: () => string;
 }
 
+/** Answers a command name with an error instead of running anything. */
+export type Refusal = () => AxiError;
+
+export const upgradeHint = (name: string): string => `Upgrading is \`npm install -g ${name}@latest\`, run by a human`;
+
 /** Commands both CLIs share; all of them read through a read-only session. */
 export const READ_COMMANDS: Record<string, Command> = {
   find: { run: findCommand, help: findHelp },
@@ -51,17 +56,17 @@ const SQL_VERBS =
  * `tool "SELECT 1"` runs as `tool query "SELECT 1"`, the most common agent slip.
  * Only one argument holding whitespace counts as SQL, so `tool desc orders` stays a command; writes still meet the query guard.
  */
-export function routeBareSql(argv: string[], commands: Record<string, Command>): string[] {
+export function routeBareSql(argv: string[], commands: Record<string, unknown>): string[] {
   const [first] = argv;
   return first !== undefined && isBareSql(first, commands) ? ["query", ...argv] : argv;
 }
 
-const isBareSql = (token: string, commands: Record<string, Command>): boolean => !commands[token] && /\s/.test(token.trim()) && SQL_VERBS.test(token);
+const isBareSql = (token: string, commands: Record<string, unknown>): boolean => !commands[token] && /\s/.test(token.trim()) && SQL_VERBS.test(token);
 
 const FRONT_ONLY = new Set(["--help", "-h", "--version", "-V", "-v"]);
 
 /** `tool --profile x tables` runs as `tool tables --profile x`: agents often put connection flags first. */
-export function hoistLeadingFlags(argv: string[], commands: Record<string, Command>): string[] {
+export function hoistLeadingFlags(argv: string[], commands: Record<string, unknown>): string[] {
   if (!argv[0]?.startsWith("-") || argv[0] === "-") return argv;
   const at = argv.findIndex((token) => commands[token] !== undefined || isBareSql(token, commands));
   if (at <= 0 || argv.slice(0, at).some((token) => FRONT_ONLY.has(token))) return argv;
@@ -74,6 +79,8 @@ export interface CliSpec {
   description: string;
   topHelp: string;
   commands: Record<string, Command>;
+  /** Names that only refuse, kept out of help and the command list. `update` must shadow the SDK's built-in self-upgrade (a global npm install). */
+  refusals: { update: Refusal } & Record<string, Refusal>;
 }
 
 export interface MainOptions {
@@ -90,16 +97,28 @@ export async function runCli(spec: CliSpec, options: MainOptions = {}): Promise<
   setTool(spec.tool);
   const commands: Record<string, Command> = { ...spec.commands };
   for (const [alias, target] of Object.entries(ALIASES)) if (commands[target]) commands[alias] = commands[target]!;
+  const names = { ...spec.refusals, ...commands };
   await runAxiCli({
-    argv: routeBareSql(hoistLeadingFlags(options.argv ?? process.argv.slice(2), commands), commands),
+    argv: routeBareSql(hoistLeadingFlags(options.argv ?? process.argv.slice(2), names), names),
     ...(options.stdout ? { stdout: options.stdout } : {}),
     description: spec.description,
     version: spec.version,
     topLevelHelp: spec.topHelp,
     home: () => homeCommand(),
-    commands: Object.fromEntries(
-      Object.entries(commands).map(([name, c]) => [name, async (args: string[]) => (args.includes("-h") ? c.help().trimEnd() : c.run(args))]),
-    ),
+    commands: {
+      // Refusals have no help entry, so `--help` and `-h` refuse too.
+      ...Object.fromEntries(
+        Object.entries(spec.refusals).map(([name, refuse]) => [
+          name,
+          async () => {
+            throw refuse();
+          },
+        ]),
+      ),
+      ...Object.fromEntries(
+        Object.entries(commands).map(([name, c]) => [name, async (args: string[]) => (args.includes("-h") ? c.help().trimEnd() : c.run(args))]),
+      ),
+    },
     getCommandHelp: (command) => commands[command]?.help(),
     renderUnknownCommand: (command) =>
       `${renderErrorOutput(`unknown command '${command}'`, "VALIDATION_ERROR", [

@@ -7,8 +7,9 @@ import { build } from "esbuild";
 const ROOT = new URL("..", import.meta.url).pathname;
 const rootPkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf-8")) as { devDependencies: Record<string, string> };
 
-// Strings that only exist in the write tool. Their presence in mysql-axi's bundle fails the build.
-const WRITE_ONLY_MARKERS = ["mysql-rw-axi exec", "loopbackOnly", "DROP DATABASE", "splitScript"];
+// Code that only exists in the write tool, one name per module. Their presence in mysql-axi's bundle fails the build.
+// Command names are not markers: mysql-axi's refusals point to `mysql-rw-axi exec` and friends.
+const WRITE_ONLY_MARKERS = ["execCommand", "importCommand", "dbCommand", "DROP DATABASE", "singleStatement", "loopbackOnly", "ScriptSplitter"];
 
 function packageName(specifier: string): string | undefined {
   if (specifier.startsWith("node:") || specifier.startsWith(".")) return undefined;
@@ -57,6 +58,11 @@ for (const name of ["mysql-axi", "mysql-rw-axi"]) {
       const leak = WRITE_ONLY_MARKERS.find((m) => code.includes(m));
       if (leak) throw new Error(`mysql-axi bundle ${file} contains write-tool code ('${leak}')`);
     }
+  } else {
+    // A marker the write tool no longer contains (renamed, tree-shaken) guards nothing.
+    const code = readdirSync(dist).map((file) => readFileSync(join(dist, file), "utf-8")).join("\n");
+    const stale = WRITE_ONLY_MARKERS.filter((m) => !code.includes(m));
+    if (stale.length > 0) throw new Error(`mysql-rw-axi bundle lacks the write-only markers ${stale.join(", ")} - update WRITE_ONLY_MARKERS`);
   }
   console.log(`built ${name} (${readdirSync(dist).length} files)`);
 }

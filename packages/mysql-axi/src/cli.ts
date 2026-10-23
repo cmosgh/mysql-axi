@@ -1,4 +1,5 @@
-import { READ_COMMANDS, runCli, type MainOptions } from "../../core/src/cli.js";
+import { READ_COMMANDS, runCli, upgradeHint, type MainOptions, type Refusal } from "../../core/src/cli.js";
+import { axiError } from "../../core/src/errors.js";
 import type { Tool } from "../../core/src/tool.js";
 import { VERSION } from "./version.js";
 
@@ -27,6 +28,23 @@ examples:
   mysql-axi query --help
 `;
 
+/** mysql-rw-axi's commands answer READ_ONLY here, with the command to use on a local database instead. */
+const writeCommand =
+  (command: string, usage: string): Refusal =>
+  () =>
+    axiError(`${command} is a mysql-rw-axi command - mysql-axi is read-only`, "READ_ONLY", [`For a local dev database use \`mysql-rw-axi ${usage}\``]);
+
+const REFUSALS = {
+  update: () =>
+    axiError("mysql-axi is read-only and has no update command", "READ_ONLY", [
+      "For data on a local dev database use `mysql-rw-axi exec 'UPDATE ...'`",
+      upgradeHint("mysql-axi"),
+    ]),
+  exec: writeCommand("exec", 'exec "<sql>"'),
+  import: writeCommand("import", "import <file.sql>"),
+  db: writeCommand("db", "db <create|drop> <name>"),
+};
+
 export async function main(options: MainOptions = {}): Promise<void> {
-  await runCli({ tool: TOOL, version: VERSION, description: DESCRIPTION, topHelp: TOP_HELP, commands: READ_COMMANDS }, options);
+  await runCli({ tool: TOOL, version: VERSION, description: DESCRIPTION, topHelp: TOP_HELP, commands: READ_COMMANDS, refusals: REFUSALS }, options);
 }

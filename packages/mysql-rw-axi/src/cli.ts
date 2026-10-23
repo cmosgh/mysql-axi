@@ -1,4 +1,5 @@
-import { READ_COMMANDS, runCli, type MainOptions } from "../../core/src/cli.js";
+import { READ_COMMANDS, runCli, upgradeHint, type MainOptions } from "../../core/src/cli.js";
+import { usageError } from "../../core/src/errors.js";
 import type { Tool } from "../../core/src/tool.js";
 import { dbCommand, DB_HELP } from "./commands/db.js";
 import { execCommand, EXEC_HELP } from "./commands/exec.js";
@@ -53,6 +54,9 @@ export async function main(options: MainOptions = {}): Promise<void> {
         import: { run: importCommand, help: () => IMPORT_HELP },
         db: { run: dbCommand, help: () => DB_HELP },
         ...READ_COMMANDS,
+      },
+      refusals: {
+        update: () => usageError("mysql-rw-axi has no update command", ["Run `mysql-rw-axi exec 'UPDATE ...'` to change data", upgradeHint("mysql-rw-axi")]),
       },
     },
     options,

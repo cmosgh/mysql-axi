@@ -312,7 +312,18 @@ describe("loopback only", () => {
     for (const command of ["exec", "import", "db"]) {
       const { stdout, exitCode } = await ro(command, "x");
       expect(exitCode).toBe(2);
-      expect(stdout).toContain(`unknown command '${command}'`);
+      expect(stdout).toContain(`error: ${command} is a mysql-rw-axi command - mysql-axi is read-only\ncode: READ_ONLY`);
+      expect(stdout).toContain(`For a local dev database use \`mysql-rw-axi ${command} `);
     }
+  });
+
+  it("neither installed binary updates itself", () => {
+    const read = spawnCli("ro", ["update"]);
+    expect(read.exitCode).toBe(2);
+    expect(read.stdout).toContain("code: READ_ONLY");
+    expect(read.stdout).toContain("npm install -g mysql-axi@latest");
+    const write = spawnCli("rw", ["update", "--check"]);
+    expect(write.exitCode).toBe(2);
+    expect(write.stdout).toContain("npm install -g mysql-rw-axi@latest");
   });
 });

@@ -240,6 +240,58 @@ describe("help", () => {
   });
 });
 
+describe("refusals", () => {
+  it.each([["update"], ["update", "--check"], ["update", "--help"], ["update", "-h"], ["-p", "dev", "update"]])(
+    "shadows the SDK's self-upgrading update in both tools: %s",
+    async (...args) => {
+      const read = await ro(...args);
+      expect(read.exitCode).toBe(2);
+      expect(read.stdout).toBe(
+        [
+          "error: mysql-axi is read-only and has no update command",
+          "code: READ_ONLY",
+          "help[2]:",
+          "  For data on a local dev database use `mysql-rw-axi exec 'UPDATE ...'`",
+          "  Upgrading is `npm install -g mysql-axi@latest`, run by a human",
+          "",
+        ].join("\n"),
+      );
+      const write = await rw(...args);
+      expect(write.exitCode).toBe(2);
+      expect(write.stdout).toContain("error: mysql-rw-axi has no update command\ncode: VALIDATION_ERROR");
+      expect(write.stdout).toContain("Upgrading is `npm install -g mysql-rw-axi@latest`, run by a human");
+      expect(fake.connections).toHaveLength(0);
+    },
+  );
+
+  it("leaves the SDK's built-in update out of --help", async () => {
+    for (const run of [ro, rw]) {
+      const { stdout } = await run("--help");
+      expect(stdout).not.toContain("built-in");
+      expect(stdout).not.toContain("update --check");
+    }
+  });
+
+  it.each([
+    [["exec", "UPDATE orders SET status = 'paid' WHERE id = 1"], 'exec "<sql>"'],
+    [["exec", "--help"], 'exec "<sql>"'],
+    [["-d", "shop", "exec", "--file", "fix.sql"], 'exec "<sql>"'],
+    [["import", "dump.sql", "--confirm"], "import <file.sql>"],
+    [["db", "drop", "shop", "--confirm"], "db <create|drop> <name>"],
+  ])("answers mysql-rw-axi's commands in mysql-axi with READ_ONLY: %j", async (args, usage) => {
+    const { stdout, exitCode } = await ro(...args);
+    expect(exitCode).toBe(2);
+    expect(stdout).toContain(`is a mysql-rw-axi command - mysql-axi is read-only\ncode: READ_ONLY`);
+    expect(stdout).toContain(`For a local dev database use \`mysql-rw-axi ${usage}\``);
+    expect(fake.connections).toHaveLength(0);
+  });
+
+  it("keeps refusals out of the command list", async () => {
+    const { stdout } = await ro("nope");
+    expect(stdout).toContain("commands: find, databases, tables, describe, sample, query, explain, doctor, auth, setup (no command = overview)");
+  });
+});
+
 describe("doctor", () => {
   it("warns when read-only credentials can write", async () => {
     fake.responder = answer({
