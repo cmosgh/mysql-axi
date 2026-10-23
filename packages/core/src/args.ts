@@ -22,6 +22,26 @@ export interface ParsedArgs {
   spans: Array<{ name: string; start: number; end: number }>;
 }
 
+/** Every flag of either CLI that takes a value, so the word after one is never read as a command name. */
+export const VALUE_FLAGS: ReadonlySet<string> = new Set([
+  "-p",
+  "--profile",
+  "-d",
+  "--database",
+  "--timeout",
+  "--limit",
+  "--sort",
+  "--fields",
+  "--file",
+  "--format",
+  "--host",
+  "--port",
+  "--user",
+  "--socket",
+  "--charset",
+  "--collation",
+]);
+
 /**
  * Flags agents commonly carry over from other CLIs. A targeted hint lets the
  * agent self-correct in one turn instead of scanning the generic flag list.

@@ -1,4 +1,5 @@
 import { runAxiCli } from "axi-sdk-js";
+import { VALUE_FLAGS } from "./args.js";
 import { authCommand, authHelp } from "./commands/auth.js";
 import { doctorCommand, doctorHelp } from "./commands/doctor.js";
 import { homeCommand } from "./commands/home.js";
@@ -65,12 +66,20 @@ const isBareSql = (token: string, commands: Record<string, unknown>): boolean =>
 
 const FRONT_ONLY = new Set(["--help", "-h", "--version", "-V", "-v"]);
 
-/** `tool --profile x tables` runs as `tool tables --profile x`: agents often put connection flags first. */
+/** `tool -p x db drop y` runs as `tool db drop y -p x`: agents often put connection flags first. */
 export function hoistLeadingFlags(argv: string[], commands: Record<string, unknown>): string[] {
   if (!argv[0]?.startsWith("-") || argv[0] === "-") return argv;
-  const at = argv.findIndex((token) => commands[token] !== undefined || isBareSql(token, commands));
-  if (at <= 0 || argv.slice(0, at).some((token) => FRONT_ONLY.has(token))) return argv;
-  return [argv[at]!, ...argv.slice(0, at), ...argv.slice(at + 1)];
+  let at = -1;
+  for (let i = 0; i < argv.length && at === -1; i++) {
+    if (commands[argv[i]!] !== undefined || isBareSql(argv[i]!, commands)) at = i;
+    // A flag's value (`-d tables`) is never the command.
+    else if (VALUE_FLAGS.has(argv[i]!)) i++;
+  }
+  if (at === -1 || argv.slice(0, at).some((token) => FRONT_ONLY.has(token))) return argv;
+  // After the subcommand and its arguments (`db drop y -p x`), but before a `--` terminator.
+  const rest = argv.slice(at + 1);
+  const end = rest.includes("--") ? rest.indexOf("--") : rest.length;
+  return [argv[at]!, ...rest.slice(0, end), ...argv.slice(0, at), ...rest.slice(end)];
 }
 
 export interface CliSpec {

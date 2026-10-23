@@ -233,14 +233,20 @@ describe("connection URLs", () => {
 });
 
 describe("hoistLeadingFlags", () => {
-  const hoist = (...argv: string[]) => hoistLeadingFlags(argv, READ_COMMANDS);
-  it("moves flags written before the command or bare SQL behind it", () => {
+  const hoist = (...argv: string[]) => hoistLeadingFlags(argv, { ...READ_COMMANDS, db: READ_COMMANDS["query"] });
+  it("moves flags written before the command or bare SQL after it and its arguments", () => {
     expect(hoist("--profile", "staging", "databases")).toEqual(["databases", "--profile", "staging"]);
-    expect(hoist("-p", "dev", "-d", "shop", "query", "SELECT 1")).toEqual(["query", "-p", "dev", "-d", "shop", "SELECT 1"]);
+    expect(hoist("-p", "dev", "db", "drop", "x")).toEqual(["db", "drop", "x", "-p", "dev"]);
+    expect(hoist("-p", "dev", "-d", "shop", "query", "SELECT 1")).toEqual(["query", "SELECT 1", "-p", "dev", "-d", "shop"]);
     expect(hoist("--full", "SELECT * FROM orders")).toEqual(["SELECT * FROM orders", "--full"]);
+  });
+  it("keeps them before a -- terminator and never takes a flag's value for the command", () => {
+    expect(hoist("-d", "shop", "query", "--", "-1")).toEqual(["query", "-d", "shop", "--", "-1"]);
+    expect(hoist("-d", "tables", "tables")).toEqual(["tables", "-d", "tables"]);
   });
   it("leaves help, version, stdin and flag-only lines alone", () => {
     expect(hoist("--help", "query")).toEqual(["--help", "query"]);
+    expect(hoist("-p", "dev", "--help")).toEqual(["-p", "dev", "--help"]);
     expect(hoist("-v")).toEqual(["-v"]);
     expect(hoist("-", "query")).toEqual(["-", "query"]);
     expect(hoist("--profile", "dev")).toEqual(["--profile", "dev"]);

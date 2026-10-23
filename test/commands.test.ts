@@ -141,6 +141,13 @@ describe("flag placement", () => {
     expect((await ro("-d", "shop", "SHOW TABLES")).stdout).toContain("orders");
   });
 
+  it("puts them after the subcommand's arguments, so its own parser reads them", async () => {
+    const drop = await rw("-p", "nope", "db", "drop", "x");
+    expect(drop.exitCode).toBe(2);
+    expect(drop.stdout).toContain("no profile 'nope'");
+    expect((await ro("--profile", "dev", "auth", "logout")).stdout).toContain("no such profile (no-op)");
+  });
+
   it("takes -p for --profile", async () => {
     delete process.env["MYSQL_AXI_URL"];
     const { stdout, exitCode } = await ro("query", "SELECT 1", "-p", "nope");
@@ -167,7 +174,7 @@ describe("hints carry the invocation", () => {
       "help[2]:\n  Showing 1 of 2 - Run `mysql-axi databases -p staging --limit 2` to list all\n  Run `mysql-axi tables -d <database> -p staging` to list its tables\n",
     );
     expect(help((await ro("-p", "staging", "tables", "-d", "shop", "--limit=1")).stdout)).toBe(
-      "help[2]:\n  Showing 1 of 2 - Run `mysql-axi tables -p staging -d shop --limit 2` to list all\n  Run `mysql-axi describe <table> -p staging -d shop` for columns; indexes and foreign keys\n",
+      "help[2]:\n  Showing 1 of 2 - Run `mysql-axi tables -d shop --limit 2 -p staging` to list all\n  Run `mysql-axi describe <table> -p staging -d shop` for columns; indexes and foreign keys\n",
     );
   });
 
@@ -191,7 +198,7 @@ describe("hints carry the invocation", () => {
   it("reruns repeat the SQL quoted for the shell, or the --file it came from", async () => {
     fake.responder = answer({ SELECT: { columns: ["id"], rows: [[1], [2], [3], [4]] } });
     expect((await ro("-p", "staging", "SELECT id FROM orders WHERE status = 'paid'", "--limit", "2")).stdout).toContain(
-      "Run `mysql-axi query 'SELECT id FROM orders WHERE status = '\\''paid'\\''' -p staging --limit 4` to see all rows",
+      "Run `mysql-axi query 'SELECT id FROM orders WHERE status = '\\''paid'\\''' --limit 4 -p staging` to see all rows",
     );
     const file = join(process.env["MYSQL_AXI_CONFIG_DIR"]!, "report.sql");
     writeFileSync(file, "SELECT id FROM orders");
