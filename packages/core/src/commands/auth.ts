@@ -6,6 +6,7 @@ import { usageError } from "../errors.js";
 import { block, helpBlock, out } from "../render.js";
 import { clearPassword, describeTarget, loginHint, profileTarget, selectedProfile, storePassword, validProfileName } from "../target.js";
 import { env, tool } from "../tool.js";
+import { followUp, shellQuote } from "./common.js";
 
 export const authHelp = (): string => {
   const name = tool().name;
@@ -117,8 +118,10 @@ async function authLogin(args: string[]): Promise<string> {
   return out(
     block({ auth: { status: "logged in", profile: name, target: describeTarget(target), server: info?.version ?? "unknown", user: info?.user ?? user, active: true } }),
     helpBlock([
-      ...(databaseExists ? [] : [`Database '${database}' does not exist yet${tool().mode === "read-write" ? ` - create it with \`${tool().name} db create ${database}\`` : ""}`]),
-      `Run \`${tool().name} doctor\` to check the account's grants`,
+      ...(database && !databaseExists
+        ? [`Database '${database}' does not exist yet${tool().mode === "read-write" ? ` - create it with \`${followUp(parsed, `db create ${shellQuote(database)}`, { database: false })}\`` : ""}`]
+        : []),
+      `Run \`${followUp(parsed, "doctor", { database: false })}\` to check the account's grants`,
       `Run \`${tool().name}\` for an overview`,
     ]),
   );

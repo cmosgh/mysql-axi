@@ -1,6 +1,6 @@
-import { bool, intFlag, parseArgs } from "../../../core/src/args.js";
+import { bool, flag, intFlag, parseArgs } from "../../../core/src/args.js";
 import { rowsBlock, truncationHelp } from "../../../core/src/cells.js";
-import { CONNECTION_FLAGS, CONNECTION_FLAGS_HELP, MAX_ROWS, sqlInput, targetFrom } from "../../../core/src/commands/common.js";
+import { CONNECTION_FLAGS, CONNECTION_FLAGS_HELP, followUp, MAX_ROWS, rerunHint, shellQuote, sqlInput, targetFrom } from "../../../core/src/commands/common.js";
 import { withSession } from "../../../core/src/connection.js";
 import { block, helpBlock, out, snippet, type Obj } from "../../../core/src/render.js";
 import { describeTarget } from "../../../core/src/target.js";
@@ -44,13 +44,15 @@ export async function execCommand(args: string[]): Promise<string> {
   );
   const sql = sqlInput(parsed, `${command} "<sql>"`);
   const limit = intFlag(parsed, "--limit", 50, { min: 1, max: MAX_ROWS });
-  const { verb, irreversible } = classify(singleStatement(sql));
+  // A script from a file or stdin can go to import as it is.
+  const file = flag(parsed, "--file") ?? (parsed.positionals[0] === "-" ? "-" : undefined);
+  const { verb, irreversible } = classify(singleStatement(sql, followUp(parsed, `import ${file ? shellQuote(file) : "<file.sql>"}`)));
   const target = await targetFrom(parsed);
 
   if (irreversible && !bool(parsed, "--confirm")) {
     return out(
       block({ preview: { statement: snippet(sql), risk: `irreversible - ${irreversible}`, target: describeTarget(target) } }),
-      helpBlock(["Nothing was run. Rerun the same command with --confirm to execute"]),
+      helpBlock([`Nothing was run. ${rerunHint(parsed, { "--confirm": true }, "to execute")}`]),
     );
   }
 
@@ -59,7 +61,7 @@ export async function execCommand(args: string[]): Promise<string> {
     const warnings = outcome.kind === "ok" && outcome.warnings > 0 ? await s.all<Obj>("SHOW WARNINGS") : [];
     return { outcome, warnings };
   });
-  if (outcome.kind === "rows") return out(rowsBlock(outcome, bool(parsed, "--full"), limit), helpBlock(truncationHelp(outcome, MAX_ROWS)));
+  if (outcome.kind === "rows") return out(rowsBlock(outcome, bool(parsed, "--full"), limit), helpBlock(truncationHelp(outcome, MAX_ROWS, parsed)));
 
   const result: Obj = { statement: snippet(sql), verb: verb.toUpperCase(), affected_rows: outcome.affectedRows };
   if (outcome.insertId > 0) result["insert_id"] = outcome.insertId;

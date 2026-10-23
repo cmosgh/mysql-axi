@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { bool, expectPositionals, parseArgs } from "../../../core/src/args.js";
-import { CONNECTION_FLAGS, CONNECTION_FLAGS_HELP, targetFrom } from "../../../core/src/commands/common.js";
+import { CONNECTION_FLAGS, CONNECTION_FLAGS_HELP, rerunHint, targetFrom } from "../../../core/src/commands/common.js";
 import { openSession, withSession } from "../../../core/src/connection.js";
 import { AxiError, fromDriverError, usageError } from "../../../core/src/errors.js";
 import { block, helpBlock, out, snippet, type Obj } from "../../../core/src/render.js";
@@ -110,8 +110,8 @@ export async function importCommand(args: string[]): Promise<string> {
   if (target.database && elsewhere.length > 0 && !followUse) {
     const names = [...new Set(elsewhere.map((s) => s.name))].join(", ");
     throw usageError(`the script writes to '${names}' (${elsewhere[0]!.kind} at statement ${elsewhere[0]!.at}), not to '${target.database}' - a dump made with --databases`, [
-      `Rerun with --skip-use to load everything into '${target.database}'`,
-      `Rerun with --follow-use to write to ${names} as the script says`,
+      rerunHint(parsed, { "--skip-use": true }, `to load everything into '${target.database}'`),
+      rerunHint(parsed, { "--follow-use": true }, `to write to ${names} as the script says`),
     ]);
   }
   const statementsToRun = scan.statements - (skipUse ? switches.length : 0);
@@ -134,7 +134,7 @@ export async function importCommand(args: string[]): Promise<string> {
       helpBlock([
         ...(scan.irreversibleCount > PREVIEW_ITEMS ? [`${scan.irreversibleCount - PREVIEW_ITEMS} more not shown`] : []),
         ...definerHelp(missing),
-        "Nothing was run. Rerun the same command with --confirm to import",
+        `Nothing was run. ${rerunHint(parsed, { "--confirm": true }, "to import")}`,
       ]),
     );
   }

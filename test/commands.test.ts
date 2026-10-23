@@ -64,7 +64,7 @@ describe("query", () => {
     fake.responder = answer({ SELECT: { columns: ["id"], rows: [[1], [2], [3], [4]] } });
     const { stdout } = await ro("query", "SELECT id FROM orders", "--limit", "2");
     expect(stdout).toContain("rows: 2 of 4 shown");
-    expect(stdout).toContain("Rerun with --limit 4 to see all rows");
+    expect(stdout).toContain("Run `mysql-axi query 'SELECT id FROM orders' --limit 4` to see all rows, or narrow with WHERE");
     expect(stdout).toContain("result[2]{id}:\n  1\n  2\n");
   });
 
@@ -147,6 +147,97 @@ describe("flag placement", () => {
     expect(exitCode).not.toBe(0);
     expect(stdout).not.toContain("unknown flag");
     expect(stdout).toContain("nope");
+  });
+});
+
+describe("hints carry the invocation", () => {
+  // -p wins over the *_URL connection of the test env.
+  beforeEach(() => {
+    const config = { profiles: { staging: { host: "127.0.0.1", port: 3306, user: "agent", password: false } } };
+    for (const prefix of ["MYSQL_AXI", "MYSQL_RW_AXI"]) writeFileSync(join(process.env[`${prefix}_CONFIG_DIR`]!, "config.json"), JSON.stringify(config));
+  });
+  const help = (stdout: string) => stdout.slice(stdout.indexOf("help["));
+
+  it("follow-ups keep -p and -d", async () => {
+    fake.responder = answer({
+      "SELECT s.SCHEMA_NAME": { columns: ["name", "tables", "bytes"], rows: [["shop", 2, 0], ["shop_test", 0, 0]] },
+      "SELECT TABLE_NAME AS name, TABLE_TYPE": { columns: ["name", "type", "rows_est", "data", "idx"], rows: [["orders", "BASE TABLE", 1, 0, 0], ["customers", "BASE TABLE", 1, 0, 0]] },
+    });
+    expect(help((await ro("databases", "-p", "staging", "--limit", "1")).stdout)).toBe(
+      "help[2]:\n  Showing 1 of 2 - Run `mysql-axi databases -p staging --limit 2` to list all\n  Run `mysql-axi tables -d <database> -p staging` to list its tables\n",
+    );
+    expect(help((await ro("-p", "staging", "tables", "-d", "shop", "--limit=1")).stdout)).toBe(
+      "help[2]:\n  Showing 1 of 2 - Run `mysql-axi tables -p staging -d shop --limit 2` to list all\n  Run `mysql-axi describe <table> -p staging -d shop` for columns; indexes and foreign keys\n",
+    );
+  });
+
+  it("errors name the same connection", async () => {
+    expect((await ro("tables", "-p", "staging")).stdout).toContain("(`mysql-axi databases -p staging` lists them)");
+    fake.responder = answer({ "SELECT TABLE_NAME AS name, TABLE_TYPE": { columns: ["name"], rows: [] }, "SELECT 1 FROM": { columns: ["1"], rows: [] } });
+    expect((await ro("tables", "-p", "staging", "-d", "nowhere")).stdout).toContain("Run `mysql-axi databases -p staging`");
+    fake.responder = answer({ "SELECT TABLE_TYPE": { columns: ["type"], rows: [] }, "SELECT TABLE_NAME AS name FROM": { columns: ["name"], rows: [] } });
+    expect((await ro("describe", "order items", "-p", "staging", "-d", "shop")).stdout).toContain("Run `mysql-axi find 'order items' -p staging -d shop`");
+    fake.responder = answer({ SELECT: { error: { errno: 3024, sqlMessage: "Query execution was interrupted" } } });
+    expect((await ro("query", "SELECT 1", "-p", "staging", "-d", "shop")).stdout).toContain(
+      'help[2]:\n  Check the plan with `mysql-axi explain "<select>" -p staging -d shop` and narrow the query to an indexed WHERE\n  Raise --timeout',
+    );
+  });
+
+  it("find without a match reruns without -d", async () => {
+    fake.responder = answer({ "SELECT TABLE_SCHEMA AS db, TABLE_NAME AS name": { columns: ["db"], rows: [] }, "SELECT TABLE_SCHEMA AS db, TABLE_NAME AS tbl": { columns: ["db"], rows: [] } });
+    expect((await ro("find", "vin", "-p", "staging", "--database=shop")).stdout).toContain("Run `mysql-axi find vin -p staging` to search every database");
+  });
+
+  it("reruns repeat the SQL quoted for the shell, or the --file it came from", async () => {
+    fake.responder = answer({ SELECT: { columns: ["id"], rows: [[1], [2], [3], [4]] } });
+    expect((await ro("-p", "staging", "SELECT id FROM orders WHERE status = 'paid'", "--limit", "2")).stdout).toContain(
+      "Run `mysql-axi query 'SELECT id FROM orders WHERE status = '\\''paid'\\''' -p staging --limit 4` to see all rows",
+    );
+    const file = join(process.env["MYSQL_AXI_CONFIG_DIR"]!, "report.sql");
+    writeFileSync(file, "SELECT id FROM orders");
+    expect((await ro("query", "--file", file, "--limit", "2")).stdout).toContain(`Run \`mysql-axi query --file ${file} --limit 4\` to see all rows`);
+    expect((await ro("query", "SELECT id FROM orders WHERE password = 'hunter2'", "--limit", "2")).stdout).toContain("Rerun the same command with --limit 4 to see all rows");
+  });
+
+  it("mysql-rw-axi previews give the full command with --confirm", async () => {
+    expect((await rw("exec", "DELETE FROM orders", "-p", "staging", "-d", "shop")).stdout).toContain(
+      "Nothing was run. Run `mysql-rw-axi exec 'DELETE FROM orders' -p staging -d shop --confirm` to execute",
+    );
+    const fix = join(process.env["MYSQL_RW_AXI_CONFIG_DIR"]!, "fix.sql");
+    writeFileSync(fix, "TRUNCATE TABLE sessions");
+    expect((await rw("exec", "--file", fix)).stdout).toContain(`Run \`mysql-rw-axi exec --file ${fix} --confirm\` to execute`);
+    expect((await rw("import", fix, "-p", "staging", "-d", "shop")).stdout).toContain(`Run \`mysql-rw-axi import ${fix} -p staging -d shop --confirm\` to import`);
+    fake.responder = answer({ "SELECT COUNT": { columns: ["tables", "bytes"], rows: [[3, 49152]] } });
+    expect((await rw("db", "drop", "shop_test", "-p", "staging")).stdout).toContain("Run `mysql-rw-axi db drop shop_test -p staging --confirm` to drop it");
+  });
+
+  it("mysql-rw-axi suggestions keep -p and -d", async () => {
+    expect((await rw("query", "DELETE FROM orders", "-p", "staging", "-d", "shop")).stdout).toContain('Writes go through `mysql-rw-axi exec "<sql>" -p staging -d shop`');
+    expect((await rw("exec", "DELETE FROM a WHERE id = 1; DELETE FROM b WHERE id = 1", "-p", "staging", "-d", "shop")).stdout).toContain(
+      "Run a multi-statement script with `mysql-rw-axi import <file.sql> -p staging -d shop`",
+    );
+    const script = join(process.env["MYSQL_RW_AXI_CONFIG_DIR"]!, "two.sql");
+    writeFileSync(script, "DELETE FROM a WHERE id = 1; DELETE FROM b WHERE id = 1");
+    expect((await rw("exec", "--file", script, "-p", "staging")).stdout).toContain(`Run a multi-statement script with \`mysql-rw-axi import ${script} -p staging\``);
+    fake.responder = answer({ "SELECT 1 FROM": { columns: ["1"], rows: [] }, CREATE: { ok: {} } });
+    expect((await rw("db", "create", "shop_test", "-p", "staging")).stdout).toContain("Run `mysql-rw-axi import <file.sql> -d shop_test -p staging` to load a dump");
+  });
+
+  it("an import that switches databases names both reruns", async () => {
+    const dump = join(process.env["MYSQL_RW_AXI_CONFIG_DIR"]!, "blog.sql");
+    writeFileSync(dump, "CREATE DATABASE IF NOT EXISTS blog;\nUSE blog;\nCREATE TABLE posts (id INT);\n");
+    const { stdout, exitCode } = await rw("import", dump, "-p", "staging", "-d", "blog_copy", "--confirm");
+    expect(exitCode).toBe(2);
+    expect(stdout).toContain(`Run \`mysql-rw-axi import ${dump} -p staging -d blog_copy --confirm --skip-use\` to load everything into 'blog_copy'`);
+    expect(stdout).toContain(`Run \`mysql-rw-axi import ${dump} -p staging -d blog_copy --confirm --follow-use\` to write to blog as the script says`);
+  });
+
+  it("login hints use the new profile", async () => {
+    fake.responder = answer({ "SELECT VERSION()": { columns: ["version", "user"], rows: [["8.0.46", "root@%"]] }, "SELECT 1 FROM": { columns: ["1"], rows: [] } });
+    const { stdout } = await rw("auth", "login", "--profile", "dev", "--user", "root", "--no-password", "-d", "shop_test");
+    expect(help(stdout)).toBe(
+      "help[3]:\n  Database 'shop_test' does not exist yet - create it with `mysql-rw-axi db create shop_test -p dev`\n  Run `mysql-rw-axi doctor -p dev` to check the account's grants\n  Run `mysql-rw-axi` for an overview\n",
+    );
   });
 });
 

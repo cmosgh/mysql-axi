@@ -1,8 +1,12 @@
 import { spawnSync } from "node:child_process";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import mysql from "mysql2/promise";
 import { inject } from "vitest";
+import { shellQuote } from "../../packages/core/src/commands/common.js";
 import { useTestEnv } from "../helpers.js";
 
 export const rootUrl = (database?: string): string => `${inject("mysqlRootUrl")}${database ? `/${database}` : ""}`;
@@ -53,5 +57,32 @@ const bins = {
 /** The real bin in a child process: stdin, exit codes and process wiring. */
 export function spawnCli(which: keyof typeof bins, args: string[], input?: string): { stdout: string; exitCode: number } {
   const result = spawnSync(process.execPath, [tsxCli, bins[which], ...args], { encoding: "utf-8", input: input ?? "", env: process.env });
+  return { stdout: result.stdout, exitCode: result.status ?? -1 };
+}
+
+let binDir: string | undefined;
+
+/** A PATH entry where `mysql-axi` and `mysql-rw-axi` run the bins from source. */
+function shims(): string {
+  if (binDir) return binDir;
+  binDir = mkdtempSync(join(tmpdir(), "mysql-axi-bin-"));
+  for (const [which, name] of [["ro", "mysql-axi"], ["rw", "mysql-rw-axi"]] as const) {
+    writeFileSync(join(binDir, name), `#!/bin/sh\nexec ${[process.execPath, tsxCli, bins[which]].map(shellQuote).join(" ")} "$@"\n`, { mode: 0o755 });
+  }
+  return binDir;
+}
+
+/** The command of the `Run \`<command>\` <why>` hint in a CLI output. */
+export function hinted(output: string, why: string): string {
+  const end = output.indexOf(`\` ${why}`);
+  const start = output.lastIndexOf("Run `", end);
+  if (end === -1 || start === -1) throw new Error(`no hint '... ${why}' in:\n${output}`);
+  return output.slice(start + "Run `".length, end);
+}
+
+/** A command line run by sh, the way an agent pastes a hint. */
+export function shell(command: string, input?: string): { stdout: string; exitCode: number } {
+  const env = { ...process.env, PATH: `${shims()}:${process.env["PATH"] ?? ""}` };
+  const result = spawnSync("/bin/sh", ["-c", command], { encoding: "utf-8", input: input ?? "", env });
   return { stdout: result.stdout, exitCode: result.status ?? -1 };
 }

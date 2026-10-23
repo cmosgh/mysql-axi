@@ -18,6 +18,7 @@ export const TOOL: Tool = {
   },
   checkTarget: loopbackOnly,
   writeHint: 'Writes go through `mysql-rw-axi exec "<sql>"`',
+  writeCommand: 'exec "<sql>"',
 };
 
 export const DESCRIPTION =

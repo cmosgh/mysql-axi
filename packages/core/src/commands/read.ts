@@ -1,21 +1,48 @@
 import { bool, enumFlag, expectPositionals, flag, intFlag, parseArgs, parseFields, type ParsedArgs } from "../args.js";
 import { records, rowsBlock, truncationHelp } from "../cells.js";
 import { withSession, type RowsOutcome, type Session } from "../connection.js";
-import { axiError, usageError } from "../errors.js";
+import { AxiError, axiError, usageError } from "../errors.js";
 import { block, fenced, helpBlock, humanBytes, out, type Obj } from "../render.js";
 import { redactSecrets } from "../secrets.js";
 import { assertReadOnly, mainVerb, quoteIdent, statements, tokenize, type Token } from "../sql.js";
 import type { Target } from "../target.js";
 import { tool } from "../tool.js";
-import { CONNECTION_FLAGS, CONNECTION_FLAGS_HELP, MAX_ROWS, PROFILE_FLAG, requireDatabase, sqlInput, tableRef, targetFrom, TIMEOUT_FLAG, timeoutMs } from "./common.js";
+import {
+  CONNECTION_FLAGS,
+  CONNECTION_FLAGS_HELP,
+  followUp,
+  MAX_ROWS,
+  PROFILE_FLAG,
+  requireDatabase,
+  rerunHint,
+  shellQuote,
+  sqlInput,
+  tableRef,
+  targetFrom,
+  TIMEOUT_FLAG,
+  timeoutMs,
+} from "./common.js";
 
 const SYSTEM_SCHEMAS = new Set(["mysql", "sys", "information_schema", "performance_schema"]);
+const MAX_LIST = 10_000;
 
 const n = (value: unknown): number => (value === null || value === undefined ? 0 : Number(value));
 
 /** Every read command goes through here: read-only session, server-side time cap. */
-function read<T>(target: Target, parsed: ParsedArgs, fn: (s: Session) => Promise<T>, freshStats = false): Promise<T> {
-  return withSession(target, { readOnly: true, timeoutMs: timeoutMs(parsed), freshStats }, fn);
+async function read<T>(target: Target, parsed: ParsedArgs, fn: (s: Session) => Promise<T>, freshStats = false): Promise<T> {
+  try {
+    return await withSession(target, { readOnly: true, timeoutMs: timeoutMs(parsed), freshStats }, fn);
+  } catch (error) {
+    if (!(error instanceof AxiError) || error.code !== "TIMEOUT") throw error;
+    throw new AxiError(error.message, error.code, [`Check the plan with \`${followUp(parsed, 'explain "<select>"')}\` and narrow the query to an indexed WHERE`, ...error.suggestions]);
+  }
+}
+
+/** "Showing 100 of 240" and the rerun that lists them all, or as many as --limit allows. */
+function showing(parsed: ParsedArgs, limit: number, total: number): string {
+  const next = Math.min(total, MAX_LIST);
+  if (next <= limit) return `Showing ${limit} of ${total}`;
+  return `Showing ${limit} of ${total} - ${rerunHint(parsed, { "--limit": String(next) }, next === total ? "to list all" : "for more")}`;
 }
 
 function closeNames(input: string, names: readonly string[]): string[] {
@@ -38,7 +65,7 @@ export async function databasesCommand(args: string[]): Promise<string> {
   const command = `${tool().name} databases`;
   const parsed = parseArgs(args, [PROFILE_FLAG, { name: "--all", boolean: true }, { name: "--limit" }, TIMEOUT_FLAG], command);
   expectPositionals(parsed, 0, command);
-  const limit = intFlag(parsed, "--limit", 100, { min: 1, max: 10_000 });
+  const limit = intFlag(parsed, "--limit", 100, { min: 1, max: MAX_LIST });
   const target = await targetFrom(parsed);
   const rows = await read(
     target,
@@ -60,8 +87,8 @@ export async function databasesCommand(args: string[]): Promise<string> {
     block({ databases: shown.slice(0, limit).map((r) => ({ name: r.name, tables: n(r.tables), size: humanBytes(n(r.bytes)) })) }),
     Object.keys(summary).length > 0 && block(summary),
     helpBlock([
-      ...(shown.length > limit ? [`Showing ${limit} of ${shown.length} - raise --limit`] : []),
-      `Run \`${tool().name} tables -d <database>\` to list its tables`,
+      ...(shown.length > limit ? [showing(parsed, limit, shown.length)] : []),
+      `Run \`${followUp(parsed, "tables -d <database>")}\` to list its tables`,
     ]),
   );
 }
@@ -85,10 +112,10 @@ export async function tablesCommand(args: string[]): Promise<string> {
   const parsed = parseArgs(args, [...CONNECTION_FLAGS, TIMEOUT_FLAG, { name: "--sort" }, { name: "--limit" }, { name: "--fields" }], command);
   expectPositionals(parsed, 0, `${command} [-d <database>]`);
   const sort = enumFlag(parsed, "--sort", ["name", "size", "rows"] as const, "name");
-  const limit = intFlag(parsed, "--limit", 200, { min: 1, max: 10_000 });
+  const limit = intFlag(parsed, "--limit", 200, { min: 1, max: MAX_LIST });
   const fields = parseFields(flag(parsed, "--fields"), TABLE_FIELDS);
   const target = await targetFrom(parsed);
-  const database = requireDatabase(target, `${command} -d <database>`);
+  const database = requireDatabase(target, parsed, `${command} -d <database>`);
   const { rows, exists } = await read(
     target,
     parsed,
@@ -105,7 +132,7 @@ export async function tablesCommand(args: string[]): Promise<string> {
     },
     true,
   );
-  if (!exists) throw axiError(`database '${database}' not found`, "NOT_FOUND", [`Run \`${tool().name} databases\``]);
+  if (!exists) throw axiError(`database '${database}' not found`, "NOT_FOUND", [`Run \`${followUp(parsed, "databases", { database: false })}\``]);
 
   const size = (r: Obj): number => n(r["data"]) + n(r["idx"]);
   const sorted = [...rows].sort((a, b) =>
@@ -129,8 +156,8 @@ export async function tablesCommand(args: string[]): Promise<string> {
     for (const field of fields) row[field] = extras[field as (typeof TABLE_FIELDS)[number]](r);
     return row;
   });
-  const help = [`Run \`${tool().name} describe <table>\` for columns; indexes and foreign keys`];
-  if (rows.length > limit) help.unshift(`Showing ${limit} of ${rows.length} - raise --limit`);
+  const help = [`Run \`${followUp(parsed, "describe <table>")}\` for columns; indexes and foreign keys`];
+  if (rows.length > limit) help.unshift(showing(parsed, limit, rows.length));
   return out(
     block({ database, total: `${rows.length - views} tables; ${views} views; ${humanBytes(total)}` }),
     list.length > 0 ? block({ tables: list }) : block({ tables: "none" }),
@@ -178,7 +205,7 @@ export async function findCommand(args: string[]): Promise<string> {
   if (tables.length === 0 && columns.length === 0) {
     return out(
       block({ matches: `none - no table or column name contains '${text}'${only ? ` in ${only}` : ""}` }),
-      helpBlock([only ? `Drop -d to search every database` : `Try a shorter or different part of the name`]),
+      helpBlock([only ? rerunHint(parsed, { "--database": null }, "to search every database") : `Try a shorter or different part of the name`]),
     );
   }
   const view = (r: Obj) => r["type"] === "VIEW";
@@ -187,7 +214,7 @@ export async function findCommand(args: string[]): Promise<string> {
     tables.length > 0 &&
       block({ tables: tables.slice(0, limit).map((r) => ({ database: r["db"], name: r["name"], kind: view(r) ? "view" : "table", rows_est: view(r) ? null : n(r["rows_est"]) })) }),
     columns.length > 0 && block({ columns: columns.slice(0, limit).map((r) => ({ table: `${String(r["db"])}.${String(r["tbl"])}`, name: r["name"], type: r["type"] })) }),
-    helpBlock([...more(tables, "tables"), ...more(columns, "columns"), `Run \`${tool().name} describe <database>.<table>\` for its columns and indexes`]),
+    helpBlock([...more(tables, "tables"), ...more(columns, "columns"), `Run \`${followUp(parsed, "describe <database>.<table>")}\` for its columns and indexes`]),
   );
 }
 
@@ -211,14 +238,14 @@ export async function describeCommand(args: string[]): Promise<string> {
   if (parsed.positionals.length === 0) throw usageError("missing argument", [`usage: ${command} <table>...`]);
   if (parsed.positionals.length > MAX_DESCRIBE) throw usageError(`describe takes at most ${MAX_DESCRIBE} tables per call`);
   const target = await targetFrom(parsed);
-  const refs = parsed.positionals.map((raw) => tableRef(raw, target, `${command} <table>`));
+  const refs = parsed.positionals.map((raw) => tableRef(raw, target, parsed, `${command} <table>`));
   const results = await read(target, parsed, async (s) => {
     const all = [];
     for (const ref of refs) all.push(await describeIn(s, ref.database, ref.table));
     return all;
   });
-  if (refs.length === 1) return renderDescribe(refs[0]!.database, refs[0]!.table, results[0]!, true);
-  return out(...results.map((result, i) => renderDescribe(refs[i]!.database, refs[i]!.table, result, false)));
+  if (refs.length === 1) return renderDescribe(parsed, refs[0]!.database, refs[0]!.table, results[0]!, true);
+  return out(...results.map((result, i) => renderDescribe(parsed, refs[i]!.database, refs[i]!.table, result, false)));
 }
 
 type DescribeResult = Awaited<ReturnType<typeof describeIn>>;
@@ -279,11 +306,11 @@ async function describeIn(s: Session, database: string, table: string) {
 }
 
 /** One table's sections; a missing table fails a single describe and is reported inline among several. */
-function renderDescribe(database: string, table: string, result: DescribeResult, single: boolean): string {
+function renderDescribe(parsed: ParsedArgs, database: string, table: string, result: DescribeResult, single: boolean): string {
   const name = `${database}.${table}`;
   if (!result.found) {
     const close = closeNames(table, result.names);
-    const hints = [...(close.length > 0 ? [`did you mean: ${close.join(", ")}`] : []), `Run \`${tool().name} find ${table}\``];
+    const hints = [...(close.length > 0 ? [`did you mean: ${close.join(", ")}`] : []), `Run \`${followUp(parsed, `find ${shellQuote(table)}`)}\``];
     if (single) throw axiError(`table '${name}' not found`, "NOT_FOUND", hints);
     return block({ table: { name, status: "not found", hint: hints[0]! } });
   }
@@ -351,7 +378,7 @@ export async function sampleCommand(args: string[]): Promise<string> {
   const [raw] = expectPositionals(parsed, 1, `${command} <table>`);
   const limit = intFlag(parsed, "--limit", 10, { min: 1, max: MAX_ROWS });
   const target = await targetFrom(parsed);
-  const { database, table } = tableRef(raw!, target, `${command} <table>`);
+  const { database, table } = tableRef(raw!, target, parsed, `${command} <table>`);
   const outcome = await read(target, parsed, (s) => s.run(`SELECT * FROM ${quoteIdent(database)}.${quoteIdent(table)} LIMIT ${limit + 1}`, limit));
   if (outcome.kind !== "rows") throw axiError("the server returned no rows", "UNKNOWN");
   return rowsBlock(outcome, bool(parsed, "--full"), limit);
@@ -380,13 +407,14 @@ export async function queryCommand(args: string[]): Promise<string> {
   );
   const sql = sqlInput(parsed, `${command} "<sql>"`);
   const limit = intFlag(parsed, "--limit", 50, { min: 1, max: MAX_ROWS });
-  assertReadOnly(sql, tool().writeHint ? { writeHint: tool().writeHint } : {});
+  const write = tool().writeCommand;
+  assertReadOnly(sql, write ? { writeHint: `Writes go through \`${followUp(parsed, write)}\`` } : {});
   const target = await targetFrom(parsed);
   const outcome = await read(target, parsed, (s) => s.run(sql, limit, [], MAX_ROWS));
   if (outcome.kind !== "rows") return block({ result: "ok - no rows", elapsed_ms: outcome.elapsedMs });
   const raw = rawTextColumns(statements(tokenize(sql).tokens)[0] ?? [], outcome);
   if (raw.size > 0 && outcome.rows.length > 0) return rawTextOutput(outcome, raw, bool(parsed, "--full"));
-  return out(rowsBlock(outcome, bool(parsed, "--full"), limit), helpBlock(truncationHelp(outcome, MAX_ROWS)));
+  return out(rowsBlock(outcome, bool(parsed, "--full"), limit), helpBlock(truncationHelp(outcome, MAX_ROWS, parsed)));
 }
 
 /** Columns that hold one large text (DDL, InnoDB status, JSON plans): printed fenced and untruncated. */

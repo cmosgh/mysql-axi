@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { ro, rw } from "../helpers.js";
-import { inContainer, rootUrl, scalar, scratchDatabase, serverPort, spawnCli, sql } from "./db.js";
+import { hinted, inContainer, rootUrl, scalar, scratchDatabase, serverPort, shell, spawnCli, sql } from "./db.js";
 
 const DB = "axi_it_rw";
 const dir = mkdtempSync(join(tmpdir(), "mysql-axi-it-"));
@@ -113,13 +113,15 @@ describe("exec", () => {
     ["UPDATE items SET qty = 0", "UPDATE without WHERE", async () => (await scalar("SELECT SUM(qty) FROM items", DB)) === "0"],
     ["ALTER TABLE items DROP COLUMN qty", "ALTER ... DROP", async () => (await sql("SHOW COLUMNS FROM items LIKE 'qty'", DB)).length === 0],
     ["ALTER TABLE items DROP INDEX by_qty", "ALTER ... DROP", async () => (await sql("SHOW INDEX FROM items WHERE Key_name = 'by_qty'", DB)).length === 0],
+    ["UPDATE items SET name = 'it''s'", "UPDATE without WHERE", async () => (await scalar("SELECT COUNT(*) FROM items WHERE name = 'it''s'", DB)) === 3],
   ])("%s previews until --confirm", async (statement, risk, applied) => {
     const preview = await rw("exec", statement);
     expect(preview.exitCode).toBe(0);
     expect(preview.stdout).toContain(`risk: irreversible - ${risk}`);
     expect(preview.stdout).toContain(`target: "root@127.0.0.1:${serverPort()}/${DB}"`);
     expect(await applied()).toBe(false);
-    const confirmed = await rw("exec", statement, "--confirm");
+    // The hint is the whole command: pasted into a shell, it runs the statement.
+    const confirmed = shell(hinted(preview.stdout, "to execute"));
     expect(confirmed.exitCode, confirmed.stdout).toBe(0);
     expect(await applied()).toBe(true);
   });

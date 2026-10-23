@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { flag, intFlag, type FlagSpec, type ParsedArgs } from "../args.js";
 import { usageError } from "../errors.js";
+import { redactSecrets } from "../secrets.js";
 import { resolveTarget, type Target } from "../target.js";
 import { tool } from "../tool.js";
 
@@ -23,11 +24,55 @@ export async function targetFrom(parsed: ParsedArgs): Promise<Target> {
   return resolveTarget({ ...(profile ? { profile } : {}), ...(database ? { database } : {}) });
 }
 
-export function requireDatabase(target: Target, command: string): string {
+// Words that need no quoting in sh or zsh (a leading `=` expands in zsh).
+const SHELL_WORD = /^[\w@%+:,./-][\w@%+=:,./-]*$/;
+
+/** POSIX single-quote quoting, so a hint pastes back into a shell unchanged. */
+export function shellQuote(word: string): string {
+  return SHELL_WORD.test(word) ? word : `'${word.replace(/'/g, `'\\''`)}'`;
+}
+
+/** `mysql-axi describe <table> -p staging -d shop`: a follow-up command on the connection this one used. */
+export function followUp(parsed: ParsedArgs, rest: string, options: { database?: boolean } = {}): string {
+  const profile = flag(parsed, "--profile");
+  const database = options.database === false ? undefined : flag(parsed, "--database");
+  return [tool().name, rest, ...(profile ? ["-p", shellQuote(profile)] : []), ...(database ? ["-d", shellQuote(database)] : [])].join(" ");
+}
+
+/**
+ * "Run `<this command, flags changed>` <why>": `set` replaces or adds flags (true for a boolean) and removes them (null).
+ * An argument holding a password is never repeated: the hint then names the change only.
+ */
+export function rerunHint(parsed: ParsedArgs, set: Record<string, string | true | null>, why: string): string {
+  const tokens = (name: string): string[] => {
+    const value = set[name];
+    return value === null || value === undefined ? [] : value === true ? [name] : [name, value];
+  };
+  const args: string[] = [];
+  const replaced = new Set<string>();
+  let at = 0;
+  for (const span of parsed.spans) {
+    if (!Object.hasOwn(set, span.name)) continue;
+    args.push(...parsed.args.slice(at, span.start), ...(replaced.has(span.name) ? [] : tokens(span.name)));
+    replaced.add(span.name);
+    at = span.end;
+  }
+  args.push(...parsed.args.slice(at));
+  // New flags go before a `--` terminator, after which they would read as positionals.
+  const end = args.indexOf("--");
+  args.splice(end === -1 ? args.length : end, 0, ...Object.keys(set).filter((name) => !replaced.has(name)).flatMap(tokens));
+  if (args.some((arg) => redactSecrets(arg) !== arg)) {
+    const change = Object.entries(set).map(([name, value]) => (value === null ? `without ${name}` : value === true ? `with ${name}` : `with ${name} ${value}`));
+    return `Rerun the same command ${change.join(" ")} ${why}`;
+  }
+  return `Run \`${[parsed.command, ...args.map(shellQuote)].join(" ")}\` ${why}`;
+}
+
+export function requireDatabase(target: Target, parsed: ParsedArgs, usage: string): string {
   if (target.database) return target.database;
   throw usageError("no database selected", [
-    `Pass -d <database> (\`${tool().name} databases\` lists them) or set --database on the profile`,
-    `usage: ${command}`,
+    `Pass -d <database> (\`${followUp(parsed, "databases", { database: false })}\` lists them) or set --database on the profile`,
+    `usage: ${usage}`,
   ]);
 }
 
@@ -58,9 +103,9 @@ export function sqlInput(parsed: ParsedArgs, usage: string): string {
 }
 
 /** `db.table` or `table` (+ the session database). Backticks are optional. */
-export function tableRef(raw: string, target: Target, command: string): { database: string; table: string } {
+export function tableRef(raw: string, target: Target, parsed: ParsedArgs, usage: string): { database: string; table: string } {
   const parts = raw.split(".").map((p) => p.replace(/^`|`$/g, ""));
   if (parts.length === 2 && parts[0] && parts[1]) return { database: parts[0], table: parts[1] };
-  if (parts.length === 1 && parts[0]) return { database: requireDatabase(target, command), table: parts[0] };
+  if (parts.length === 1 && parts[0]) return { database: requireDatabase(target, parsed, usage), table: parts[0] };
   throw usageError(`invalid table '${raw}' - expected <table> or <database>.<table>`);
 }

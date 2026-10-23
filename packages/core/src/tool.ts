@@ -10,8 +10,10 @@ export interface Tool {
   envPrefix: string;
   /** Vetoes a target before any connection (the write tool's loopback rule). */
   checkTarget?: (target: Target) => Promise<Target>;
-  /** Appended to read-only refusals. */
+  /** Last line of the home view: where writes go. */
   writeHint?: string;
+  /** The write command, e.g. `exec "<sql>"`, that read-only refusals suggest with the invocation's connection flags. */
+  writeCommand?: string;
 }
 
 let current: Tool | undefined;

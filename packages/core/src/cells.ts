@@ -1,3 +1,5 @@
+import type { ParsedArgs } from "./args.js";
+import { rerunHint } from "./commands/common.js";
 import type { Column, RowsOutcome } from "./connection.js";
 import { block, type Obj } from "./render.js";
 import { isSecretColumn, REDACTED } from "./secrets.js";
@@ -62,11 +64,11 @@ function shownOf(outcome: RowsOutcome, shown: number, limit: number): string {
   return total.exact ? `${shown} of ${total.rows} shown` : `${shown} of more than ${total.rows - 1} shown`;
 }
 
-/** What to do about a cut result; exact totals get the --limit that shows every row. */
-export function truncationHelp(outcome: RowsOutcome, maxRows: number): string[] {
+/** What to do about a cut result; exact totals get this command again with the --limit that shows every row. */
+export function truncationHelp(outcome: RowsOutcome, maxRows: number, parsed: ParsedArgs): string[] {
   if (!outcome.truncated) return [];
   const { total } = outcome;
-  if (total?.exact && total.rows <= maxRows) return [`Rerun with --limit ${total.rows} to see all rows, or narrow with WHERE`];
+  if (total?.exact && total.rows <= maxRows) return [`${rerunHint(parsed, { "--limit": String(total.rows) }, "to see all rows")}, or narrow with WHERE`];
   if (total) return [`More than ${maxRows} rows - aggregate (COUNT; GROUP BY; GROUP_CONCAT) or narrow with WHERE`];
   return [`Add WHERE or LIMIT to the query, or raise --limit (max ${maxRows})`];
 }

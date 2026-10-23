@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ro } from "../helpers.js";
-import { rootUrl, scalar, scratchDatabase, serverPort, spawnCli, sql } from "./db.js";
+import { hinted, rootUrl, scalar, scratchDatabase, serverPort, shell, spawnCli, sql } from "./db.js";
 
 const DB = "axi_it_ro";
 const RO_USER = "axi_it_reader";
@@ -64,7 +64,9 @@ describe("listing and schema", () => {
     expect(stdout).toContain(`database: ${DB}\ntotal: 4 tables; 1 views;`);
     expect(stdout).toContain("big_spenders,view,null,null");
     expect((await ro("tables", "--sort", "rows")).stdout).toMatch(/tables\[5\]\{name,kind,rows_est,size\}:\n {2}seq,table,1000,/);
-    expect((await ro("tables", "--fields", "engine,comment", "--limit", "1")).stdout).toContain("Showing 1 of 5 - raise --limit");
+    const cut = await ro("tables", "--fields", "engine,comment", "--limit", "1");
+    expect(cut.stdout).toContain("Showing 1 of 5 - Run `mysql-axi tables --fields engine,comment --limit 5` to list all");
+    expect(shell(hinted(cut.stdout, "to list all")).stdout).toContain("tables[5]{name,kind,rows_est,size,engine,comment}:");
   });
 
   it("tables takes -d and reports an unknown database", async () => {
@@ -204,13 +206,37 @@ describe("rows and values", () => {
     expect(stdout).toContain("Add WHERE or LIMIT to the query");
     const all = await ro("query", "SELECT n FROM seq WHERE n <= 72");
     expect(all.stdout).toContain("rows: 50 of 72 shown");
-    expect(all.stdout).toContain("Rerun with --limit 72 to see all rows");
+    expect(all.stdout).toContain("Run `mysql-axi query 'SELECT n FROM seq WHERE n <= 72' --limit 72` to see all rows");
+    expect(shell(hinted(all.stdout, "to see all rows")).stdout).toContain("result[72]{n}:");
     const many = await ro("query", "SELECT a.n FROM seq a, seq b");
     expect(many.stdout).toContain("rows: 50 of more than 1000 shown");
     expect(many.stdout).toContain("aggregate (COUNT; GROUP BY; GROUP_CONCAT)");
     expect(Date.now() - started).toBeLessThan(20_000);
     const over = await ro("query", "SELECT 1", "--limit", "1001");
     expect(over.exitCode).toBe(2);
+  });
+
+  it("hints keep -p and -d and run as given", async () => {
+    const saved = { url: process.env["MYSQL_AXI_URL"], dir: process.env["MYSQL_AXI_CONFIG_DIR"] };
+    // Without the env URL a follow-up that dropped -p or -d would fail.
+    delete process.env["MYSQL_AXI_URL"];
+    process.env["MYSQL_AXI_CONFIG_DIR"] = mkdtempSync(join(tmpdir(), "mysql-axi-it-"));
+    const profiles = { it: { host: "127.0.0.1", port: serverPort(), user: NOPW_USER, password: false } };
+    writeFileSync(join(process.env["MYSQL_AXI_CONFIG_DIR"], "config.json"), JSON.stringify({ profiles }));
+    try {
+      const cut = await ro("query", "SELECT n, CURRENT_USER() AS u, 'it''s' AS q FROM seq WHERE n <= 60", "-p", "it", "-d", DB);
+      expect(cut.stdout).toContain("rows: 50 of 60 shown");
+      const all = shell(hinted(cut.stdout, "to see all rows"));
+      expect(all.exitCode, all.stdout).toBe(0);
+      expect(all.stdout).toContain("result[60]{n,u,q}:");
+      expect(all.stdout).toContain(`${NOPW_USER}@%`);
+      const tables = await ro("tables", "-p", "it", "-d", DB);
+      const described = shell(hinted(tables.stdout, "for columns; indexes and foreign keys").replace("<table>", "orders"));
+      expect(described.stdout).toContain(`name: ${DB}.orders`);
+    } finally {
+      process.env["MYSQL_AXI_URL"] = saved.url;
+      process.env["MYSQL_AXI_CONFIG_DIR"] = saved.dir;
+    }
   });
 
   it("query handles CTEs, TABLE, SHOW, duplicate names and empty results", async () => {
@@ -255,7 +281,7 @@ describe("rows and values", () => {
     const { stdout, exitCode } = await ro("query", "SELECT SUM(a.n + b.n + c.n) FROM seq a, seq b, seq c", "--timeout", "1");
     expect(exitCode).toBe(1);
     expect(stdout).toContain("code: TIMEOUT");
-    expect(stdout).toContain("Check the plan with `explain");
+    expect(stdout).toContain('Check the plan with `mysql-axi explain "<select>"` and narrow');
     expect(Date.now() - started).toBeLessThan(10_000);
   });
 

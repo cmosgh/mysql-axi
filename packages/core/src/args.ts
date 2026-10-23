@@ -15,6 +15,11 @@ export interface ParsedArgs {
   values: Map<string, string[]>;
   bools: Set<string>;
   positionals: string[];
+  /** The command and its raw args, so a hint can rebuild this invocation. */
+  command: string;
+  args: readonly string[];
+  /** Where each flag sits in `args`: tokens [start, end), by canonical name. */
+  spans: Array<{ name: string; start: number; end: number }>;
 }
 
 /**
@@ -56,6 +61,9 @@ export function parseArgs(
     values: new Map(),
     bools: new Set(),
     positionals: [],
+    command,
+    args,
+    spans: [],
   };
   const unknown: string[] = [];
 
@@ -81,6 +89,7 @@ export function parseArgs(
       continue;
     }
 
+    const start = i;
     if (spec.boolean) {
       if (inlineValue !== undefined) {
         throw usageError(`${spec.name} does not take a value`, [
@@ -88,6 +97,7 @@ export function parseArgs(
         ]);
       }
       parsed.bools.add(spec.name);
+      parsed.spans.push({ name: spec.name, start, end: i + 1 });
       continue;
     }
 
@@ -113,6 +123,7 @@ export function parseArgs(
       throw usageError(`${spec.name} may only be given once`);
     }
     parsed.values.set(spec.name, [...(existing ?? []), value]);
+    parsed.spans.push({ name: spec.name, start, end: i + 1 });
   }
 
   if (unknown.length > 0) {

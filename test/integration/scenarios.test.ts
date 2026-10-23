@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import { ro, rw } from "../helpers.js";
-import { inContainer, rootUrl, scalar, scratchDatabase, sql } from "./db.js";
+import { hinted, inContainer, rootUrl, scalar, scratchDatabase, shell, sql } from "./db.js";
 import { SHOP_FIXTURE } from "./fixtures.js";
 
 const SHOP = "axi_it_shop";
@@ -158,8 +158,9 @@ describe("local data work", () => {
     expect(src).toBeDefined();
     expect(dst).toBe(src);
 
-    expect((await rw("db", "drop", copy)).stdout).toMatch(/risk: irreversible - deletes \d+ tables/);
-    expect((await rw("db", "drop", copy, "--confirm")).stdout).toContain("result: dropped");
+    const drop = await rw("db", "drop", copy);
+    expect(drop.stdout).toMatch(/risk: irreversible - deletes \d+ tables/);
+    expect(shell(hinted(drop.stdout, "to drop it")).stdout).toContain("result: dropped");
   });
 
   it("M7: a --databases dump restored with -d never writes to the original database", async () => {
@@ -173,12 +174,12 @@ describe("local data work", () => {
     const refused = await rw("import", dump, "-d", "axi_it_blog_restore", "--confirm");
     expect(refused.exitCode).toBe(2);
     expect(refused.stdout).toContain("the script writes to 'axi_it_blog'");
-    expect(refused.stdout).toContain("Rerun with --skip-use to load everything into 'axi_it_blog_restore'");
+    expect(refused.stdout).toContain(`Run \`mysql-rw-axi import ${dump} -d axi_it_blog_restore --confirm --skip-use\` to load everything into 'axi_it_blog_restore'`);
 
     const preview = await rw("import", dump, "-d", "axi_it_blog_restore", "--follow-use");
     expect(preview.stdout).toContain("writes_to: axi_it_blog\n");
 
-    const restored = await rw("import", dump, "-d", "axi_it_blog_restore", "--skip-use", "--confirm");
+    const restored = shell(hinted(refused.stdout, "to load everything into 'axi_it_blog_restore'"));
     expect(restored.exitCode, restored.stdout).toBe(0);
     expect(restored.stdout).toContain("writes_to: axi_it_blog_restore");
     expect(await scalar("SELECT title FROM posts", "axi_it_blog_restore")).toBe("original");

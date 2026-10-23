@@ -1,5 +1,5 @@
 import { bool, expectPositionals, flag, parseArgs } from "../../../core/src/args.js";
-import { PROFILE_FLAG, targetFrom } from "../../../core/src/commands/common.js";
+import { followUp, PROFILE_FLAG, rerunHint, shellQuote, targetFrom } from "../../../core/src/commands/common.js";
 import { withSession } from "../../../core/src/connection.js";
 import { usageError } from "../../../core/src/errors.js";
 import { block, helpBlock, humanBytes, out } from "../../../core/src/render.js";
@@ -50,7 +50,7 @@ async function dbCreate(args: string[]): Promise<string> {
   });
   return out(
     block({ db: { name, result: created ? "created" : "already exists (no-op)" } }),
-    helpBlock([`Run \`mysql-rw-axi import <file.sql> -d ${name}\` to load a dump`]),
+    helpBlock([`Run \`${followUp(parsed, `import <file.sql> -d ${shellQuote(name)}`)}\` to load a dump`]),
   );
 }
 
@@ -77,7 +77,7 @@ async function dbDrop(args: string[]): Promise<string> {
   if (!confirm) {
     return out(
       block({ preview: { statement: `DROP DATABASE ${name}`, risk: `irreversible - deletes ${result.tables} tables (${result.size})`, target: describeTarget(target) } }),
-      helpBlock(["Nothing was run. Rerun with --confirm to drop it"]),
+      helpBlock([`Nothing was run. ${rerunHint(parsed, { "--confirm": true }, "to drop it")}`]),
     );
   }
   return block({ db: { name, result: `dropped (${result.tables} tables; ${result.size})` } });

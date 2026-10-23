@@ -66,7 +66,8 @@ export function fromDriverError(error: unknown, where: string): AxiError {
     case 1146:
       return axiError(sql ?? "not found", "NOT_FOUND");
     case 3024:
-      return axiError("query exceeded the time limit", "TIMEOUT", ["Check the plan with `explain \"<select>\"` and narrow the query to an indexed WHERE", "Raise --timeout <seconds> only on a database you own - a long scan loads a shared server"]);
+      // Read commands add the explain hint with their connection flags.
+      return axiError("query exceeded the time limit", "TIMEOUT", ["Raise --timeout <seconds> only on a database you own - a long scan loads a shared server"]);
     case 1792:
       return axiError(sql ?? "refused by the read-only session", "READ_ONLY");
   }

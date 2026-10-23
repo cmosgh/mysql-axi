@@ -1,6 +1,9 @@
+import { execFileSync } from "node:child_process";
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import { parseArgs } from "../packages/core/src/args.js";
 import { cell, uniqueNames } from "../packages/core/src/cells.js";
 import { hoistLeadingFlags, READ_COMMANDS } from "../packages/core/src/cli.js";
+import { CONNECTION_FLAGS, followUp, rerunHint, shellQuote } from "../packages/core/src/commands/common.js";
 import { summarizeGrants } from "../packages/core/src/grants.js";
 import { parseUrl } from "../packages/core/src/target.js";
 import { setTool } from "../packages/core/src/tool.js";
@@ -242,5 +245,44 @@ describe("hoistLeadingFlags", () => {
     expect(hoist("-", "query")).toEqual(["-", "query"]);
     expect(hoist("--profile", "dev")).toEqual(["--profile", "dev"]);
     expect(hoist("tables", "-p", "dev")).toEqual(["tables", "-p", "dev"]);
+  });
+});
+
+describe("hint commands", () => {
+  const parse = (...args: string[]) =>
+    parseArgs(args, [...CONNECTION_FLAGS, { name: "--limit" }, { name: "--file" }, { name: "--confirm", boolean: true }], "mysql-rw-axi query");
+
+  it("quotes for a POSIX shell only when needed", () => {
+    expect(shellQuote("shop_test")).toBe("shop_test");
+    expect(shellQuote("/tmp/dump-2026.sql")).toBe("/tmp/dump-2026.sql");
+    expect(shellQuote("it's")).toBe("'it'\\''s'");
+    expect(shellQuote("$HOME")).toBe("'$HOME'");
+    expect(shellQuote("=x")).toBe("'=x'");
+    expect(shellQuote("")).toBe("''");
+  });
+
+  it("carries -p and -d into follow-up commands", () => {
+    expect(followUp(parse("-p", "staging", "--database=my shop"), "describe <table>")).toBe("mysql-rw-axi describe <table> -p staging -d 'my shop'");
+    expect(followUp(parse("--profile", "staging", "-d", "shop"), "databases", { database: false })).toBe("mysql-rw-axi databases -p staging");
+    expect(followUp(parse("SELECT 1"), "doctor")).toBe("mysql-rw-axi doctor");
+  });
+
+  it("rebuilds the command with flags replaced in place, added or removed", () => {
+    const rerun = (args: string[], set: Record<string, string | true | null>) => rerunHint(parse(...args), set, "again");
+    expect(rerun(["SELECT 1", "--limit=5", "-p", "dev"], { "--limit": "72" })).toBe("Run `mysql-rw-axi query 'SELECT 1' --limit 72 -p dev` again");
+    expect(rerun(["-d", "shop", "--file", "fix.sql"], { "--database": null, "--confirm": true })).toBe("Run `mysql-rw-axi query --file fix.sql --confirm` again");
+    expect(rerun(["--", "-1"], { "--limit": "2" })).toBe("Run `mysql-rw-axi query --limit 2 -- -1` again");
+  });
+
+  it("never repeats a password", () => {
+    expect(rerunHint(parse("UPDATE users SET password = 'hunter2'"), { "--confirm": true }, "to execute")).toBe("Rerun the same command with --confirm to execute");
+  });
+
+  it("gives back the same argv through sh", () => {
+    const args = ["SELECT 'it''s', \"q\", `id`, '$HOME', '\\n', '!*' FROM t WHERE a = 'ü'\n  AND b = 1 -- note", "-d", "my shop", "--", "--limit"];
+    const hint = rerunHint(parse(...args), { "--limit": "3" }, "now");
+    const command = hint.slice("Run `".length, -"` now".length);
+    const printed = execFileSync("/bin/sh", ["-c", command.replace(/^mysql-rw-axi query /, "printf '%s\\0' ")], { encoding: "utf-8" });
+    expect(printed.split("\0").slice(0, -1)).toEqual([args[0], "-d", "my shop", "--limit", "3", "--", "--limit"]);
   });
 });

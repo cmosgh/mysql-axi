@@ -38,8 +38,8 @@ export function classify(statement: readonly Token[]): Classification {
 
 const ROUTINES = new Set(["procedure", "function", "trigger", "event"]);
 
-/** Exactly one statement, tokenized. Routine bodies (BEGIN ...; ... END) count as one. */
-export function singleStatement(sql: string): Token[] {
+/** Exactly one statement, tokenized. Routine bodies (BEGIN ...; ... END) count as one. `script` is the import command a refusal suggests. */
+export function singleStatement(sql: string, script = "mysql-rw-axi import <file.sql>"): Token[] {
   const { tokens } = tokenize(sql);
   const list = statements(tokens);
   if (list.length === 0) throw usageError("the SQL is empty");
@@ -47,6 +47,6 @@ export function singleStatement(sql: string): Token[] {
   if (mainVerb(first) === "create" && topLevelWords(first).some((w) => ROUTINES.has(w))) {
     return tokens.filter((t) => !(t.kind === "punct" && t.text === ";"));
   }
-  if (list.length > 1) throw usageError(`exec runs one statement per call (got ${list.length})`, ["Run a multi-statement script with `mysql-rw-axi import <file.sql>`"]);
+  if (list.length > 1) throw usageError(`exec runs one statement per call (got ${list.length})`, [`Run a multi-statement script with \`${script}\``]);
   return list[0]!;
 }
