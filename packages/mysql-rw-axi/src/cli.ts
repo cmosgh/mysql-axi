@@ -17,7 +17,6 @@ export const TOOL: Tool = {
     reads: "query; sample; describe and the other read commands still run read-only",
   },
   checkTarget: loopbackOnly,
-  writeHint: 'Writes go through `mysql-rw-axi exec "<sql>"`',
   writeCommand: 'exec "<sql>"',
 };
 
@@ -27,8 +26,8 @@ export const DESCRIPTION =
 export const TOP_HELP = `usage: mysql-rw-axi [command] [args] [flags]
 WARNING: WRITE-CAPABLE. exec, import and db change data; loopback hosts and unix sockets only (an SSH tunnel to 127.0.0.1 counts as loopback).
 Read commands (query, sample, ...) still run in a read-only session - writes go through exec.
-commands[13]:
-  (none)=overview, exec, import, db, find, databases, tables, describe, sample, query, explain, doctor, auth, setup
+commands[14]:
+  (none)=live overview (takes -p, -d), exec, import, db, find, databases, tables, describe, sample, query, explain, doctor, auth, setup, context (session hooks)
 connection flags (every command that connects):
   -p/--profile <name>, -d/--database <name>
 flags[2]:

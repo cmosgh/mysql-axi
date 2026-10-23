@@ -36,9 +36,13 @@ export interface SessionOptions {
   timeoutMs?: number;
   /** Bypass the cached information_schema statistics so sizes are current. */
   freshStats?: boolean;
+  /** Limit for the TCP connect and handshake (default 10 s). */
+  connectTimeoutMs?: number;
+  /** Aborting destroys the connection, also while it is still opening. */
+  signal?: AbortSignal;
 }
 
-function connectionOptions(target: Target): mysql.ConnectionOptions {
+function connectionOptions(target: Target, options: SessionOptions): mysql.ConnectionOptions {
   return {
     ...(target.socket ? { socketPath: target.socket } : { host: target.host ?? "localhost", port: target.port }),
     user: target.user,
@@ -50,7 +54,7 @@ function connectionOptions(target: Target): mysql.ConnectionOptions {
     dateStrings: true,
     supportBigNumbers: true,
     bigNumberStrings: true,
-    connectTimeout: 10_000,
+    connectTimeout: options.connectTimeoutMs ?? 10_000,
     // affectedRows = rows changed, as in the mysql client, so a rerun UPDATE shows 0.
     flags: ["-FOUND_ROWS"],
   };
@@ -166,10 +170,11 @@ export class Session {
  * mode that also blocks DDL) inside START TRANSACTION READ ONLY.
  */
 export async function openSession(target: Target, options: SessionOptions): Promise<Session> {
-  const conn = mysql.createConnection(connectionOptions(target));
+  const conn = mysql.createConnection(connectionOptions(target, options));
   // Late socket errors (after destroy) must not crash the process.
   conn.on("error", () => {});
   const session = new Session(conn, target);
+  options.signal?.addEventListener("abort", () => session.destroy(), { once: true });
   try {
     await new Promise<void>((resolve, reject) => conn.connect((error) => (error ? reject(error) : resolve())));
     const settings: string[] = [];

@@ -1,8 +1,9 @@
 import { runAxiCli } from "axi-sdk-js";
 import { VALUE_FLAGS } from "./args.js";
 import { authCommand, authHelp } from "./commands/auth.js";
+import { contextCommand, contextHelp } from "./commands/context.js";
 import { doctorCommand, doctorHelp } from "./commands/doctor.js";
-import { homeCommand } from "./commands/home.js";
+import { homeCommand, homeHeader, homeHelp } from "./commands/home.js";
 import {
   databasesCommand,
   databasesHelp,
@@ -21,7 +22,7 @@ import {
 } from "./commands/read.js";
 import { setupCommand, setupHelp } from "./commands/setup.js";
 import { AxiError, exitCodeForError } from "./errors.js";
-import { renderErrorOutput } from "./render.js";
+import { out, renderErrorOutput } from "./render.js";
 import { setTool, type Tool } from "./tool.js";
 
 export interface Command {
@@ -66,7 +67,12 @@ const isBareSql = (token: string, commands: Record<string, unknown>): boolean =>
 
 const FRONT_ONLY = new Set(["--help", "-h", "--version", "-V", "-v"]);
 
-/** `tool -p x db drop y` runs as `tool db drop y -p x`: agents often put connection flags first. */
+const HOME = "home";
+
+/**
+ * `tool -p x db drop y` runs as `tool db drop y -p x`: agents often put connection flags first.
+ * Flags without a command (`tool -p staging`) run the home view with them.
+ */
 export function hoistLeadingFlags(argv: string[], commands: Record<string, unknown>): string[] {
   if (!argv[0]?.startsWith("-") || argv[0] === "-") return argv;
   let at = -1;
@@ -75,7 +81,8 @@ export function hoistLeadingFlags(argv: string[], commands: Record<string, unkno
     // A flag's value (`-d tables`) is never the command.
     else if (VALUE_FLAGS.has(argv[i]!)) i++;
   }
-  if (at === -1 || argv.slice(0, at).some((token) => FRONT_ONLY.has(token))) return argv;
+  if (argv.slice(0, at === -1 ? argv.length : at).some((token) => FRONT_ONLY.has(token))) return argv;
+  if (at === -1) return [HOME, ...argv];
   // After the subcommand and its arguments (`db drop y -p x`), but before a `--` terminator.
   const rest = argv.slice(at + 1);
   const end = rest.includes("--") ? rest.indexOf("--") : rest.length;
@@ -106,6 +113,10 @@ export async function runCli(spec: CliSpec, options: MainOptions = {}): Promise<
   setTool(spec.tool);
   const commands: Record<string, Command> = { ...spec.commands };
   for (const [alias, target] of Object.entries(ALIASES)) if (commands[target]) commands[alias] = commands[target]!;
+  commands[HOME] = { run: async (args) => out(homeHeader(spec.description), await homeCommand(args)), help: homeHelp };
+  // The session log keeps command names only: bare SQL counts as query, anything else unknown as other.
+  const canonical = (word: string): string | undefined => (commands[word] ? (ALIASES[word] ?? word) : isBareSql(word, commands) ? "query" : undefined);
+  commands["context"] = { run: (args) => contextCommand(args, { description: spec.description, canonical }), help: contextHelp };
   const names = { ...spec.refusals, ...commands };
   await runAxiCli({
     argv: routeBareSql(hoistLeadingFlags(options.argv ?? process.argv.slice(2), names), names),
@@ -131,7 +142,7 @@ export async function runCli(spec: CliSpec, options: MainOptions = {}): Promise<
     getCommandHelp: (command) => commands[command]?.help(),
     renderUnknownCommand: (command) =>
       `${renderErrorOutput(`unknown command '${command}'`, "VALIDATION_ERROR", [
-        `commands: ${Object.keys(spec.commands).join(", ")} (no command = overview)`,
+        `commands: ${[...Object.keys(spec.commands), "context"].join(", ")} (no command = live overview)`,
         `Run \`${spec.tool.name} --help\` for examples`,
       ])}\n`,
     formatError,

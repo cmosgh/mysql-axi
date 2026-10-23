@@ -12,6 +12,7 @@ export type ErrorCode =
   | "NETWORK"
   | "TIMEOUT"
   | "SQL_ERROR"
+  | "SETUP_FAILED"
   | "UNKNOWN";
 
 export function usageError(message: string, suggestions: string[] = []): AxiError {

@@ -7,7 +7,7 @@ It cannot change data. For writing to a **local** dev database there is a separa
 ```sh
 npm install -g mysql-axi
 printf %s "$DB_PASSWORD" | mysql-axi auth login --profile dev --host 127.0.0.1 --user app -d shop --password-stdin
-mysql-axi                      # overview: what this tool can do and the configured connections
+mysql-axi                      # live overview: the server and the default database's tables
 mysql-axi find voucher         # tables and columns whose name contains 'voucher', any case
 mysql-axi tables --sort size
 mysql-axi describe orders customers
@@ -114,25 +114,57 @@ mysql-axi query "SHOW CREATE TABLE orders" --full
 - **Env override:** `MYSQL_AXI_URL=mysql://user:password@host:port/database` overrides the profiles.
 - **Picking a profile:** use `-p/--profile <name>` (before or after the command), or `MYSQL_AXI_PROFILE` for a single command.
 
-## Session hook
+## Live overview
 
-Run `mysql-axi` with no command and it prints a short overview (about 160 tokens): what the tool may do, its limits, the configured connection and the next commands to try.
+Run `mysql-axi` with no command to see the server version, then the default database's tables, or the largest databases when no database is set, and the next commands to try. It reads through the same read-only session as every other command, with short limits: 3 s to reach the server and 10 s in total. When it cannot connect it prints `live: unavailable - <why>` with a hint and still exits 0. `-p` and `-d` work without a command: `mysql-axi -p staging -d shop`.
 
 ```text
 $ mysql-axi
 bin: ~/.npm-global/bin/mysql-axi
 description: "READ-ONLY MySQL CLI for agents - explore schemas and run capped read queries, with TOON output. Writes are refused by a client-side guard plus a read-only session (not a grant check)."
 mode: READ-ONLY - one SELECT/WITH/SHOW/DESC/EXPLAIN/TABLE statement per call; results capped at 50 rows
-profiles[1]{name,target,active}:
-  dev,"app@127.0.0.1:3306/shop",true
+connection: "app@127.0.0.1:3306/shop (profile dev)"
+server: MySQL 8.0.46
+database: shop - 4 tables; 1 views; 2.3 MB
+tables[5]: customers,order_items,orders,paid_orders,reviews
 help[2]:
-  Run `mysql-axi find <name>`, `mysql-axi tables`, `mysql-axi describe <table>...` or `mysql-axi sample <table>` to explore
+  Run `mysql-axi tables` for row estimates and sizes; `mysql-axi describe <table>` for columns and indexes
   Run `mysql-axi query "<sql>" -p <profile> -d <database>` or `mysql-axi explain "<select>"`; `mysql-axi <command> --help` for flags
 ```
 
-`mysql-axi setup hooks` installs a session-start hook in Claude Code, Codex or OpenCode that puts this overview into the agent's context. The agent then knows the tool and the database before its first command, instead of spending turns on `--help`. In the benchmarks agents with the hook needed 15-33% fewer turns than without it. The overview never connects to a database or reads the keychain, so the hook adds no delay.
+## Agent integration
 
-Where the hook goes:
+There are two ways to tell an agent about `mysql-axi`. You only need one.
+
+| | Session hook | Skill |
+|---|---|---|
+| Install | `mysql-axi setup hooks` | `npx skills add cmosgh/mysql-axi --skill mysql-axi` |
+| What the agent gets | a summary at every session start (about 200 tokens): the connection, the profiles, what the last session in this directory ran, and the commands to try | a short skill that loads when a task needs MySQL and points at `mysql-axi --help` |
+| Cost | every session | only when the task needs it |
+| Agents | Claude Code, Codex, OpenCode | any agent that reads [Agent Skills](https://agentskills.io) |
+
+### Session hook
+
+`mysql-axi setup hooks` installs two hooks:
+
+- **Session start** (Claude Code, Codex, OpenCode) runs `mysql-axi context`, which prints the summary below. It reads only the config file. It never connects or reads the keychain, so it adds no delay.
+- **Session end** (Claude Code) runs `mysql-axi context end`. It reads the session transcript and records which `mysql-axi` commands ran: command names, counts and the `-p`/`-d` values, never SQL or other arguments. The record goes in `~/.config/mysql-axi/sessions.json`, keyed by directory, and the next session in that directory sees it as `last_session`.
+
+The agent then knows the tool and the database before its first command, instead of spending turns on `--help`. In the benchmarks agents with the hook needed 15-33% fewer turns than without it.
+
+```text
+$ mysql-axi context
+bin: ~/.npm-global/bin/mysql-axi
+description: "READ-ONLY MySQL CLI for agents - explore schemas and run capped read queries, with TOON output. Writes are refused by a client-side guard plus a read-only session (not a grant check)."
+mode: READ-ONLY - one SELECT/WITH/SHOW/DESC/EXPLAIN/TABLE statement per call; results capped at 50 rows
+profiles[1]{name,target,active}:
+  dev,"app@127.0.0.1:3306/shop",true
+last_session: 2026-10-22 - query 6; describe 3; tables 1 - profile dev; database shop
+help[3]:
+  Run `mysql-axi` for live server state; `mysql-axi --help` for commands
+  Run `mysql-axi find <name>`, `mysql-axi tables`, `mysql-axi describe <table>...` or `mysql-axi sample <table>` to explore
+  Run `mysql-axi query "<sql>" -p <profile> -d <database>` or `mysql-axi explain "<select>"`; `mysql-axi <command> --help` for flags
+```
 
 | Command | Applies to | Files written |
 |---|---|---|
@@ -140,14 +172,13 @@ Where the hook goes:
 | `mysql-axi setup hooks --project` | everyone working in this repository (commit the files) | `.claude/settings.json`, `.codex/hooks.json`, `.opencode/plugins/`; Codex also needs `[features] hooks = true` in `~/.codex/config.toml`, which this adds |
 | `mysql-axi setup hooks --local` | only you, only in this repository (Claude Code) | `.claude/settings.local.json`; it says so if git would commit the file |
 
-Run `--project` and `--local` from the repository root. `setup status` and `setup uninstall` take the same flag. The hook runs `mysql-axi` when that is on your PATH, so a committed `--project` hook works for teammates who install it too; otherwise it stores the absolute path of your install.
+- **Scope:** run `--project` and `--local` from the repository root. `setup status` and `setup uninstall` take the same flag. The hook runs `mysql-axi` when that is on your PATH, so a committed `--project` hook works for teammates who install it too; otherwise it stores the absolute path of your install.
+- **Repairs:** rerun `setup hooks` after you upgrade or move the install. It rewrites the hook command and is a no-op when nothing changed. `setup status` shows `broken` or `outdated` when a rerun is needed. Hooks installed by 0.1.x ran the overview at session start, and a rerun switches them to `context`.
+- **Other hooks:** setup changes only its own hooks. It recognises them by the binary name and `context` argument, and leaves any other hook alone.
 
-## Agent integration
+### Skill
 
-Use one of these; either is enough:
-
-- **Session hook:** `mysql-axi setup hooks` adds the overview to every session; see [Session hook](#session-hook).
-- **Skill:** `npx skills add cmosgh/mysql-axi --skill mysql-axi` installs the discovery skill (`skills/mysql-axi/SKILL.md`), which the agent loads when a task needs MySQL.
+`npx skills add cmosgh/mysql-axi --skill mysql-axi` installs [`skills/mysql-axi/SKILL.md`](skills/mysql-axi/SKILL.md). It carries no live state and no per-session cost: the agent loads it when a task needs MySQL, and it points at `npx -y mysql-axi --help` for current guidance. The file is generated from the CLI's own description, and CI fails when it is stale.
 
 MIT licensed.
 

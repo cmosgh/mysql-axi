@@ -329,3 +329,28 @@ describe("loopback only", () => {
     expect(write.stdout).toContain("npm install -g mysql-rw-axi@latest");
   });
 });
+
+describe("home", () => {
+  it("warns that it writes and shows the local server", async () => {
+    const { stdout, exitCode } = await rw();
+    expect(exitCode).toBe(0);
+    expect(stdout).toMatch(/\nwarning: WRITE-CAPABLE/);
+    expect(stdout).toMatch(/\nserver: MySQL 8\.\d+\.\d+\n/);
+    expect(stdout).toContain(`database: ${DB} - `);
+    expect(stdout).toContain('Writes go through `mysql-rw-axi exec "<sql>"`');
+    expect(stdout).not.toContain(new URL(rootUrl()).password);
+  });
+
+  it("shows a non-loopback target as unavailable without connecting", async () => {
+    process.env["MYSQL_RW_AXI_URL"] = "mysql://agent:hunter2@10.1.2.3:3306/shop";
+    try {
+      const { stdout, exitCode } = await rw();
+      expect(exitCode).toBe(0);
+      expect(stdout).toMatch(/\nlive: "?unavailable - refusing host '10\.1\.2\.3'/);
+      expect(stdout).toContain("Use mysql-axi (read-only) for any database that is not local");
+      expect(stdout).not.toContain("hunter2");
+    } finally {
+      process.env["MYSQL_RW_AXI_URL"] = rootUrl(DB);
+    }
+  });
+});

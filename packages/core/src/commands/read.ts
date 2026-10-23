@@ -17,13 +17,13 @@ import {
   rerunHint,
   shellQuote,
   sqlInput,
+  SYSTEM_SCHEMAS,
   tableRef,
   targetFrom,
   TIMEOUT_FLAG,
   timeoutMs,
 } from "./common.js";
 
-const SYSTEM_SCHEMAS = new Set(["mysql", "sys", "information_schema", "performance_schema"]);
 const MAX_LIST = 10_000;
 
 const n = (value: unknown): number => (value === null || value === undefined ? 0 : Number(value));

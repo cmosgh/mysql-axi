@@ -11,6 +11,8 @@ export const CONNECTION_FLAGS: readonly FlagSpec[] = [PROFILE_FLAG, { name: "--d
 export const TIMEOUT_FLAG: FlagSpec = { name: "--timeout" };
 export const CONNECTION_FLAGS_HELP = "-p/--profile <name>, -d/--database <name>";
 
+export const SYSTEM_SCHEMAS: ReadonlySet<string> = new Set(["mysql", "sys", "information_schema", "performance_schema"]);
+
 export const DEFAULT_TIMEOUT_S = 30;
 export const MAX_ROWS = 1000;
 

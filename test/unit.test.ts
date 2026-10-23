@@ -244,12 +244,15 @@ describe("hoistLeadingFlags", () => {
     expect(hoist("-d", "shop", "query", "--", "-1")).toEqual(["query", "-d", "shop", "--", "-1"]);
     expect(hoist("-d", "tables", "tables")).toEqual(["tables", "-d", "tables"]);
   });
-  it("leaves help, version, stdin and flag-only lines alone", () => {
+  it("runs flags without a command as the home view", () => {
+    expect(hoist("--profile", "dev")).toEqual(["home", "--profile", "dev"]);
+    expect(hoist("-d", "tables")).toEqual(["home", "-d", "tables"]);
+  });
+  it("leaves help, version, stdin and commands that come first alone", () => {
     expect(hoist("--help", "query")).toEqual(["--help", "query"]);
     expect(hoist("-p", "dev", "--help")).toEqual(["-p", "dev", "--help"]);
     expect(hoist("-v")).toEqual(["-v"]);
     expect(hoist("-", "query")).toEqual(["-", "query"]);
-    expect(hoist("--profile", "dev")).toEqual(["--profile", "dev"]);
     expect(hoist("tables", "-p", "dev")).toEqual(["tables", "-p", "dev"]);
   });
 });

@@ -4,15 +4,13 @@ import type { Target } from "./target.js";
 export interface Tool {
   name: string;
   mode: "read-only" | "read-write";
-  /** First lines of the home view: what this tool can and cannot do. */
+  /** First lines of the home view and the session context: what this tool can and cannot do. */
   banner: Record<string, string>;
   /** Env var prefix, e.g. MYSQL_AXI -> MYSQL_AXI_URL. */
   envPrefix: string;
   /** Vetoes a target before any connection (the write tool's loopback rule). */
   checkTarget?: (target: Target) => Promise<Target>;
-  /** Last line of the home view: where writes go. */
-  writeHint?: string;
-  /** The write command, e.g. `exec "<sql>"`, that read-only refusals suggest with the invocation's connection flags. */
+  /** The write command, e.g. `exec "<sql>"`: read-only refusals and the home view suggest it with the invocation's connection flags. */
   writeCommand?: string;
 }
 

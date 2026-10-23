@@ -224,7 +224,7 @@ const ARMS = (process.env["TOKENS_ARMS"]?.split(",").map((a) => a.trim()) ?? ALL
 for (const arm of ARMS) if (!ALL_ARMS.includes(arm)) throw new Error(`TOKENS_ARMS: unknown arm ${arm} (${ALL_ARMS.join(", ")})`);
 /** The MCP server the mcp arm talks to, pinned so runs stay comparable. */
 const MCP_PACKAGE = "mysql-mcp-server@0.1.4";
-/** The home view, as `mysql-axi setup hooks` injects it at session start (axi_home arm). */
+/** The session context, as the hook from `mysql-axi setup hooks` injects it at session start (axi_home arm). */
 let homeView = "";
 let setup: Record<string, unknown> = {};
 let binPath = "";
@@ -443,7 +443,7 @@ beforeAll(async () => {
   if (plain.status !== 0) throw new Error(`plain mysql client cannot connect: ${plain.stderr}`);
   const axi = spawnSync("mysql-axi", ["query", "SELECT COUNT(*) AS n FROM orders"], { env: envFor("axi", bin), encoding: "utf-8" });
   if (axi.status !== 0) throw new Error(`mysql-axi cannot connect (run pnpm run build first): ${axi.stdout}${axi.stderr}`);
-  homeView = spawnSync("mysql-axi", [], { env: envFor("axi", bin), encoding: "utf-8" }).stdout;
+  homeView = spawnSync("mysql-axi", ["context"], { env: envFor("axi", bin), encoding: "utf-8" }).stdout;
   if (ARMS.includes("mcp")) {
     // Fills the npx cache so the first agent does not wait on a download; the server exits when stdin closes.
     const warm = spawnSync("npx", ["-y", MCP_PACKAGE], { input: "", encoding: "utf-8", timeout: 180_000, env: { ...process.env, MYSQL_HOST: "127.0.0.1", MYSQL_USER: USER } });

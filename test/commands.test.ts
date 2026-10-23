@@ -1,5 +1,4 @@
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fake, resetFake, type Reply } from "./fake-mysql.js";
@@ -14,32 +13,6 @@ beforeEach(() => {
 
 const answer = (map: Record<string, Reply>) => (sql: string) => Object.entries(map).find(([prefix]) => sql.startsWith(prefix))?.[1];
 const sqls = () => fake.calls.map((c) => c.sql);
-
-describe("home", () => {
-  it("states the read-only limits and never connects", async () => {
-    delete process.env["MYSQL_AXI_URL"];
-    const { stdout, exitCode } = await ro();
-    expect(exitCode).toBe(0);
-    expect(stdout).toContain("mode: READ-ONLY - one SELECT");
-    expect(stdout).toContain("not a grant check");
-    expect(stdout).toContain("status: not configured");
-    expect(fake.connections).toHaveLength(0);
-  });
-
-  it("shows the env connection without its password", async () => {
-    const { stdout } = await ro();
-    expect(stdout).toContain("agent@127.0.0.1:3306/shop (MYSQL_AXI_URL)");
-    expect(stdout).not.toContain("s3cret");
-    expect(fake.connections).toHaveLength(0);
-  });
-
-  it("leads the write tool with the warning", async () => {
-    const { stdout } = await rw();
-    expect(stdout.split("\n").find((l) => !l.startsWith("bin:") && !l.startsWith("description:"))).toMatch(/^warning: WRITE-CAPABLE/);
-    expect(stdout).toContain("SSH tunnel to 127.0.0.1 also counts as loopback");
-    expect(stdout).toContain('Writes go through `mysql-rw-axi exec "<sql>"`');
-  });
-});
 
 describe("query", () => {
   it("runs in a read-only session with a time cap and one statement per connection", async () => {
@@ -318,7 +291,7 @@ describe("schema commands", () => {
 });
 
 describe("help", () => {
-  const ROOT = ["find", "databases", "tables", "describe", "sample", "query", "explain", "doctor", "auth", "setup"];
+  const ROOT = ["find", "databases", "tables", "describe", "sample", "query", "explain", "doctor", "auth", "setup", "context", "home"];
 
   it.each([
     ...ROOT.map((command) => ["mysql-axi", command] as const),
@@ -386,7 +359,7 @@ describe("refusals", () => {
 
   it("keeps refusals out of the command list", async () => {
     const { stdout } = await ro("nope");
-    expect(stdout).toContain("commands: find, databases, tables, describe, sample, query, explain, doctor, auth, setup (no command = overview)");
+    expect(stdout).toContain("commands: find, databases, tables, describe, sample, query, explain, doctor, auth, setup, context (no command = live overview)");
   });
 });
 
@@ -414,42 +387,6 @@ describe("doctor", () => {
   });
 });
 
-describe("setup --local", () => {
-  const withProject = async (execPath: string, run: (dir: string) => Promise<void>) => {
-    const dir = mkdtempSync(join(tmpdir(), "mysql-axi-setup-"));
-    const argv1 = process.argv[1];
-    process.argv[1] = execPath;
-    const cwd = vi.spyOn(process, "cwd").mockReturnValue(dir);
-    try {
-      await run(dir);
-    } finally {
-      cwd.mockRestore();
-      process.argv[1] = argv1!;
-    }
-  };
-
-  it("installs into Claude Code's settings.local.json only, idempotently, and removes it", async () => {
-    await withProject("/opt/npm/bin/mysql-axi", async (dir) => {
-      const file = join(dir, ".claude/settings.local.json");
-      expect((await ro("setup", "hooks", "--local")).stdout).toContain("status: installed\n  integrations: Claude Code");
-      expect(JSON.parse(readFileSync(file, "utf-8")).hooks.SessionStart[0].hooks[0]).toEqual({ type: "command", command: "/opt/npm/bin/mysql-axi", timeout: 10 });
-      expect((await ro("setup", "hooks", "--local")).stdout).toContain("already up to date (no-op)");
-      expect((await ro("setup", "status", "--local")).stdout).toContain("claude_code: installed");
-      expect((await ro("setup", "uninstall", "--local")).stdout).toContain("status: removed");
-      expect((await ro("setup", "status", "--local")).stdout).toContain("claude_code: not installed");
-    });
-  });
-
-  it("refuses a source checkout and --project with --local", async () => {
-    await withProject("/src/packages/mysql-axi/bin/mysql-axi.ts", async () => {
-      const dev = await ro("setup", "hooks", "--local");
-      expect(dev.exitCode).toBe(2);
-      expect(dev.stdout).toContain("not from a source checkout");
-      expect((await ro("setup", "hooks", "--local", "--project")).stdout).toContain("pass --project or --local, not both");
-    });
-  });
-});
-
 describe("auth", () => {
   it("validates before saving a profile and keeps the password out of the config", async () => {
     delete process.env["MYSQL_AXI_URL"];
@@ -460,8 +397,8 @@ describe("auth", () => {
     const login = await ro("auth", "login", "--profile", "local", "--user", "root", "--no-password", "-d", "shop");
     expect(login.exitCode).toBe(0);
     expect(fake.connections[0]!.options["database"]).toBeUndefined();
-    const home = await ro();
-    expect(home.stdout).toContain("profiles[1]{name,target,active}:\n  local,\"root@127.0.0.1:3306/shop\",true");
+    const context = await ro("context");
+    expect(context.stdout).toContain("profiles[1]{name,target,active}:\n  local,\"root@127.0.0.1:3306/shop\",true");
   });
 
   it("does not save a profile the server rejects", async () => {
@@ -470,7 +407,7 @@ describe("auth", () => {
     const { stdout, exitCode } = await ro("auth", "login", "--profile", "local", "--user", "root", "--no-password");
     expect(exitCode).toBe(1);
     expect(stdout).toContain("code: AUTH_REQUIRED");
-    expect((await ro()).stdout).toContain("status: not configured");
+    expect((await ro("context")).stdout).toContain("status: not configured");
   });
 });
 

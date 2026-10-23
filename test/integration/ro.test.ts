@@ -50,6 +50,52 @@ afterAll(async () => {
   await sql(`DROP DATABASE IF EXISTS ${FIND_DB}`);
 });
 
+describe("home", () => {
+  it("shows the server and the default database's tables", async () => {
+    const { stdout, exitCode } = await ro();
+    expect(exitCode).toBe(0);
+    expect(stdout).toMatch(/\nmode: READ-ONLY/);
+    expect(stdout).toMatch(/\nserver: MySQL 8\.\d+\.\d+\n/);
+    expect(stdout).toMatch(new RegExp(`\\ndatabase: ${DB} - 4 tables; 1 views; \\d[\\d.]* [KMG]?B\\n`));
+    expect(stdout).toContain("tables[5]: big_spenders,customers,kinds,orders,seq\n");
+    expect(stdout).toContain("Run `mysql-axi tables` for row estimates and sizes; `mysql-axi describe <table>` for columns and indexes");
+    expect(stdout).not.toContain(new URL(rootUrl()).password);
+  });
+
+  it("lists the databases the account can see without a default, and takes -d", async () => {
+    process.env["MYSQL_AXI_URL"] = `mysql://${RO_USER}:reader-pw@127.0.0.1:${serverPort()}`;
+    try {
+      const top = await ro();
+      expect(top.exitCode).toBe(0);
+      expect(top.stdout).toMatch(new RegExp(`\\ndatabases\\[1\\]\\{name,tables,size\\}:\\n  ${DB},5,`));
+      expect(top.stdout).toContain("Run `mysql-axi tables -d <database>` to list a database's tables");
+      const one = await ro("-d", DB);
+      expect(one.stdout).toMatch(/^bin: /);
+      expect(one.stdout).toContain(`database: ${DB} - 4 tables; 1 views; `);
+      expect(one.stdout).toContain(`Run \`mysql-axi tables -d ${DB}\` for row estimates and sizes`);
+      const missing = await ro("-d", "axi_it_nowhere");
+      expect(missing.exitCode).toBe(0);
+      expect(missing.stdout).toContain("database: axi_it_nowhere - not found or not visible to this account");
+      expect(missing.stdout).toContain("Run `mysql-axi databases` to list databases");
+    } finally {
+      process.env["MYSQL_AXI_URL"] = rootUrl(DB);
+    }
+  });
+
+  it("reports what it cannot reach instead of failing", async () => {
+    process.env["MYSQL_AXI_URL"] = `mysql://${RO_USER}:wrong-pw@127.0.0.1:${serverPort()}/${DB}`;
+    try {
+      const { stdout, exitCode } = await ro();
+      expect(exitCode).toBe(0);
+      expect(stdout).toMatch(/\nlive: "?unavailable - Access denied for user/);
+      expect(stdout).toContain("Run `mysql-axi doctor` to diagnose");
+      expect(stdout).not.toContain("wrong-pw");
+    } finally {
+      process.env["MYSQL_AXI_URL"] = rootUrl(DB);
+    }
+  });
+});
+
 describe("listing and schema", () => {
   it("databases hides system schemas unless --all", async () => {
     const plain = await ro("databases");

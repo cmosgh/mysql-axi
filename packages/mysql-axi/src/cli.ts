@@ -16,8 +16,8 @@ export const DESCRIPTION =
   "READ-ONLY MySQL CLI for agents - explore schemas and run capped read queries, with TOON output. Writes are refused by a client-side guard plus a read-only session (not a grant check).";
 
 export const TOP_HELP = `usage: mysql-axi [command] [args] [flags]
-commands[10]:
-  (none)=overview, find, databases, tables, describe, sample, query, explain, doctor, auth, setup
+commands[11]:
+  (none)=live overview (takes -p, -d), find, databases, tables, describe, sample, query, explain, doctor, auth, setup, context (session hooks)
 connection flags (every command that reads):
   -p/--profile <name>, -d/--database <name>, --timeout <seconds> (default 30)
 examples:

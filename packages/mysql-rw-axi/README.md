@@ -66,34 +66,9 @@ mysql-rw-axi exec "UPDATE orders SET status = 'paid' WHERE id = 42"   # affected
 mysql-rw-axi exec "UPDATE orders SET status = 'paid' WHERE id = 42"   # affected_rows: 0, matched_rows: 1
 ```
 
-## Session hook
+## Live overview
 
-Run `mysql-rw-axi` with no command and it prints a short overview that leads with the write warning, so an agent knows from the start that this tool can change data, where it may connect and how writes are made:
-
-```text
-$ mysql-rw-axi
-bin: ~/.npm-global/bin/mysql-rw-axi
-description: "WRITE ACCESS - MySQL CLI for agents that CAN MODIFY AND DROP DATA on loopback databases (local dev): exec, import, db create/drop, plus every read-only mysql-axi command. Irreversible statements preview until --confirm. Use mysql-axi for anything that is not local."
-warning: WRITE-CAPABLE - exec; import and db can modify and DROP data
-scope: loopback hosts only - 127.0.0.0/8; IPv6 loopback; unix sockets. An SSH tunnel to 127.0.0.1 also counts as loopback - never tunnel to a shared database
-reads: query; sample; describe and the other read commands still run read-only
-profiles[1]{name,target,active}:
-  local,"root@127.0.0.1:3306/shop_dev",true
-help[3]:
-  Run `mysql-rw-axi find <name>`, `mysql-rw-axi tables`, `mysql-rw-axi describe <table>...` or `mysql-rw-axi sample <table>` to explore
-  Run `mysql-rw-axi query "<sql>" -p <profile> -d <database>` or `mysql-rw-axi explain "<select>"`; `mysql-rw-axi <command> --help` for flags
-  Writes go through `mysql-rw-axi exec "<sql>"`
-```
-
-`mysql-rw-axi setup hooks` adds this overview to the agent's context at the start of every Claude Code, Codex or OpenCode session. It never connects to a database or reads the keychain. Because the overview tells the agent it can write, install it only where writing to the local database is wanted:
-
-| Command | Applies to | Files written |
-|---|---|---|
-| `mysql-rw-axi setup hooks --local` | only you, only in this repository (Claude Code) | `.claude/settings.local.json`; it says so if git would commit the file |
-| `mysql-rw-axi setup hooks --project` | everyone working in this repository (commit the files) | `.claude/settings.json`, `.codex/hooks.json`, `.opencode/plugins/`; Codex also needs `[features] hooks = true` in `~/.codex/config.toml`, which this adds |
-| `mysql-rw-axi setup hooks` | every session of yours | `~/.claude/settings.json`, `~/.codex/hooks.json`, `~/.config/opencode/plugins/` |
-
-Run `--local` and `--project` from the repository root; `setup status` and `setup uninstall` take the same flag. With both tools installed, a common setup is `mysql-axi setup hooks` for every session and `mysql-rw-axi setup hooks --local` in the repositories whose local database the agent may change. Why a hook rather than the skill: see [Session hook in mysql-axi](https://github.com/cmosgh/mysql-axi/tree/main/packages/mysql-axi#session-hook) and its benchmarks.
+`mysql-rw-axi` with no command starts with the `WRITE-CAPABLE` warning and the loopback scope. It then connects with short limits and shows the server and the default database's tables, like [`mysql-axi`](https://github.com/cmosgh/mysql-axi/tree/main/packages/mysql-axi#live-overview), reading through a read-only session. A profile outside the loopback rule shows as `live: unavailable` without connecting.
 
 ## Connections
 
@@ -103,9 +78,11 @@ Run `--local` and `--project` from the repository root; `setup status` and `setu
 
 ## Agent integration
 
-Use one of these; either is enough:
+There are two ways to tell an agent about `mysql-rw-axi`, and you only need one. Install either only where writing is wanted:
 
-- **Session hook:** `mysql-rw-axi setup hooks --local` adds the overview to your sessions in this repository; see [Session hook](#session-hook).
-- **Skill:** `npx skills add cmosgh/mysql-axi --skill mysql-rw-axi` installs the discovery skill (`skills/mysql-rw-axi/SKILL.md`). Like the hook, add it only where the agent may change the local database.
+- **Session hook:** `mysql-rw-axi setup hooks --local` covers one repository, for you only. At session start the agent gets `mysql-rw-axi context`, which starts with the `WRITE-CAPABLE` warning and the loopback scope and never connects. At session end Claude Code records which commands ran, by name and count. It works like [`mysql-axi`'s hook](https://github.com/cmosgh/mysql-axi/tree/main/packages/mysql-axi#session-hook), including `--project`, `setup status` and `setup uninstall`. With both tools installed, a common setup is `mysql-axi setup hooks` for every session and `mysql-rw-axi setup hooks --local` in the repositories whose local database the agent may change.
+- **Skill:** `npx skills add cmosgh/mysql-axi --skill mysql-rw-axi` installs [`skills/mysql-rw-axi/SKILL.md`](skills/mysql-rw-axi/SKILL.md). It loads only when a task must change a local database, and costs nothing per session.
+
+Allow `Bash(mysql-rw-axi:*)` only in projects where an agent should change a local database.
 
 MySQL 8.x only. MIT licensed.

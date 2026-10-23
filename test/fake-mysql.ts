@@ -9,6 +9,8 @@ export interface Reply {
   rows?: unknown[][];
   ok?: { affectedRows?: number; insertId?: number; warningStatus?: number; info?: string };
   error?: { errno?: number; code?: string; sqlMessage?: string };
+  /** Never answers, like a server stuck on the statement. */
+  hang?: boolean;
 }
 
 export interface ConnectionRecord {
@@ -64,6 +66,7 @@ class FakeConnection extends EventEmitter {
     return {
       query: async (sql: string, values: unknown[] = []) => {
         const r = reply(sql, values);
+        if (r.hang) return new Promise<never>(() => {});
         if (r.error) throw driverError(r.error);
         if (r.columns) {
           const columns = r.columns;
@@ -78,6 +81,7 @@ class FakeConnection extends EventEmitter {
     const emitter = new EventEmitter();
     setImmediate(() => {
       const r = reply(options.sql, options.values ?? []);
+      if (r.hang) return;
       if (r.error) {
         emitter.emit("error", driverError(r.error));
         return;
