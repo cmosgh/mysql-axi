@@ -219,6 +219,27 @@ describe("schema commands", () => {
   });
 });
 
+describe("help", () => {
+  const ROOT = ["find", "databases", "tables", "describe", "sample", "query", "explain", "doctor", "auth", "setup"];
+
+  it.each([
+    ...ROOT.map((command) => ["mysql-axi", command] as const),
+    ...[...ROOT, "exec", "import", "db"].map((command) => ["mysql-rw-axi", command] as const),
+  ])("%s %s --help shows usage and at least two examples", async (cli, command) => {
+    const { stdout, exitCode } = await (cli === "mysql-axi" ? ro : rw)(command, "--help");
+    expect(exitCode).toBe(0);
+    expect(stdout).toMatch(/^usage: /);
+    const examples = stdout.split("\nexamples:\n")[1]?.split("\n").filter((line) => line.startsWith(`  ${cli} `)) ?? [];
+    expect(examples.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("doctor --help has examples with connection flags", async () => {
+    const { stdout } = await ro("doctor", "--help");
+    expect(stdout).toContain("examples:\n  mysql-axi doctor\n  mysql-axi doctor -p dev\n");
+    expect(fake.connections).toHaveLength(0);
+  });
+});
+
 describe("doctor", () => {
   it("warns when read-only credentials can write", async () => {
     fake.responder = answer({

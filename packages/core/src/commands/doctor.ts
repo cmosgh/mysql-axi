@@ -16,7 +16,11 @@ function listPrivileges(privileges: readonly string[]): string {
 export const doctorHelp = (): string => `usage: ${tool().name} doctor [flags]
 Connects and checks the server, the user, the read-only session and the account's grants.
 flags:
-  ${CONNECTION_FLAGS_HELP}, --timeout <seconds>
+  ${CONNECTION_FLAGS_HELP}, --timeout <seconds> (default 30)
+examples:
+  ${tool().name} doctor
+  ${tool().name} doctor -p dev
+  ${tool().name} doctor -p dev -d shop --timeout 5
 `;
 
 export async function doctorCommand(args: string[]): Promise<string> {
