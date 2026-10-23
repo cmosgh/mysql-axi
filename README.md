@@ -15,14 +15,14 @@ These are two separate packages, so installing or allowing only `mysql-axi` mean
 - [Safe to auto-approve](packages/mysql-axi#safe-to-auto-approve): what the same agent statements do through the plain `mysql` client, a read-only MCP server and `mysql-axi`, verified in CI
 - [How writes are blocked](packages/mysql-axi#how-writes-are-blocked) and [Limitations](packages/mysql-axi#limitations): what the guard does **not** cover
 - [Recipes](packages/mysql-axi#recipes): slow queries, orphan rows, collation drift, checking a migration
-- [Session hook](packages/mysql-axi#session-hook): start every agent session knowing the tool (`setup hooks`, `--project`, `--local`)
+- [Session hook](packages/mysql-axi#session-hook): start every agent session knowing the tool (`setup hooks`, `--project`, `--local`), or install the [skill](packages/mysql-axi#agent-integration) instead
 - Benchmarks against the `mysql` client and an MCP server: [Token usage](packages/mysql-axi#token-usage), [Accuracy](packages/mysql-axi#accuracy), [Large tables](packages/mysql-axi#large-tables)
 - [Connections](packages/mysql-axi#connections): profiles, keychain, `MYSQL_AXI_URL`
 
 **[mysql-rw-axi](packages/mysql-rw-axi)** (writes, loopback only)
 - [What it does](packages/mysql-rw-axi#what-it-does): `exec`, `import`, `db`, and which statements need `--confirm`
 - [Recipes](packages/mysql-rw-axi#recipes): restore and compare a dump, dedupe before a unique index, upsert, rerunnable fixes
-- [Session hook](packages/mysql-rw-axi#session-hook): install it only where writing is wanted (`--local`)
+- [Session hook](packages/mysql-rw-axi#session-hook): install it only where writing is wanted (`--local`), or the [skill](packages/mysql-rw-axi#agent-integration) instead
 - [Connections](packages/mysql-rw-axi#connections): separate profiles and keychain entries from `mysql-axi`
 
 ## Layout

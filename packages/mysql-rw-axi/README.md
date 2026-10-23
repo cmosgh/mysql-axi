@@ -103,7 +103,9 @@ Run `--local` and `--project` from the repository root; `setup status` and `setu
 
 ## Agent integration
 
-- **Session start:** `mysql-rw-axi setup hooks --local`; see [Session hook](#session-hook).
-- **Skill:** a discovery skill ships in `skills/mysql-rw-axi/SKILL.md`.
+Use one of these; either is enough:
+
+- **Session hook:** `mysql-rw-axi setup hooks --local` adds the overview to your sessions in this repository; see [Session hook](#session-hook).
+- **Skill:** `npx skills add cmosgh/mysql-axi --skill mysql-rw-axi` installs the discovery skill (`skills/mysql-rw-axi/SKILL.md`). Like the hook, add it only where the agent may change the local database.
 
 MySQL 8.x only. MIT licensed.

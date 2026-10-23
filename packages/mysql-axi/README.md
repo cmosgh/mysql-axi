@@ -144,8 +144,10 @@ Run `--project` and `--local` from the repository root. `setup status` and `setu
 
 ## Agent integration
 
-- **Session start:** `mysql-axi setup hooks`; see [Session hook](#session-hook).
-- **Skill:** a discovery skill ships in `skills/mysql-axi/SKILL.md`.
+Use one of these; either is enough:
+
+- **Session hook:** `mysql-axi setup hooks` adds the overview to every session; see [Session hook](#session-hook).
+- **Skill:** `npx skills add cmosgh/mysql-axi --skill mysql-axi` installs the discovery skill (`skills/mysql-axi/SKILL.md`), which the agent loads when a task needs MySQL.
 
 MIT licensed.
 
