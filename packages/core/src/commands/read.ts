@@ -244,8 +244,14 @@ export async function describeCommand(args: string[]): Promise<string> {
     for (const ref of refs) all.push(await describeIn(s, ref.database, ref.table));
     return all;
   });
-  if (refs.length === 1) return renderDescribe(parsed, refs[0]!.database, refs[0]!.table, results[0]!, true);
-  return out(...results.map((result, i) => renderDescribe(parsed, refs[i]!.database, refs[i]!.table, result, false)));
+  if (refs.length === 1) return block(describeSections(parsed, refs[0]!.database, refs[0]!.table, results[0]!, true));
+  // One list item per table, so the sections of several tables never repeat a top-level key.
+  return block({
+    tables: results.map((result, i) => {
+      const { table, ...sections } = describeSections(parsed, refs[i]!.database, refs[i]!.table, result, false);
+      return { ...(table as Obj), ...sections };
+    }),
+  });
 }
 
 type DescribeResult = Awaited<ReturnType<typeof describeIn>>;
@@ -306,13 +312,13 @@ async function describeIn(s: Session, database: string, table: string) {
 }
 
 /** One table's sections; a missing table fails a single describe and is reported inline among several. */
-function renderDescribe(parsed: ParsedArgs, database: string, table: string, result: DescribeResult, single: boolean): string {
+function describeSections(parsed: ParsedArgs, database: string, table: string, result: DescribeResult, single: boolean): Obj {
   const name = `${database}.${table}`;
   if (!result.found) {
     const close = closeNames(table, result.names);
     const hints = [...(close.length > 0 ? [`did you mean: ${close.join(", ")}`] : []), `Run \`${followUp(parsed, `find ${shellQuote(table)}`)}\``];
     if (single) throw axiError(`table '${name}' not found`, "NOT_FOUND", hints);
-    return block({ table: { name, status: "not found", hint: hints[0]! } });
+    return { table: { name, status: "not found", hint: hints[0]! } };
   }
   const { info, columns, indexes, outgoing, incoming, checks, triggers } = result;
   const view = info["type"] === "VIEW";
@@ -341,24 +347,23 @@ function renderDescribe(parsed: ParsedArgs, database: string, table: string, res
     ...(withComments ? { comment: c["comment"] || null } : {}),
   }));
   const ref = (db: unknown, t: unknown): string => (db === database ? String(t) : `${String(db)}.${String(t)}`);
-  return out(
-    block({ table: header }),
-    block({ columns: cols }),
-    indexes.length > 0 && block({ indexes: indexes.map((i) => ({ name: i["name"], columns: i["cols"], unique: n(i["non_unique"]) === 0 })) }),
-    outgoing.length > 0 &&
-      block({
-        foreign_keys: outgoing.map((f) => ({
-          name: f["name"],
-          columns: f["cols"],
-          references: `${ref(f["ref_db"], f["ref_table"])}(${String(f["ref_cols"])})`,
-          on_delete: f["on_delete"],
-          on_update: f["on_update"],
-        })),
-      }),
-    checks.length > 0 && block({ checks: checks.map((c) => ({ name: c["name"], clause: c["clause"] })) }),
-    triggers.length > 0 && block({ triggers: triggers.map((t) => ({ name: t["name"], timing: t["timing"], event: t["event"] })) }),
-    incoming.length > 0 && block({ referenced_by: incoming.map((f) => ({ table: ref(f["db"], f["tbl"]), columns: f["cols"] })) }),
-  );
+  return {
+    table: header,
+    columns: cols,
+    ...(indexes.length > 0 && { indexes: indexes.map((i) => ({ name: i["name"], columns: i["cols"], unique: n(i["non_unique"]) === 0 })) }),
+    ...(outgoing.length > 0 && {
+      foreign_keys: outgoing.map((f) => ({
+        name: f["name"],
+        columns: f["cols"],
+        references: `${ref(f["ref_db"], f["ref_table"])}(${String(f["ref_cols"])})`,
+        on_delete: f["on_delete"],
+        on_update: f["on_update"],
+      })),
+    }),
+    ...(checks.length > 0 && { checks: checks.map((c) => ({ name: c["name"], clause: c["clause"] })) }),
+    ...(triggers.length > 0 && { triggers: triggers.map((t) => ({ name: t["name"], timing: t["timing"], event: t["event"] })) }),
+    ...(incoming.length > 0 && { referenced_by: incoming.map((f) => ({ table: ref(f["db"], f["tbl"]), columns: f["cols"] })) }),
+  };
 }
 
 // --- sample ---
@@ -413,7 +418,8 @@ export async function queryCommand(args: string[]): Promise<string> {
   const outcome = await read(target, parsed, (s) => s.run(sql, limit, [], MAX_ROWS));
   if (outcome.kind !== "rows") return block({ result: "ok - no rows", elapsed_ms: outcome.elapsedMs });
   const raw = rawTextColumns(statements(tokenize(sql).tokens)[0] ?? [], outcome);
-  if (raw.size > 0 && outcome.rows.length > 0) return rawTextOutput(outcome, raw, bool(parsed, "--full"));
+  // Fences for one row only: several (SHOW ENGINE INNODB MUTEX) would repeat their keys.
+  if (raw.size > 0 && outcome.rows.length === 1) return rawTextOutput(outcome, raw, bool(parsed, "--full"));
   return out(rowsBlock(outcome, bool(parsed, "--full"), limit), helpBlock(truncationHelp(outcome, MAX_ROWS, parsed)));
 }
 
@@ -432,12 +438,11 @@ function rawTextColumns(statement: readonly Token[], outcome: RowsOutcome): Set<
 }
 
 function rawTextOutput(outcome: RowsOutcome, raw: Set<number>, full: boolean): string {
-  const rows = records({ ...outcome, columns: outcome.columns.filter((_, i) => !raw.has(i)), rows: outcome.rows.map((r) => r.filter((_, i) => !raw.has(i))) }, full);
+  const [fields] = records({ ...outcome, columns: outcome.columns.filter((_, i) => !raw.has(i)), rows: outcome.rows.map((r) => r.filter((_, i) => !raw.has(i))) }, full);
+  const row = outcome.rows[0]!;
   return out(
-    ...outcome.rows.flatMap((row, r) => [
-      Object.keys(rows[r]!).length > 0 && block(rows[r]!),
-      ...[...raw].map((i) => fenced(outcome.columns[i]!.name.toLowerCase().split(" ").slice(0, 2).join("_"), redactSecrets(String(row[i] ?? "")))),
-    ]),
+    Object.keys(fields!).length > 0 && block(fields!),
+    ...[...raw].map((i) => fenced(outcome.columns[i]!.name.toLowerCase().split(" ").slice(0, 2).join("_"), redactSecrets(String(row[i] ?? "")))),
   );
 }
 

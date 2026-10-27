@@ -76,6 +76,14 @@ mysql-rw-axi exec "UPDATE orders SET status = 'paid' WHERE id = 42"   # affected
 - **Separate from `mysql-axi`:** the profiles, keychain entries and env vars are not shared, so read-write credentials are never visible to the read-only tool.
 - **Env override:** `MYSQL_RW_AXI_URL=mysql://user:password@127.0.0.1:3306/database`.
 
+## Scripts
+
+Output is strict [TOON](https://github.com/toon-format/toon) apart from raw text (plans, DDL) between `---` fences. For scripts, `--json` anywhere on the line prints the same payload as JSON, with raw text as a string field (`plan`, `create_table`, `explain`); errors keep their exit code:
+
+```sh
+mysql-rw-axi exec "UPDATE orders SET status = 'paid' WHERE id = 42" --json | jq '.exec.affected_rows'
+```
+
 ## Agent integration
 
 There are two ways to tell an agent about `mysql-rw-axi`, and you only need one. Install either only where writing is wanted:

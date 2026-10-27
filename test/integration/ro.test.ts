@@ -145,7 +145,7 @@ describe("listing and schema", () => {
     expect(exitCode).toBe(0);
     expect(stdout).toContain(`name: ${DB}.orders`);
     expect(stdout).toContain(`name: ${DB}.customers`);
-    expect(stdout).toContain(`table:\n  name: ${DB}.order\n  status: not found\n  hint: "did you mean: orders"`);
+    expect(stdout).toContain(`  - name: ${DB}.order\n    status: not found\n    hint: "did you mean: orders"`);
   });
 
   it("find matches table and column names case-insensitively and literally", async () => {

@@ -114,6 +114,14 @@ mysql-axi query "SHOW CREATE TABLE orders" --full
 - **Env override:** `MYSQL_AXI_URL=mysql://user:password@host:port/database` overrides the profiles.
 - **Picking a profile:** use `-p/--profile <name>` (before or after the command), or `MYSQL_AXI_PROFILE` for a single command.
 
+## Scripts
+
+Output is strict [TOON](https://github.com/toon-format/toon) apart from raw text (plans, DDL) between `---` fences. For scripts, `--json` anywhere on the line prints the same payload as JSON, with raw text as a string field (`plan`, `create_table`, `explain`); errors keep their exit code:
+
+```sh
+mysql-axi query "SELECT id, status FROM orders LIMIT 5" --json | jq -r '.result[]?.id'
+```
+
 ## Live overview
 
 Run `mysql-axi` with no command to see the server version, then the default database's tables, or the largest databases when no database is set, and the next commands to try. It reads through the same read-only session as every other command, with short limits: 3 s to reach the server and 10 s in total. When it cannot connect it prints `live: unavailable - <why>` with a hint and still exits 0. `-p` and `-d` work without a command: `mysql-axi -p staging -d shop`.
@@ -128,8 +136,8 @@ server: MySQL 8.0.46
 database: shop - 4 tables; 1 views; 2.3 MB
 tables[5]: customers,order_items,orders,paid_orders,reviews
 help[2]:
-  Run `mysql-axi tables` for row estimates and sizes; `mysql-axi describe <table>` for columns and indexes
-  Run `mysql-axi query "<sql>" -p <profile> -d <database>` or `mysql-axi explain "<select>"`; `mysql-axi <command> --help` for flags
+  - Run `mysql-axi tables` for row estimates and sizes; `mysql-axi describe <table>` for columns and indexes
+  - Run `mysql-axi query "<sql>" -p <profile> -d <database>` or `mysql-axi explain "<select>"`; `mysql-axi <command> --help` for flags
 ```
 
 ## Agent integration
@@ -161,9 +169,9 @@ profiles[1]{name,target,active}:
   dev,"app@127.0.0.1:3306/shop",true
 last_session: 2026-10-22 - query 6; describe 3; tables 1 - profile dev; database shop
 help[3]:
-  Run `mysql-axi` for live server state; `mysql-axi --help` for commands
-  Run `mysql-axi find <name>`, `mysql-axi tables`, `mysql-axi describe <table>...` or `mysql-axi sample <table>` to explore
-  Run `mysql-axi query "<sql>" -p <profile> -d <database>` or `mysql-axi explain "<select>"`; `mysql-axi <command> --help` for flags
+  - Run `mysql-axi` for live server state; `mysql-axi --help` for commands
+  - Run `mysql-axi find <name>`, `mysql-axi tables`, `mysql-axi describe <table>...` or `mysql-axi sample <table>` to explore
+  - Run `mysql-axi query "<sql>" -p <profile> -d <database>` or `mysql-axi explain "<select>"`; `mysql-axi <command> --help` for flags
 ```
 
 | Command | Applies to | Files written |

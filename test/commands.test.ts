@@ -1,6 +1,8 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { decode } from "@toon-format/toon";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { helpBlock } from "../packages/core/src/render.js";
 import { fake, resetFake, type Reply } from "./fake-mysql.js";
 import { ro, rw, useTestEnv } from "./helpers.js";
 
@@ -144,10 +146,10 @@ describe("hints carry the invocation", () => {
       "SELECT TABLE_NAME AS name, TABLE_TYPE": { columns: ["name", "type", "rows_est", "data", "idx"], rows: [["orders", "BASE TABLE", 1, 0, 0], ["customers", "BASE TABLE", 1, 0, 0]] },
     });
     expect(help((await ro("databases", "-p", "staging", "--limit", "1")).stdout)).toBe(
-      "help[2]:\n  Showing 1 of 2 - Run `mysql-axi databases -p staging --limit 2` to list all\n  Run `mysql-axi tables -d <database> -p staging` to list its tables\n",
+      "help[2]:\n  - Showing 1 of 2 - Run `mysql-axi databases -p staging --limit 2` to list all\n  - Run `mysql-axi tables -d <database> -p staging` to list its tables\n",
     );
     expect(help((await ro("-p", "staging", "tables", "-d", "shop", "--limit=1")).stdout)).toBe(
-      "help[2]:\n  Showing 1 of 2 - Run `mysql-axi tables -d shop --limit 2 -p staging` to list all\n  Run `mysql-axi describe <table> -p staging -d shop` for columns; indexes and foreign keys\n",
+      "help[2]:\n  - Showing 1 of 2 - Run `mysql-axi tables -d shop --limit 2 -p staging` to list all\n  - Run `mysql-axi describe <table> -p staging -d shop` for columns; indexes and foreign keys\n",
     );
   });
 
@@ -159,7 +161,7 @@ describe("hints carry the invocation", () => {
     expect((await ro("describe", "order items", "-p", "staging", "-d", "shop")).stdout).toContain("Run `mysql-axi find 'order items' -p staging -d shop`");
     fake.responder = answer({ SELECT: { error: { errno: 3024, sqlMessage: "Query execution was interrupted" } } });
     expect((await ro("query", "SELECT 1", "-p", "staging", "-d", "shop")).stdout).toContain(
-      'help[2]:\n  Check the plan with `mysql-axi explain "<select>" -p staging -d shop` and narrow the query to an indexed WHERE\n  Raise --timeout',
+      'help[2]:\n  - Check the plan with `mysql-axi explain "<select>" -p staging -d shop` and narrow the query to an indexed WHERE\n  - Raise --timeout',
     );
   });
 
@@ -216,7 +218,7 @@ describe("hints carry the invocation", () => {
     fake.responder = answer({ "SELECT VERSION()": { columns: ["version", "user"], rows: [["8.0.46", "root@%"]] }, "SELECT 1 FROM": { columns: ["1"], rows: [] } });
     const { stdout } = await rw("auth", "login", "--profile", "dev", "--user", "root", "--no-password", "-d", "shop_test");
     expect(help(stdout)).toBe(
-      "help[3]:\n  Database 'shop_test' does not exist yet - create it with `mysql-rw-axi db create shop_test -p dev`\n  Run `mysql-rw-axi doctor -p dev` to check the account's grants\n  Run `mysql-rw-axi` for an overview\n",
+      "help[3]:\n  - Database 'shop_test' does not exist yet - create it with `mysql-rw-axi db create shop_test -p dev`\n  - Run `mysql-rw-axi doctor -p dev` to check the account's grants\n  - Run `mysql-rw-axi` for an overview\n",
     );
   });
 });
@@ -322,8 +324,8 @@ describe("refusals", () => {
           "error: mysql-axi is read-only and has no update command",
           "code: READ_ONLY",
           "help[2]:",
-          "  For data on a local dev database use `mysql-rw-axi exec 'UPDATE ...'`",
-          "  Upgrading is `npm install -g mysql-axi@latest`, run by a human",
+          "  - For data on a local dev database use `mysql-rw-axi exec 'UPDATE ...'`",
+          "  - Upgrading is `npm install -g mysql-axi@latest`, run by a human",
           "",
         ].join("\n"),
       );
@@ -495,5 +497,96 @@ describe("mysql-rw-axi", () => {
     expect(exitCode).toBe(1);
     expect(stdout).toContain("statement 2 of 2 failed");
     expect(stdout).toContain("1 earlier statements were applied");
+  });
+});
+
+describe("machine-readable output", () => {
+  const json = async (run: typeof ro, ...argv: string[]) => {
+    const { stdout, exitCode } = await run(...argv, "--json");
+    return { value: JSON.parse(stdout) as Record<string, any>, exitCode };
+  };
+  const ORDERS_DESCRIBE: Record<string, Reply> = {
+    "SELECT TABLE_TYPE": { columns: ["type", "engine", "rows_est", "bytes", "comment", "collation"], rows: [["BASE TABLE", "InnoDB", 3, 16384, "", "utf8mb4_0900_ai_ci"]] },
+    "SELECT COLUMN_NAME": { columns: ["name", "type", "nullable", "k", "def", "extra", "comment", "coll", "gen"], rows: [["id", "int", "NO", "PRI", null, "", "", null, ""]] },
+    "SELECT INDEX_NAME": { columns: ["name", "cols", "non_unique"], rows: [["PRIMARY", "id", 0]] },
+    "SELECT k.CONSTRAINT_NAME": { columns: ["name"], rows: [] },
+    "SELECT c.CONSTRAINT_NAME": { columns: ["name"], rows: [] },
+    "SELECT TRIGGER_NAME": { columns: ["name"], rows: [] },
+    "SELECT TABLE_SCHEMA": { columns: ["db"], rows: [] },
+  };
+
+  // ro()/rw() already assert strict TOON for each of these; they have no other test.
+  it("commands without their own test still decode as TOON", async () => {
+    fake.responder = answer({
+      "SELECT * FROM `shop`.`orders`": { columns: ["id", "note"], rows: [[1, "a: b, \"c\""]] },
+      "SELECT TABLE_SCHEMA AS db, TABLE_NAME AS name": { columns: ["db", "name", "type", "rows_est"], rows: [["shop", "orders", "BASE TABLE", 3]] },
+      "SELECT TABLE_SCHEMA AS db, TABLE_NAME AS tbl": { columns: ["db", "tbl", "name", "type"], rows: [] },
+      "EXPLAIN FORMAT=TRADITIONAL": { columns: ["id", "select_type", "table", "rows"], rows: [[1, "SIMPLE", "orders", "3"]] },
+      "SHOW ENGINE INNODB MUTEX": { columns: ["Type", "Name", "Status"], rows: [["InnoDB", "rwlock: a.cc:1", "waits=1"], ["InnoDB", "rwlock: b.cc:2", "waits=2"]] },
+    });
+    for (const argv of [["sample", "orders"], ["find", "ord"], ["explain", "--format", "traditional", "SELECT * FROM orders"], ["query", "SHOW ENGINE INNODB MUTEX"]]) {
+      expect((await ro(...argv)).exitCode, argv.join(" ")).toBe(0);
+    }
+    expect((await rw("context")).exitCode).toBe(0);
+  });
+
+  it("describes several tables as one list, so no top-level key repeats", async () => {
+    fake.responder = (sql, values) => (values[1] === "nope" && sql.startsWith("SELECT TABLE_TYPE") ? { columns: ["type"], rows: [] } : sql.startsWith("SELECT TABLE_NAME AS name FROM") ? { columns: ["name"], rows: [["orders"]] } : answer(ORDERS_DESCRIBE)(sql));
+    const { stdout, exitCode } = await ro("describe", "orders", "shop.orders", "nope");
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("tables[3]:\n  - name: shop.orders\n    rows_est: 3");
+    const { value } = await json(ro, "describe", "orders", "shop.orders", "nope");
+    expect(value["tables"].map((t: Record<string, unknown>) => t["name"])).toEqual(["shop.orders", "shop.orders", "shop.nope"]);
+    expect(value["tables"][2]).toMatchObject({ status: "not found" });
+  });
+
+  it("--json decodes the same object TOON shows", async () => {
+    fake.responder = answer({ SELECT: { columns: ["id", "note"], types: [3, 253], rows: [[1, "x: 1"], [2, "42"]] } });
+    const toon = await ro("query", "SELECT id, note FROM orders");
+    expect((await json(ro, "query", "SELECT id, note FROM orders")).value).toEqual(decode(toon.stdout, { strict: true }));
+  });
+
+  it("--json carries fenced raw text as string fields", async () => {
+    const ddl = "CREATE TABLE `orders` (\n  `id` int NOT NULL\n) ENGINE=InnoDB";
+    const plan = '{\n  "query_block": {\n    "select_id": 1\n  }\n}';
+    fake.responder = answer({
+      "SHOW CREATE TABLE": { columns: ["Table", "Create Table"], rows: [["orders", ddl]] },
+      "EXPLAIN FORMAT=JSON": { columns: ["EXPLAIN"], rows: [[plan]] },
+      "EXPLAIN FORMAT=TREE": { columns: ["EXPLAIN"], rows: [["-> Index lookup on orders"]] },
+    });
+    expect((await json(ro, "query", "SHOW CREATE TABLE orders")).value).toEqual({ Table: "orders", create_table: ddl });
+    // Compact JSON stays a string, never decoded as TOON.
+    expect(JSON.parse((await json(ro, "query", "EXPLAIN FORMAT=JSON SELECT 1")).value["explain"])).toEqual({ query_block: { select_id: 1 } });
+    expect((await json(rw, "explain", "SELECT * FROM orders WHERE id = 1")).value).toEqual({ plan: "-> Index lookup on orders" });
+  });
+
+  it("--json keeps errors structured and the exit code", async () => {
+    const { value, exitCode } = await json(ro, "query", "DELETE FROM orders");
+    expect(exitCode).toBe(2);
+    expect(value).toMatchObject({ code: "READ_ONLY" });
+    expect(Array.isArray(value["help"] ?? [])).toBe(true);
+    expect(fake.connections).toHaveLength(0);
+  });
+
+  it("--json works before the command and on the home view", async () => {
+    fake.responder = answer({ "SELECT VERSION()": { columns: ["version", "read_only"], rows: [["8.4.0", 0]] }, SELECT: { columns: ["name"], rows: [] } });
+    const first = await ro("--json", "query", "DELETE FROM orders");
+    expect(JSON.parse(first.stdout)).toMatchObject({ code: "READ_ONLY" });
+    expect(first.exitCode).toBe(2);
+    for (const run of [ro, rw]) {
+      const { stdout, exitCode } = await run("--json");
+      expect(exitCode).toBe(0);
+      expect(JSON.parse(stdout)).toMatchObject({ connection: expect.stringContaining("127.0.0.1"), help: expect.any(Array) });
+    }
+  });
+
+  it("help lines that look like key: value stay strings", () => {
+    const lines = ["Run `x` to see: a,b", "42", 'say "hi"', "- dash", "tab\there"];
+    expect(decode(helpBlock(lines), { strict: true })).toEqual({ help: lines });
+  });
+
+  it("--json wraps help pages that are not TOON", async () => {
+    expect(JSON.parse((await ro("--help", "--json")).stdout)["text"]).toContain("usage: mysql-axi");
+    expect(JSON.parse((await rw("exec", "--help", "--json")).stdout)["text"]).toContain("usage: mysql-rw-axi exec");
   });
 });

@@ -20,6 +20,8 @@ commands[11]:
   (none)=live overview (takes -p, -d), find, databases, tables, describe, sample, query, explain, doctor, auth, setup, context (session hooks)
 connection flags (every command that reads):
   -p/--profile <name>, -d/--database <name>, --timeout <seconds> (default 30)
+flags[3]:
+  --json (JSON instead of TOON, for scripts; anywhere on the line), --help, -v/-V/--version
 examples:
   mysql-axi find voucher
   mysql-axi tables --sort size

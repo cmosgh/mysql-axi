@@ -42,6 +42,9 @@ describe("session capture", () => {
     expect(findInvocations("/opt/bin/mysql-axi frobnicate secret", "mysql-axi", lookup)).toEqual([{ command: "other" }]);
     expect(findInvocations("mysql-axi --help", "mysql-axi", lookup)).toEqual([{ command: "help" }]);
     expect(findInvocations("mysql-axi -d shop", "mysql-axi", lookup)).toEqual([{ command: "home", database: "shop" }]);
+    // --json may stand anywhere and never names the command.
+    expect(findInvocations("mysql-axi --json query 'SELECT 1' -d shop", "mysql-axi", lookup)).toEqual([{ command: "query", database: "shop" }]);
+    expect(findInvocations("mysql-axi --json", "mysql-axi", lookup)).toEqual([{ command: "home" }]);
     expect(findInvocations("mysql-axi --limit 5 --database=shop tables", "mysql-axi", lookup)).toEqual([{ command: "tables", database: "shop" }]);
     expect(findInvocations("echo mysql-axi; grep mysql-axi x", "mysql-axi", lookup)).toEqual([]);
   });
@@ -474,7 +477,7 @@ describe("home", () => {
     const { stdout, exitCode } = await ro();
     expect(exitCode).toBe(0);
     expect(stdout).toContain("profiles[1]{name,target,active}:");
-    expect(stdout).toContain("live: unavailable - the OS keychain is disabled (MYSQL_AXI_NO_KEYCHAIN=1)\nhelp[2]:\n  Set MYSQL_AXI_URL instead\n");
+    expect(stdout).toContain("live: unavailable - the OS keychain is disabled (MYSQL_AXI_NO_KEYCHAIN=1)\nhelp[2]:\n  - Set MYSQL_AXI_URL instead\n");
     expect(fake.connections).toHaveLength(0);
   });
 
@@ -487,7 +490,7 @@ describe("home", () => {
       await vi.advanceTimersByTimeAsync(10_000);
       const { stdout, exitCode } = await run;
       expect(exitCode).toBe(0);
-      expect(stdout).toContain("live: unavailable - no answer within 10 s\nhelp[1]:\n  Run `mysql-axi doctor` to diagnose\n");
+      expect(stdout).toContain("live: unavailable - no answer within 10 s\nhelp[1]:\n  - Run `mysql-axi doctor` to diagnose\n");
       expect(fake.connections[0]!.destroyed).toBe(true);
     } finally {
       vi.useRealTimers();

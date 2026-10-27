@@ -22,7 +22,7 @@ import {
 } from "./commands/read.js";
 import { setupCommand, setupHelp } from "./commands/setup.js";
 import { AxiError, exitCodeForError } from "./errors.js";
-import { out, renderErrorOutput } from "./render.js";
+import { out, renderErrorOutput, setJsonMode, toJson } from "./render.js";
 import { setTool, type Tool } from "./tool.js";
 
 export interface Command {
@@ -118,9 +118,15 @@ export async function runCli(spec: CliSpec, options: MainOptions = {}): Promise<
   const canonical = (word: string): string | undefined => (commands[word] ? (ALIASES[word] ?? word) : isBareSql(word, commands) ? "query" : undefined);
   commands["context"] = { run: (args) => contextCommand(args, { description: spec.description, canonical }), help: contextHelp };
   const names = { ...spec.refusals, ...commands };
+  // Stripped here: the SDK rejects flags before the command, and --json may stand anywhere.
+  const argv = options.argv ?? process.argv.slice(2);
+  const json = argv.includes("--json");
+  setJsonMode(json);
+  const stdout = options.stdout ?? process.stdout;
+  let buffered = "";
   await runAxiCli({
-    argv: routeBareSql(hoistLeadingFlags(options.argv ?? process.argv.slice(2), names), names),
-    ...(options.stdout ? { stdout: options.stdout } : {}),
+    argv: routeBareSql(hoistLeadingFlags(json ? argv.filter((a) => a !== "--json") : argv, names), names),
+    stdout: json ? { write: (chunk: string) => (buffered += chunk) } : stdout,
     description: spec.description,
     version: spec.version,
     topLevelHelp: spec.topHelp,
@@ -147,4 +153,8 @@ export async function runCli(spec: CliSpec, options: MainOptions = {}): Promise<
       ])}\n`,
     formatError,
   });
+  if (!json) return;
+  // The SDK only guards the stdout it writes to: `--json | head` must not crash on EPIPE either.
+  if (stdout === process.stdout) process.stdout.on("error", (error: NodeJS.ErrnoException) => { if (error.code !== "EPIPE") throw error; });
+  stdout.write(toJson(buffered));
 }
