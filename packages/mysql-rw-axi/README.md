@@ -94,3 +94,14 @@ There are two ways to tell an agent about `mysql-rw-axi`, and you only need one.
 Allow `Bash(mysql-rw-axi:*)` only in projects where an agent should change a local database.
 
 MySQL 8.x only. MIT licensed.
+
+<!-- axi-tools:start -->
+## Other AXI tools
+
+- [`mysql-axi`](https://github.com/cmosgh/mysql-axi/tree/main/packages/mysql-axi): Read-only MySQL CLI for agents
+- [`atl-axi`](https://github.com/cmosgh/atl-axi): Atlassian Jira Cloud CLI for agents
+- [`bb-axi`](https://github.com/cmosgh/bb-axi): Bitbucket Cloud CLI for agents
+- [`hetzner-axi`](https://github.com/cmosgh/hetzner-axi): Hetzner Cloud CLI for agents
+- [`mongo-axi`](https://github.com/cmosgh/mongo-axi): Read-only MongoDB CLI for agents, plus `mongo-rw-axi` (write-capable MongoDB CLI for agents, loopback hosts only)
+- [`ts-axi`](https://github.com/cmosgh/ts-axi): TypeScript symbol CLI for agents
+<!-- axi-tools:end -->
