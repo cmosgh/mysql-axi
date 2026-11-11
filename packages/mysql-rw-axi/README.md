@@ -103,5 +103,6 @@ MySQL 8.x only. MIT licensed.
 - [`bb-axi`](https://github.com/cmosgh/bb-axi): Bitbucket Cloud CLI for agents
 - [`hetzner-axi`](https://github.com/cmosgh/hetzner-axi): Hetzner Cloud CLI for agents
 - [`mongo-axi`](https://github.com/cmosgh/mongo-axi): Read-only MongoDB CLI for agents, plus `mongo-rw-axi` (write-capable MongoDB CLI for agents, loopback hosts only)
+- [`secrets-axi`](https://github.com/cmosgh/secrets-axi): Secrets guard CLI for agents
 - [`ts-axi`](https://github.com/cmosgh/ts-axi): TypeScript symbol CLI for agents
 <!-- axi-tools:end -->

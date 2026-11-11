@@ -7,5 +7,6 @@
 - [`mongo-axi`](https://www.npmjs.com/package/mongo-axi): Read-only MongoDB CLI for agents
 - [`mongo-rw-axi`](https://www.npmjs.com/package/mongo-rw-axi): Write-capable MongoDB CLI for agents, loopback hosts only
 - [`mysql-axi`](https://www.npmjs.com/package/mysql-axi): Read-only MySQL CLI for agents
+- [`secrets-axi`](https://www.npmjs.com/package/secrets-axi): Secrets guard CLI for agents
 - [`ts-axi`](https://www.npmjs.com/package/ts-axi): TypeScript symbol CLI for agents
 <!-- axi-tools:end -->
