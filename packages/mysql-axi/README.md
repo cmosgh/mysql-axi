@@ -55,7 +55,7 @@ Every statement passes through two layers:
    - `FOR UPDATE`/`FOR SHARE` and `LOCK IN SHARE MODE`;
    - `EXPLAIN ANALYZE` in SQL (use `explain --analyze`, which allows only a SELECT) and `EXPLAIN` of INSERT/UPDATE/DELETE;
    - calls to `SLEEP`, `BENCHMARK`, `GET_LOCK`/`RELEASE_LOCK`, `LOAD_FILE` and state-changing loadable functions, also with quoted names. Columns that share these names are fine;
-   - executable comments (`/*! */`) and the `SET_VAR`/`RESOURCE_GROUP` optimizer hints. Plan hints such as `INDEX()` are allowed.
+   - executable comments (`/*! */`), the `RESOURCE_GROUP` hint, and `SET_VAR` for anything but planner settings (`optimizer_switch`, `optimizer_search_depth`, `optimizer_prune_level`, `eq_range_index_dive_limit`) and `group_concat_max_len` up to 1 MiB. `MAX_EXECUTION_TIME` may lower `--timeout` but not lift it. Plan hints such as `INDEX()` are allowed.
 
    The SQL must pass under both backslash-escape modes, so a server running `NO_BACKSLASH_ESCAPES` cannot read a statement differently from the guard.
 2. **A read-only session.** Each call opens its own connection, sets `SESSION transaction_read_only = ON` and runs inside `START TRANSACTION READ ONLY`, with `multipleStatements` off. MySQL itself then refuses DML, DDL and writes made by stored functions.

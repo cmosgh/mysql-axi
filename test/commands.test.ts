@@ -73,6 +73,13 @@ describe("query", () => {
     expect(stdout).toContain("code: TIMEOUT");
   });
 
+  it("blames the statement's own MAX_EXECUTION_TIME hint when it is below --timeout", async () => {
+    fake.responder = answer({ SELECT: { error: { errno: 3024, sqlMessage: "Query execution was interrupted" } } });
+    const { stdout } = await ro("query", "SELECT /*+ MAX_EXECUTION_TIME(20) */ 1");
+    expect(stdout).toContain("stopped by its own MAX_EXECUTION_TIME(20) hint");
+    expect(stdout).not.toContain("Raise --timeout");
+  });
+
   it("hints at renamed flags", async () => {
     const { stdout, exitCode } = await ro("query", "SELECT 1", "--max", "5");
     expect(exitCode).toBe(2);
