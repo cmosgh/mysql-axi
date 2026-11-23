@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AxiError } from "../packages/core/src/errors.js";
-import { assertReadOnly, mainVerb, statements, tokenize } from "../packages/core/src/sql.js";
+import { assertReadOnly, hintTimeoutMs, mainVerb, statements, tokenize } from "../packages/core/src/sql.js";
 
 function refusal(sql: string): string | undefined {
   try {
@@ -28,6 +28,8 @@ describe("read-only guard - allowed", () => {
     "DESC orders",
     "DESCRIBE orders",
     "EXPLAIN SELECT * FROM orders",
+    "SELECT /*+ SET_VAR(optimizer_switch = 'prefer_ordering_index=off') */ 1",
+    "SELECT /*+ MAX_EXECUTION_TIME(25000) SET_VAR(group_concat_max_len = 1048576) */ 1",
     "EXPLAIN FORMAT=TREE SELECT 1",
     "TABLE orders",
     "SELECT 'DROP TABLE x; INTO OUTFILE' AS s",
@@ -109,7 +111,10 @@ describe("read-only guard - refused", () => {
     ["WITH x AS (SELECT 1) UPDATE t SET a = 1", "WITH ... UPDATE"],
     ["/*!50000 DROP TABLE t */", "executable comments"],
     ["SELECT 1 /*!50000 ; DROP TABLE t */", "executable comments"],
-    ["SELECT /*+ SET_VAR(transaction_read_only = 0) */ 1", "SET_VAR optimizer hint"],
+    ["SELECT /*+ SET_VAR(transaction_read_only = 0) */ 1", "SET_VAR(transaction_read_only) is not allowed"],
+    ["SELECT /*+ SET_VAR(optimizer_switch = 'mrr=on') SET_VAR(max_execution_time = 0) */ 1", "SET_VAR(max_execution_time) is not allowed"],
+    ["SELECT /*+ SET_VAR(group_concat_max_len = 99999999) */ 1", "takes a number up to 1048576"],
+    ["SELECT /*+ SET_VAR(optimizer_switch = CONCAT('a', 'b')) */ 1", "must be SET_VAR(<name> = <value>)"],
     ["SELECT /*+ INDEX(t a) */ /*+ RESOURCE_GROUP(rg) */ 1", "RESOURCE_GROUP optimizer hint"],
     ["EXPLAIN UPDATE orders SET status = 'x' WHERE id = 1", "EXPLAIN UPDATE needs a write session"],
     ["EXPLAIN FORMAT=TREE DELETE FROM orders WHERE id = 1", "EXPLAIN DELETE"],
@@ -137,6 +142,28 @@ describe("read-only guard - refused", () => {
     const message = refusal(sql);
     expect(message).toMatch(/^VALIDATION_ERROR/);
     expect(message).toContain(reason);
+  });
+});
+
+describe("MAX_EXECUTION_TIME hint", () => {
+  const capped = (sql: string): string | undefined => {
+    try {
+      assertReadOnly(sql, { maxExecutionMs: 30000 });
+      return undefined;
+    } catch (error) {
+      return (error as Error).message;
+    }
+  };
+
+  it("may lower the session cap but not lift it", () => {
+    expect(capped("SELECT /*+ MAX_EXECUTION_TIME(25000) */ 1")).toBeUndefined();
+    expect(capped("SELECT /*+ MAX_EXECUTION_TIME(60000) */ 1")).toContain("above the --timeout of 30s");
+    expect(capped("SELECT /*+ MAX_EXECUTION_TIME(0) */ 1")).toContain("MAX_EXECUTION_TIME(0)");
+  });
+
+  it("reports the smallest hint", () => {
+    expect(hintTimeoutMs("SELECT /*+ MAX_EXECUTION_TIME(900) */ 1 UNION SELECT /*+ MAX_EXECUTION_TIME(20) */ 2")).toBe(20);
+    expect(hintTimeoutMs("SELECT '/*+ MAX_EXECUTION_TIME(5) */'")).toBeUndefined();
   });
 });
 

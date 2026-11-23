@@ -388,6 +388,23 @@ describe("nothing gets written", () => {
     expect(stdout).toContain("read-only guard");
   });
 
+  it("runs statement-scoped planner hints as the app writes them", async () => {
+    const sql = "SELECT /*+ MAX_EXECUTION_TIME(25000) SET_VAR(optimizer_switch = 'prefer_ordering_index=off') SET_VAR(group_concat_max_len = 4096) */ @@optimizer_switch LIKE '%prefer_ordering_index=off%' AS hinted, @@group_concat_max_len AS gc";
+    const { stdout, exitCode } = await ro("query", sql);
+    expect(exitCode, stdout).toBe(0);
+    expect(stdout).toContain("1,4096");
+    const after = await ro("query", "SELECT @@group_concat_max_len AS gc");
+    expect(after.stdout).not.toContain("4096");
+  });
+
+  it("names the statement's own MAX_EXECUTION_TIME hint when it fires", async () => {
+    const { stdout } = await ro(
+      "query",
+      "SELECT /*+ MAX_EXECUTION_TIME(5) */ COUNT(*) AS n FROM information_schema.COLUMNS a, information_schema.COLUMNS b, information_schema.COLUMNS c",
+    );
+    expect(stdout).toContain("MAX_EXECUTION_TIME(5) hint");
+  });
+
   it("a writing stored function is stopped by the read-only session", async () => {
     const { stdout, exitCode } = await ro("query", "SELECT bump()");
     expect(exitCode).toBe(2);

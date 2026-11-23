@@ -4,7 +4,7 @@ import { withSession, type RowsOutcome, type Session } from "../connection.js";
 import { AxiError, axiError, usageError } from "../errors.js";
 import { block, fenced, helpBlock, humanBytes, out, type Obj } from "../render.js";
 import { redactSecrets } from "../secrets.js";
-import { assertReadOnly, mainVerb, quoteIdent, statements, tokenize, type Token } from "../sql.js";
+import { assertReadOnly, hintTimeoutMs, mainVerb, quoteIdent, SET_VAR_ALLOWED_NAMES, statements, tokenize, type Token } from "../sql.js";
 import type { Target } from "../target.js";
 import { tool } from "../tool.js";
 import {
@@ -29,11 +29,19 @@ const MAX_LIST = 10_000;
 const n = (value: unknown): number => (value === null || value === undefined ? 0 : Number(value));
 
 /** Every read command goes through here: read-only session, server-side time cap. */
-async function read<T>(target: Target, parsed: ParsedArgs, fn: (s: Session) => Promise<T>, freshStats = false): Promise<T> {
+async function read<T>(target: Target, parsed: ParsedArgs, fn: (s: Session) => Promise<T>, freshStats = false, sql?: string): Promise<T> {
   try {
     return await withSession(target, { readOnly: true, timeoutMs: timeoutMs(parsed), freshStats }, fn);
   } catch (error) {
     if (!(error instanceof AxiError) || error.code !== "TIMEOUT") throw error;
+    // MySQL reports both caps as error 3024; a hint below --timeout is the one that fired.
+    const hint = sql === undefined ? undefined : hintTimeoutMs(sql);
+    if (hint !== undefined && hint < timeoutMs(parsed)) {
+      throw new AxiError(`query stopped by its own MAX_EXECUTION_TIME(${hint}) hint`, "TIMEOUT", [
+        "Raise or drop the hint to let it run longer (up to --timeout)",
+        `Check the plan with \`${followUp(parsed, 'explain "<select>"')}\``,
+      ]);
+    }
     throw new AxiError(error.message, error.code, [`Check the plan with \`${followUp(parsed, 'explain "<select>"')}\` and narrow the query to an indexed WHERE`, ...error.suggestions]);
   }
 }
@@ -393,7 +401,8 @@ export async function sampleCommand(args: string[]): Promise<string> {
 
 export const queryHelp = (): string => `usage: ${tool().name} query "<sql>" [flags]
 Runs ONE read statement: SELECT, WITH ... SELECT, SHOW, DESC, EXPLAIN or TABLE. \`${tool().name} "<sql>"\` is short for this.
-It runs in a read-only session and transaction; INTO, FOR UPDATE/SHARE, LOCK, SLEEP, GET_LOCK, LOAD_FILE, executable comments and optimizer hints are refused.
+It runs in a read-only session and transaction; INTO, FOR UPDATE/SHARE, LOCK, SLEEP, GET_LOCK, LOAD_FILE, executable comments and the RESOURCE_GROUP hint are refused. Optimizer hints run; SET_VAR takes only ${SET_VAR_ALLOWED_NAMES.join(", ")} (group_concat_max_len up to 1048576), and MAX_EXECUTION_TIME may only lower --timeout.
+elapsed_ms is printed when a query takes 1 s or more.
 flags:
   ${CONNECTION_FLAGS_HELP}, --limit <n> (rows; default 50; max ${MAX_ROWS}), --full (no 200-char cell truncation), --file <path> (SQL from a file; - reads stdin), --timeout <seconds> (default 30)
 examples:
@@ -413,9 +422,9 @@ export async function queryCommand(args: string[]): Promise<string> {
   const sql = sqlInput(parsed, `${command} "<sql>"`);
   const limit = intFlag(parsed, "--limit", 50, { min: 1, max: MAX_ROWS });
   const write = tool().writeCommand;
-  assertReadOnly(sql, write ? { writeHint: `Writes go through \`${followUp(parsed, write)}\`` } : {});
+  assertReadOnly(sql, { maxExecutionMs: timeoutMs(parsed), ...(write ? { writeHint: `Writes go through \`${followUp(parsed, write)}\`` } : {}) });
   const target = await targetFrom(parsed);
-  const outcome = await read(target, parsed, (s) => s.run(sql, limit, [], MAX_ROWS));
+  const outcome = await read(target, parsed, (s) => s.run(sql, limit, [], MAX_ROWS), false, sql);
   if (outcome.kind !== "rows") return block({ result: "ok - no rows", elapsed_ms: outcome.elapsedMs });
   const raw = rawTextColumns(statements(tokenize(sql).tokens)[0] ?? [], outcome);
   // Fences for one row only: several (SHOW ENGINE INNODB MUTEX) would repeat their keys.
@@ -465,7 +474,7 @@ export async function explainCommand(args: string[]): Promise<string> {
   const format = enumFlag(parsed, "--format", ["tree", "traditional"] as const, "tree");
   const analyze = bool(parsed, "--analyze");
   if (analyze && format !== "tree") throw usageError("--analyze prints a tree - drop --format traditional");
-  assertReadOnly(sql);
+  assertReadOnly(sql, { maxExecutionMs: timeoutMs(parsed) });
   const verb = mainVerb(statements(tokenize(sql).tokens)[0] ?? []);
   if (verb !== "select" && verb !== "table") {
     throw usageError("explain takes a SELECT (or WITH ... SELECT / TABLE) query", ["Pass the query without the EXPLAIN keyword"]);
@@ -473,7 +482,7 @@ export async function explainCommand(args: string[]): Promise<string> {
   const target = await targetFrom(parsed);
   // ANALYZE runs the SELECT, still inside the read-only transaction and --timeout.
   const prefix = analyze ? "EXPLAIN ANALYZE" : `EXPLAIN FORMAT=${format.toUpperCase()}`;
-  const outcome = await read(target, parsed, (s) => s.run(`${prefix} ${sql}`, MAX_ROWS));
+  const outcome = await read(target, parsed, (s) => s.run(`${prefix} ${sql}`, MAX_ROWS), false, sql);
   if (outcome.kind !== "rows") throw axiError("the server returned no plan", "UNKNOWN");
   const plan = fenced("plan", outcome.rows.map((r) => String(r[0])).join("\n"));
   // The server cuts ANALYZE off at max_execution_time and still returns a plan.

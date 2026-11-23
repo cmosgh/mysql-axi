@@ -226,7 +226,56 @@ const DENIED_CALLS: Record<string, string> = {
 };
 
 /** Hints that change state; the rest (INDEX, JOIN_ORDER, MAX_EXECUTION_TIME, ...) only steer the plan. */
-const DENIED_HINTS = /\b(set_var|resource_group)\b/i;
+const DENIED_HINTS = /\b(resource_group)\b/i;
+
+// SET_VAR lasts one statement. Only planner knobs and a capped GROUP_CONCAT length
+// pass, so a hint cannot lift the tool's own limits (max_execution_time and the like).
+const SET_VAR_ALLOWED: ReadonlyMap<string, number | undefined> = new Map([
+  ["optimizer_switch", undefined],
+  ["optimizer_search_depth", undefined],
+  ["optimizer_prune_level", undefined],
+  ["eq_range_index_dive_limit", undefined],
+  ["group_concat_max_len", 1 << 20],
+]);
+export const SET_VAR_ALLOWED_NAMES = [...SET_VAR_ALLOWED.keys()];
+
+const SET_VAR_CALL = /\bset_var\s*\(\s*([a-z_]+)\s*=\s*([^()]*?)\s*\)/gi;
+const MAX_EXECUTION_CALL = /\bmax_execution_time\s*\(\s*(\d+)\s*\)/gi;
+
+function checkHints(hints: string[], options: ReadOnlyOptions): void {
+  for (const body of hints) {
+    const calls = [...body.matchAll(SET_VAR_CALL)];
+    if (calls.length !== (body.match(/\bset_var\b/gi) ?? []).length) refuse("a SET_VAR hint must be SET_VAR(<name> = <value>)", options);
+    for (const [, rawName, value] of calls) {
+      const name = rawName!.toLowerCase();
+      if (!SET_VAR_ALLOWED.has(name)) {
+        refuse(`SET_VAR(${name}) is not allowed - SET_VAR takes ${SET_VAR_ALLOWED_NAMES.join("; ")}`, options);
+      }
+      const cap = SET_VAR_ALLOWED.get(name);
+      if (cap !== undefined && !(/^\d+$/.test(value!) && Number(value) <= cap)) refuse(`SET_VAR(${name}) takes a number up to ${cap}`, options);
+    }
+    if (options.maxExecutionMs === undefined) continue;
+    for (const [, ms] of body.matchAll(MAX_EXECUTION_CALL)) {
+      // The hint overrides the session cap, and 0 means no limit.
+      const n = Number(ms);
+      if (n === 0 || n > options.maxExecutionMs) {
+        refuse(`MAX_EXECUTION_TIME(${n}) is above the --timeout of ${options.maxExecutionMs / 1000}s - raise --timeout instead`, options);
+      }
+    }
+  }
+}
+
+/** The smallest MAX_EXECUTION_TIME(ms) hint in the statement, if any. */
+export function hintTimeoutMs(sql: string): number | undefined {
+  let min: number | undefined;
+  for (const body of tokenize(sql).hints) {
+    for (const [, ms] of body.matchAll(MAX_EXECUTION_CALL)) {
+      const n = Number(ms);
+      if (n > 0 && (min === undefined || n < min)) min = n;
+    }
+  }
+  return min;
+}
 
 /** Statements MySQL refuses to EXPLAIN inside a read-only transaction. */
 const WRITE_VERBS = new Set(["insert", "update", "delete", "replace"]);
@@ -271,6 +320,8 @@ function callName(t: Token): string | undefined {
 export interface ReadOnlyOptions {
   /** Extra suggestion appended to refusals (e.g. where writes can go instead). */
   writeHint?: string;
+  /** The session time cap; a MAX_EXECUTION_TIME hint may only lower it. */
+  maxExecutionMs?: number;
 }
 
 function refuse(reason: string, options: ReadOnlyOptions): never {
@@ -285,6 +336,7 @@ function checkReadOnly(sql: string, lex: TokenizeOptions, options: ReadOnlyOptio
   if (executableComment) refuse("executable comments (/*! ... */) are not allowed", options);
   const stateHint = hints.map((h) => DENIED_HINTS.exec(h)?.[1]).find(Boolean);
   if (stateHint) refuse(`the ${stateHint.toUpperCase()} optimizer hint changes session state`, options);
+  checkHints(hints, options);
   const list = statements(tokens);
   if (list.length === 0) throw usageError("the SQL is empty");
   if (list.length > 1) refuse(`one statement per call (got ${list.length})`, options);
